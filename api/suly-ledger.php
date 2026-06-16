@@ -5,14 +5,18 @@ $pdo = db();
 
 if ($method === 'GET') {
     $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
-    $employee = $_GET['employee'] ?? '';
+    $resolvedEmployee = auth_resolve_employee(auth_is_store_locked());
+    $employeeFilter = $_GET['employee'] ?? '';
+    if ($resolvedEmployee && auth_is_personal_employee_scope()) {
+        $employeeFilter = $resolvedEmployee['name'];
+    }
 
     $where = 'WHERE sl.store_id = ?';
     $params = [$storeId];
 
-    if ($employee) {
+    if ($employeeFilter) {
         $where .= ' AND sl.employee_name = ?';
-        $params[] = $employee;
+        $params[] = $employeeFilter;
     }
 
     $stmt = $pdo->prepare("SELECT sl.* FROM suly_ledger sl {$where} ORDER BY sl.entry_date DESC, sl.id DESC LIMIT 200");
@@ -37,6 +41,8 @@ if ($method === 'GET') {
         'total_suly_owes'    => (float)$sums['total_suly_owes'],
         'difference'         => (float)$sums['total_owed_to_suly'] - (float)$sums['total_suly_owes'],
         'employees'          => array_column($employees->fetchAll(), 'employee_name'),
+        'current_employee'   => $resolvedEmployee,
+        'employee_locked'    => $resolvedEmployee && auth_is_personal_employee_scope(),
     ]);
 }
 
@@ -46,12 +52,17 @@ if ($method === 'POST') {
     $storeId = resolve_store_id(!empty($data['store_id']) ? (int)$data['store_id'] : null);
     $act = $data['action'] ?? '';
 
+    $resolvedEmployee = auth_resolve_employee(auth_is_store_locked());
+    $employeeNameForEntry = ($resolvedEmployee && auth_is_personal_employee_scope())
+        ? $resolvedEmployee['name']
+        : sanitize($data['employee_name'] ?? '');
+
     if ($act === 'create') {
         validate_required($data, ['description', 'entry_date']);
         $stmt = $pdo->prepare('INSERT INTO suly_ledger (store_id, employee_name, description, owed_to_suly, suly_owes, entry_date, notes) VALUES (?,?,?,?,?,?,?)');
         $stmt->execute([
             $storeId,
-            sanitize($data['employee_name'] ?? ''),
+            $employeeNameForEntry,
             sanitize($data['description']),
             (float)($data['owed_to_suly'] ?? 0),
             (float)($data['suly_owes'] ?? 0),
@@ -65,7 +76,7 @@ if ($method === 'POST') {
         validate_required($data, ['id', 'description']);
         $stmt = $pdo->prepare('UPDATE suly_ledger SET employee_name = ?, description = ?, owed_to_suly = ?, suly_owes = ?, entry_date = ?, notes = ? WHERE id = ? AND store_id = ?');
         $stmt->execute([
-            sanitize($data['employee_name'] ?? ''),
+            $employeeNameForEntry,
             sanitize($data['description']),
             (float)($data['owed_to_suly'] ?? 0),
             (float)($data['suly_owes'] ?? 0),

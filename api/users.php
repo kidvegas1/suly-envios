@@ -60,7 +60,12 @@ if ($method === 'POST') {
                 $role,
                 $role === 'admin' ? ($storeId ?: null) : $storeId,
             ]);
-        json_response(['success' => true, 'id' => sql_last_insert_id($pdo, 'users')], 201);
+        $userId = sql_last_insert_id($pdo, 'users');
+        if (in_array($role, ['manager', 'cashier', 'employee'], true) && $storeId) {
+            $pdo->prepare('INSERT INTO employees (store_id, user_id, name) VALUES (?,?,?)')
+                ->execute([$storeId, $userId, sanitize($data['name'])]);
+        }
+        json_response(['success' => true, 'id' => $userId], 201);
     }
 
     if ($act === 'update') {

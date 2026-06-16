@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Admin-only HTML shells must go through index.php (auth + role guards)
+RewriteRule ^pages/(stores|analytics|import|reports-center)\.html$ index.php [QSA,L]
+
 # If the request is for an existing file or directory, serve it directly
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

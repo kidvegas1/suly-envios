@@ -69,14 +69,26 @@ $stmt = $pdo->prepare($platesQ);
 $stmt->execute(array_merge([$dateFromFull, $dateToFull], $storeParam));
 $plates = $stmt->fetchAll();
 
-// BASE DE DATOS CLIENTES — all clients with transfer summaries
-$clientsQ = "SELECT c.client_code, c.name, c.phone, c.monthly_limit, c.income_verified,
-    (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND date_sent BETWEEN ? AND ?) as period_sent,
-    (SELECT COUNT(*) FROM transfers WHERE client_id = c.id AND date_sent BETWEEN ? AND ?) as period_transfers,
-    (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id) as total_sent
-    FROM clients c ORDER BY c.name";
-$stmt = $pdo->prepare($clientsQ);
-$stmt->execute([$dateFromFull, $dateToFull, $dateFromFull, $dateToFull]);
+// BASE DE DATOS CLIENTES — clients with transfers at scoped store (managers always scoped)
+if ($storeId) {
+    $clientsQ = "SELECT c.client_code, c.name, c.phone, c.monthly_limit, c.income_verified,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND store_id = ? AND date_sent BETWEEN ? AND ?) as period_sent,
+        (SELECT COUNT(*) FROM transfers WHERE client_id = c.id AND store_id = ? AND date_sent BETWEEN ? AND ?) as period_transfers,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND store_id = ?) as total_sent
+        FROM clients c
+        WHERE EXISTS (SELECT 1 FROM transfers t WHERE t.client_id = c.id AND t.store_id = ?)
+        ORDER BY c.name";
+    $stmt = $pdo->prepare($clientsQ);
+    $stmt->execute([$storeId, $dateFromFull, $dateToFull, $storeId, $dateFromFull, $dateToFull, $storeId, $storeId]);
+} else {
+    $clientsQ = "SELECT c.client_code, c.name, c.phone, c.monthly_limit, c.income_verified,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND date_sent BETWEEN ? AND ?) as period_sent,
+        (SELECT COUNT(*) FROM transfers WHERE client_id = c.id AND date_sent BETWEEN ? AND ?) as period_transfers,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id) as total_sent
+        FROM clients c ORDER BY c.name";
+    $stmt = $pdo->prepare($clientsQ);
+    $stmt->execute([$dateFromFull, $dateToFull, $dateFromFull, $dateToFull]);
+}
 $clients = $stmt->fetchAll();
 
 // TRANSFERS — all transfers in range

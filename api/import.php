@@ -1,5 +1,5 @@
 <?php
-$user = auth_require();
+$user = auth_require_admin();
 $method = get_method();
 $pdo = db();
 

@@ -92,15 +92,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                 <span class="nav-label" data-i18n="nav.inventory">Inventory</span>
             </a>
-            <a href="events" class="sidebar-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                <span class="nav-label" data-i18n="nav.events">Events</span>
-            </a>
-            <a href="plates" class="sidebar-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
-                <span class="nav-label" data-i18n="nav.plates">License Plates</span>
-            </a>
-            <a href="import" class="sidebar-link">
+<a href="import" class="sidebar-link">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <span class="nav-label" data-i18n="nav.import">Import Excel</span>
             </a>
@@ -892,47 +884,7 @@
                 XLSX.utils.book_append_sheet(wb, ws, 'TRANSFERENCIAS');
             }
 
-            // ── Sheet 7: PLACAS ──
-            {
-                const rows = [
-                    [`PLACAS — ${storeName}`, '', '', '', `Period: ${range}`],
-                    [],
-                    ['CLIENTE', 'TELEFONO', 'VIN', 'TIPO DE TRAMITE', 'FECHA ENTREGA', 'ABONO', 'DEBE', 'TOTAL', 'STATUS', 'NOTAS'],
-                ];
-                for (const r of (data.plates || [])) {
-                    rows.push([
-                        r.client_name, r.phone || '', r.vin || '', r.service_type || '',
-                        r.delivery_date || '', m(r.payment), m(r.balance), m(r.total),
-                        r.status || '', r.notes || ''
-                    ]);
-                }
-                if (rows.length === 3) rows.push(['(No plates data for this period)']);
-                const ws = XLSX.utils.aoa_to_sheet(rows);
-                ws['!cols'] = [{wch:20},{wch:14},{wch:20},{wch:18},{wch:14},{wch:10},{wch:10},{wch:10},{wch:12},{wch:20}];
-                XLSX.utils.book_append_sheet(wb, ws, 'PLACAS');
-            }
-
-            // ── Sheet 8: SALON DE EVENTOS ──
-            {
-                const rows = [
-                    [`SALON DE EVENTOS — ${storeName}`, '', '', '', `Period: ${range}`],
-                    [],
-                    ['NOMBRE DE CLIENTE', 'TELEFONO', 'FECHA DE EVENTO', 'ANTICIPO', 'BALANCE', 'TOTAL', 'TEMA COLOR', 'PAQUETE', 'STATUS', 'NOTAS'],
-                ];
-                for (const r of (data.events || [])) {
-                    rows.push([
-                        r.client_name, r.phone || '', r.event_date || '',
-                        m(r.deposit), m(r.balance), m(r.total),
-                        r.color_theme || '', r.package || '', r.status || '', r.notes || ''
-                    ]);
-                }
-                if (rows.length === 3) rows.push(['(No events data for this period)']);
-                const ws = XLSX.utils.aoa_to_sheet(rows);
-                ws['!cols'] = [{wch:22},{wch:14},{wch:16},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12},{wch:20}];
-                XLSX.utils.book_append_sheet(wb, ws, 'SALON DE EVENTOS');
-            }
-
-            // ── Sheet 9: INVENTARIO MEDICINA ──
+            // ── Sheet 7: INVENTARIO MEDICINA ──
             {
                 const rows = [
                     [`INVENTARIO MEDICINA — ${storeName}`],

@@ -27,34 +27,55 @@ function fincen_period_config(?string $period = null): array {
     ];
 }
 
+function clients_store_transfer_sql(int $storeId): string {
+    return ' AND store_id = ' . (int)$storeId;
+}
+
+function clients_list_store_where(int $storeId): string {
+    return 'EXISTS (SELECT 1 FROM transfers t_scope WHERE t_scope.client_id = c.id AND t_scope.store_id = ' . (int)$storeId . ')';
+}
+
 if ($method === 'GET') {
     $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $action = $_GET['action'] ?? 'list';
 
     if ($action === 'detail' && isset($_GET['id'])) {
         $clientId = (int)$_GET['id'];
+        auth_require_client_store_access($pdo, $clientId);
         $stmt = $pdo->prepare('SELECT * FROM clients WHERE id = ?');
         $stmt->execute([$clientId]);
         $client = $stmt->fetch();
         if (!$client) json_error('Client not found', 404);
 
-        // Monthly usage for current month
+        $storeParams = [$clientId, $storeId];
+
+        // Monthly usage for current month (scoped to store for non-admins)
         $month = $_GET['month'] ?? date('Y-m');
         $monthStart = $month . '-01';
         $monthEnd = date('Y-m-t', strtotime($monthStart));
 
-        $usage = $pdo->prepare('SELECT COALESCE(SUM(amount_usd),0) as total FROM transfers WHERE client_id = ? AND date_sent BETWEEN ? AND ?');
-        $usage->execute([$clientId, $monthStart, $monthEnd . ' 23:59:59']);
+        if (auth_is_admin()) {
+            $usage = $pdo->prepare('SELECT COALESCE(SUM(amount_usd),0) as total FROM transfers WHERE client_id = ? AND date_sent BETWEEN ? AND ?');
+            $usage->execute([$clientId, $monthStart, $monthEnd . ' 23:59:59']);
+        } else {
+            $usage = $pdo->prepare('SELECT COALESCE(SUM(amount_usd),0) as total FROM transfers WHERE client_id = ? AND store_id = ? AND date_sent BETWEEN ? AND ?');
+            $usage->execute([$clientId, $storeId, $monthStart, $monthEnd . ' 23:59:59']);
+        }
         $monthUsage = (float)$usage->fetch()['total'];
 
-        // Recent transfers
-        $transfers = $pdo->prepare('SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id WHERE t.client_id = ? ORDER BY t.date_sent DESC LIMIT 50');
-        $transfers->execute([$clientId]);
-
-        // Monthly summary
-        $monthExpr = sql_date_format_ym('date_sent');
-        $monthlySummary = $pdo->prepare("SELECT {$monthExpr} as month, COUNT(*) as cnt, SUM(amount_usd) as total FROM transfers WHERE client_id = ? GROUP BY {$monthExpr} ORDER BY month DESC LIMIT 12");
-        $monthlySummary->execute([$clientId]);
+        if (auth_is_admin()) {
+            $transfers = $pdo->prepare('SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id WHERE t.client_id = ? ORDER BY t.date_sent DESC LIMIT 50');
+            $transfers->execute([$clientId]);
+            $monthExpr = sql_date_format_ym('date_sent');
+            $monthlySummary = $pdo->prepare("SELECT {$monthExpr} as month, COUNT(*) as cnt, SUM(amount_usd) as total FROM transfers WHERE client_id = ? GROUP BY {$monthExpr} ORDER BY month DESC LIMIT 12");
+            $monthlySummary->execute([$clientId]);
+        } else {
+            $transfers = $pdo->prepare('SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id WHERE t.client_id = ? AND t.store_id = ? ORDER BY t.date_sent DESC LIMIT 50');
+            $transfers->execute($storeParams);
+            $monthExpr = sql_date_format_ym('date_sent');
+            $monthlySummary = $pdo->prepare("SELECT {$monthExpr} as month, COUNT(*) as cnt, SUM(amount_usd) as total FROM transfers WHERE client_id = ? AND store_id = ? GROUP BY {$monthExpr} ORDER BY month DESC LIMIT 12");
+            $monthlySummary->execute($storeParams);
+        }
 
         // Receivers
         $receivers = $pdo->prepare('SELECT * FROM receivers WHERE client_id = ? ORDER BY name');
@@ -99,15 +120,17 @@ if ($method === 'GET') {
     }
     $orderBy = $sortMap[$sort] ?? 'c.name ASC';
 
+    $storeSql = clients_store_transfer_sql($storeId);
+
     $baseSelect = "SELECT c.*,
-        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND {$periodSql}) as period_usage,
-        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND date_sent >= " . sql_month_start(0) . ") as month_usage,
-        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id) as total_sent,
-        (SELECT COUNT(*) FROM transfers WHERE client_id = c.id) as transfer_count,
-        (SELECT MAX(date_sent) FROM transfers WHERE client_id = c.id) as last_transfer
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id{$storeSql} AND {$periodSql}) as period_usage,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id{$storeSql} AND date_sent >= " . sql_month_start(0) . ") as month_usage,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id{$storeSql}) as total_sent,
+        (SELECT COUNT(*) FROM transfers WHERE client_id = c.id{$storeSql}) as transfer_count,
+        (SELECT MAX(date_sent) FROM transfers WHERE client_id = c.id{$storeSql}) as last_transfer
         FROM clients c";
 
-    $where = [];
+    $where = [clients_list_store_where($storeId)];
     $params = [];
 
     if ($search) {
@@ -117,7 +140,7 @@ if ($method === 'GET') {
     }
 
     if ($filter === 'fincen') {
-        $where[] = "(SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id AND {$periodSql}) >= ?";
+        $where[] = "(SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id{$storeSql} AND {$periodSql}) >= ?";
         $params[] = $fincenThreshold;
     }
 
@@ -158,10 +181,8 @@ if ($method === 'POST') {
 
         if ($act === 'upload_income') {
             $clientId = (int)($_POST['client_id'] ?? 0);
+            auth_require_client_store_access($pdo, $clientId);
             $newLimit = (float)($_POST['new_limit'] ?? 5000);
-            $client = $pdo->prepare('SELECT id FROM clients WHERE id = ?');
-            $client->execute([$clientId]);
-            if (!$client->fetch()) json_error('Client not found', 404);
             if (empty($_FILES['income_file'])) json_error('No file provided');
             $path = upload_file($_FILES['income_file'], 'income-docs');
             if (!$path) json_error('Upload failed');
@@ -172,10 +193,8 @@ if ($method === 'POST') {
 
         if ($act === 'upload_id') {
             $clientId = (int)($_POST['client_id'] ?? 0);
+            auth_require_client_store_access($pdo, $clientId);
             $idType = sanitize($_POST['id_type'] ?? 'other');
-            $client = $pdo->prepare('SELECT id FROM clients WHERE id = ?');
-            $client->execute([$clientId]);
-            if (!$client->fetch()) json_error('Client not found', 404);
             if (empty($_FILES['id_file'])) json_error('No file provided');
             $path = upload_file($_FILES['id_file'], 'client-ids');
             if (!$path) json_error('Upload failed');
@@ -186,6 +205,7 @@ if ($method === 'POST') {
 
         if ($act === 'upload_receiver_id') {
             $receiverId = (int)($_POST['receiver_id'] ?? 0);
+            auth_require_receiver_store_access($pdo, $receiverId);
             $idType = sanitize($_POST['id_type'] ?? 'other');
             $recv = $pdo->prepare('SELECT id FROM receivers WHERE id = ?');
             $recv->execute([$receiverId]);
@@ -221,6 +241,8 @@ if ($method === 'POST') {
 
     if ($act === 'update') {
         validate_required($data, ['id', 'name']);
+        $clientId = (int)$data['id'];
+        auth_require_client_store_access($pdo, $clientId);
         $stmt = $pdo->prepare('UPDATE clients SET client_code = ?, name = ?, phone = ?, monthly_limit = ?, income_verified = ?, notes = ? WHERE id = ?');
         $stmt->execute([
             sanitize($data['client_code'] ?? ''),
@@ -239,6 +261,7 @@ if ($method === 'POST') {
 
         // Check monthly limit
         $clientId = (int)$data['client_id'];
+        auth_require_client_store_access($pdo, $clientId);
         $stmt = $pdo->prepare('SELECT monthly_limit FROM clients WHERE id = ?');
         $stmt->execute([$clientId]);
         $client = $stmt->fetch();
@@ -248,8 +271,8 @@ if ($method === 'POST') {
         $monthStart = date('Y-m-01', strtotime($dateSent));
         $monthEnd = date('Y-m-t', strtotime($dateSent));
 
-        $usage = $pdo->prepare('SELECT COALESCE(SUM(amount_usd),0) as total FROM transfers WHERE client_id = ? AND date_sent BETWEEN ? AND ?');
-        $usage->execute([$clientId, $monthStart, $monthEnd . ' 23:59:59']);
+        $usage = $pdo->prepare('SELECT COALESCE(SUM(amount_usd),0) as total FROM transfers WHERE client_id = ? AND store_id = ? AND date_sent BETWEEN ? AND ?');
+        $usage->execute([$clientId, $storeId, $monthStart, $monthEnd . ' 23:59:59']);
         $currentUsage = (float)$usage->fetch()['total'];
         $newAmount = (float)$data['amount_usd'];
 
@@ -284,6 +307,7 @@ if ($method === 'POST') {
 
     if ($act === 'verify_income') {
         validate_required($data, ['client_id', 'new_limit']);
+        auth_require_client_store_access($pdo, (int)$data['client_id']);
         $stmt = $pdo->prepare('UPDATE clients SET income_verified = ' . sql_bool(true) . ', monthly_limit = ? WHERE id = ?');
         $stmt->execute([(float)$data['new_limit'], (int)$data['client_id']]);
         json_response(['success' => true]);
@@ -291,6 +315,7 @@ if ($method === 'POST') {
 
     if ($act === 'update_limit') {
         validate_required($data, ['id', 'monthly_limit']);
+        auth_require_client_store_access($pdo, (int)$data['id']);
         $newLimit = max(0, (float)$data['monthly_limit']);
         $stmt = $pdo->prepare('UPDATE clients SET monthly_limit = ? WHERE id = ?');
         $stmt->execute([$newLimit, (int)$data['id']]);
@@ -327,6 +352,7 @@ if ($method === 'POST') {
 
     if ($act === 'add_receiver') {
         validate_required($data, ['client_id', 'name']);
+        auth_require_client_store_access($pdo, (int)$data['client_id']);
         $stmt = $pdo->prepare('INSERT INTO receivers (client_id, name, phone, destination_country, destination_city, notes) VALUES (?,?,?,?,?,?)');
         $stmt->execute([
             (int)$data['client_id'], sanitize($data['name']),
@@ -338,6 +364,7 @@ if ($method === 'POST') {
 
     if ($act === 'update_receiver') {
         validate_required($data, ['id', 'name']);
+        auth_require_receiver_store_access($pdo, (int)$data['id']);
         $stmt = $pdo->prepare('UPDATE receivers SET name = ?, phone = ?, destination_country = ?, destination_city = ?, notes = ? WHERE id = ?');
         $stmt->execute([
             sanitize($data['name']), sanitize($data['phone'] ?? ''),
@@ -349,12 +376,14 @@ if ($method === 'POST') {
 
     if ($act === 'delete_receiver') {
         validate_required($data, ['id']);
+        auth_require_receiver_store_access($pdo, (int)$data['id']);
         $pdo->prepare('DELETE FROM receivers WHERE id = ?')->execute([(int)$data['id']]);
         json_response(['success' => true]);
     }
 
     if ($act === 'list_receivers') {
         validate_required($data, ['client_id']);
+        auth_require_client_store_access($pdo, (int)$data['client_id']);
         $stmt = $pdo->prepare('SELECT * FROM receivers WHERE client_id = ? ORDER BY name');
         $stmt->execute([(int)$data['client_id']]);
         json_response(['receivers' => $stmt->fetchAll()]);

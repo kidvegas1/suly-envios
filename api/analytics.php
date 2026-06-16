@@ -1,15 +1,14 @@
 <?php
 $user = auth_require();
+if (!auth_is_admin()) {
+    json_error('Admin access required', 403);
+}
 $method = get_method();
 $pdo = db();
 
 if ($method === 'GET') {
     $year = (int)($_GET['year'] ?? date('Y'));
-    if (auth_is_admin()) {
-        $filterStore = !empty($_GET['store_id']) ? (int)$_GET['store_id'] : null;
-    } else {
-        $filterStore = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
-    }
+    $filterStore = !empty($_GET['store_id']) ? (int)$_GET['store_id'] : null;
     $storeWhere = $filterStore ? ' AND t.store_id = ?' : '';
     $storeParam = $filterStore ? [(int)$filterStore] : [];
 

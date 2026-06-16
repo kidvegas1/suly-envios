@@ -69,6 +69,15 @@ $pageMap = [
 ];
 
 if (isset($pageMap[$path])) {
+    $pageKey = trim($path, '/') ?: 'login';
+    if ($pageKey !== 'login' && !auth_check()) {
+        header('Location: /login', true, 302);
+        exit;
+    }
+    if ($pageKey !== 'login' && !auth_page_allowed($pageKey)) {
+        header('Location: /dashboard', true, 302);
+        exit;
+    }
     $file = __DIR__ . '/' . $pageMap[$path];
     if (file_exists($file)) {
         readfile($file);

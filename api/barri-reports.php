@@ -578,8 +578,12 @@ if ($method === 'POST') {
 
     if ($act === 'search_clients') {
         $q = '%' . ($data['query'] ?? '') . '%';
-        $stmt = $pdo->prepare('SELECT id, name, phone FROM clients WHERE name LIKE ? ORDER BY name LIMIT 20');
-        $stmt->execute([$q]);
+        $stmt = $pdo->prepare(
+            'SELECT DISTINCT c.id, c.name, c.phone FROM clients c
+             INNER JOIN transfers t ON t.client_id = c.id AND t.store_id = ?
+             WHERE c.name LIKE ? ORDER BY c.name LIMIT 20'
+        );
+        $stmt->execute([$storeId, $q]);
         json_response(['clients' => $stmt->fetchAll()]);
     }
 

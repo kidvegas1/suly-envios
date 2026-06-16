@@ -15,6 +15,8 @@ if (!storage_is_remote($ref)) {
     json_error('Invalid storage reference', 400);
 }
 
+auth_require_stored_path_access($ref);
+
 $inline = isset($_GET['inline']) && $_GET['inline'] !== '0';
 storage_serve($ref, [
     'inline' => $inline,

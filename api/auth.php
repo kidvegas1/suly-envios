@@ -44,10 +44,19 @@ if ($method === 'GET') {
         json_response(['authenticated' => false]);
     }
     $user = auth_user();
-    $stores = db()->query('SELECT id, name, address, phone, barri_agency_number, barri_operator_number, viamericas_agency_number, intercambio_agency_number, intermex_agency_number FROM stores WHERE ' . sql_is_active() . ' ORDER BY name')->fetchAll();
-    if ($user['role'] !== 'admin') {
+    if ($user['role'] === 'admin') {
+        $stores = db()->query(
+            'SELECT id, name, address, phone, barri_agency_number, barri_operator_number, viamericas_agency_number, intercambio_agency_number, intermex_agency_number FROM stores WHERE ' . sql_is_active() . ' ORDER BY name'
+        )->fetchAll();
+    } else {
         $userStoreId = (int)($user['store_id'] ?? 0);
-        $stores = array_values(array_filter($stores, fn($s) => (int)$s['id'] === $userStoreId));
+        if ($userStoreId <= 0) {
+            json_error('No store assigned to your account', 403);
+        }
+        $stmt = db()->prepare('SELECT id, name, address, phone FROM stores WHERE id = ? AND ' . sql_is_active());
+        $stmt->execute([$userStoreId]);
+        $row = $stmt->fetch();
+        $stores = $row ? [$row] : [];
     }
     json_response([
         'authenticated' => true,

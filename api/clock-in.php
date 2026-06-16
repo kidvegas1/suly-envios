@@ -8,9 +8,13 @@ if ($method === 'GET') {
     $action = $_GET['action'] ?? 'today';
 
     if ($action === 'employees') {
+        $current = auth_resolve_employee(auth_is_store_locked());
         $stmt = $pdo->prepare('SELECT id, name, phone FROM employees WHERE store_id = ? AND status = \'active\' ORDER BY name');
         $stmt->execute([$storeId]);
-        json_response(['employees' => $stmt->fetchAll()]);
+        json_response([
+            'employees' => $stmt->fetchAll(),
+            'current_employee' => $current,
+        ]);
     }
 
     if ($action === 'today') {
@@ -25,6 +29,9 @@ if ($method === 'GET') {
     }
 
     if ($action === 'history') {
+        if (!auth_is_admin()) {
+            json_error('Admin access required', 403);
+        }
         $employeeId = $_GET['employee_id'] ?? null;
         $startDate = $_GET['start'] ?? date('Y-m-d', strtotime('-7 days'));
         $endDate = $_GET['end'] ?? date('Y-m-d');
@@ -68,6 +75,13 @@ if ($method === 'POST') {
         $employeeId = (int)($_POST['employee_id'] ?? 0);
         if (!$employeeId) json_error('Employee is required');
 
+        if (!auth_is_admin()) {
+            $mine = auth_resolve_employee(true);
+            if (!$mine || $employeeId !== $mine['id']) {
+                json_error('You can only clock in as yourself', 403);
+            }
+        }
+
         $empCheck = $pdo->prepare('SELECT id FROM employees WHERE id = ? AND store_id = ?');
         $empCheck->execute([$employeeId, $storeId]);
         if (!$empCheck->fetch()) json_error('Employee not found', 404);
@@ -105,6 +119,13 @@ if ($method === 'POST') {
         $record = $stmt->fetch();
         if (!$record) json_error('Active clock-in not found');
 
+        if (!auth_is_admin()) {
+            $mine = auth_resolve_employee(true);
+            if (!$mine || (int)$record['employee_id'] !== $mine['id']) {
+                json_error('You can only clock out yourself', 403);
+            }
+        }
+
         $photoPath = null;
         if (!empty($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
             $photoPath = upload_file($_FILES['photo'], 'clock-in');
@@ -122,6 +143,9 @@ if ($method === 'POST') {
     }
 
     if ($action === 'add_employee') {
+        if (!auth_is_admin()) {
+            json_error('Admin access required', 403);
+        }
         $data = $_POST;
         if (empty($data['name'])) json_error('Employee name is required');
         $stmt = $pdo->prepare('INSERT INTO employees (store_id, name, phone, hourly_rate) VALUES (?,?,?,?)');
