@@ -104,6 +104,9 @@ if ($method === 'POST') {
             $params[] = $storeId;
         }
         if (!empty($data['password'])) {
+            if ($id === (int)$user['id']) {
+                json_error('You cannot change your own password here', 400);
+            }
             if (strlen($data['password']) < 8) {
                 json_error('Password must be at least 8 characters', 400);
             }
@@ -130,19 +133,6 @@ if ($method === 'POST') {
         }
         $pdo->prepare('UPDATE users SET active = ' . sql_bool(false) . ' WHERE id = ?')->execute([$id]);
         json_response(['success' => true]);
-    }
-
-    if ($act === 'reset_all_employee_passwords') {
-        validate_required($data, ['password']);
-        if (strlen($data['password']) < 8) {
-            json_error('Password must be at least 8 characters', 400);
-        }
-        $hash = password_hash($data['password'], PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare(
-            'UPDATE users SET password_hash = ? WHERE ' . sql_is_active() . " AND role IN ('manager', 'employee', 'cashier')"
-        );
-        $stmt->execute([$hash]);
-        json_response(['success' => true, 'updated' => $stmt->rowCount()]);
     }
 
     json_error('Unknown action', 400);

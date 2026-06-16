@@ -98,10 +98,6 @@
                         <p class="text-xs text-text-muted" data-i18n="stores.team_subtitle">Create store managers and assign them to a location</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button id="btn-reset-all-passwords" type="button" class="btn-secondary flex items-center gap-2 px-4 py-2 text-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            <span data-i18n="stores.reset_all_passwords">Reset All Passwords</span>
-                        </button>
                         <button id="btn-add-user" class="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                             <span data-i18n="stores.add_user">Add User</span>
@@ -116,11 +112,12 @@
                                 <th class="pb-2 pr-4" data-i18n="stores.col.email">Email</th>
                                 <th class="pb-2 pr-4" data-i18n="stores.col.role">Role</th>
                                 <th class="pb-2 pr-4" data-i18n="stores.col.store">Store</th>
-                                <th class="pb-2" data-i18n="common.status">Status</th>
+                                <th class="pb-2 pr-4" data-i18n="common.status">Status</th>
+                                <th class="pb-2" data-i18n="stores.col.actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="users-table-body">
-                            <tr><td colspan="5" class="py-6 text-center text-text-muted" data-i18n="stores.loading_users">Loading users...</td></tr>
+                            <tr><td colspan="6" class="py-6 text-center text-text-muted" data-i18n="stores.loading_users">Loading users...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -205,7 +202,10 @@
             </div>
             <div>
                 <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.temp_password">Temporary Password *</label>
-                <input type="password" id="user-password-input" class="input w-full" required minlength="8" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
+                <div class="flex gap-2">
+                    <input type="text" id="user-password-input" class="input w-full font-mono" required minlength="8" autocomplete="new-password" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
+                    <button type="button" id="btn-generate-create-password" class="btn-secondary px-3 py-2 text-xs shrink-0" data-i18n="stores.generate_password">Generate</button>
+                </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -228,36 +228,60 @@
             </div>
         </form>
     </div>
-    <div class="modal-backdrop" id="reset-passwords-modal-backdrop"></div>
-    <div class="modal-content w-full max-w-lg" id="reset-passwords-modal">
+    <div class="modal-backdrop" id="set-password-modal-backdrop"></div>
+    <div class="modal-content w-full max-w-lg" id="set-password-modal">
         <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-bold" data-i18n="stores.reset_passwords_modal_title">Reset All Employee Passwords</h3>
-            <button type="button" onclick="closeResetPasswordsModal()" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
+            <h3 class="text-lg font-bold" id="set-password-modal-title">Set Password</h3>
+            <button type="button" onclick="closeSetPasswordModal()" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
-        <form id="reset-passwords-form" class="space-y-4">
-            <div class="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
-                <p class="text-sm text-warning flex items-start gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 mt-0.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                    <span data-i18n="stores.reset_passwords_warning">This will reset passwords for all active employees, managers, and cashiers. Admin accounts are not affected. Everyone will need the new temporary password to sign in.</span>
-                </p>
-            </div>
+        <form id="set-password-form" class="space-y-4">
+            <input type="hidden" id="set-password-user-id" value="">
+            <p class="text-sm text-text-secondary" id="set-password-user-meta"></p>
             <div>
                 <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.temp_password">Temporary Password *</label>
-                <input type="password" id="reset-password-input" class="input w-full" required minlength="8" autocomplete="new-password" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
+                <div class="flex gap-2">
+                    <input type="text" id="set-password-input" class="input w-full font-mono" required minlength="8" autocomplete="new-password" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
+                    <button type="button" id="btn-generate-set-password" class="btn-secondary px-3 py-2 text-xs shrink-0" data-i18n="stores.generate_password">Generate</button>
+                </div>
             </div>
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick="closeResetPasswordsModal()" class="btn-secondary px-4 py-2.5 text-sm" data-i18n="action.cancel">Cancel</button>
-                <button type="submit" id="btn-confirm-reset-passwords" class="btn-danger px-6 py-2.5 text-sm" data-i18n="stores.reset_passwords_apply">Reset All Passwords</button>
+                <button type="button" onclick="closeSetPasswordModal()" class="btn-secondary px-4 py-2.5 text-sm" data-i18n="action.cancel">Cancel</button>
+                <button type="submit" id="btn-save-set-password" class="btn-primary px-6 py-2.5 text-sm" data-i18n="stores.set_password_apply">Set Password</button>
             </div>
         </form>
+    </div>
+    <div class="modal-backdrop" id="show-password-modal-backdrop"></div>
+    <div class="modal-content w-full max-w-lg" id="show-password-modal">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold" data-i18n="stores.password_show_title">Password Set</h3>
+            <button type="button" onclick="closeShowPasswordModal()" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <p class="text-sm text-text-secondary" id="show-password-user-meta"></p>
+            <p class="text-sm text-text-muted" data-i18n="stores.password_show_hint">Save this password now. You can view it again during this session from the team table after setting it.</p>
+            <div>
+                <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.password_show_label">New Password</label>
+                <div class="flex gap-2">
+                    <input type="text" id="show-password-value" class="input w-full font-mono" readonly>
+                    <button type="button" id="btn-copy-password" class="btn-secondary px-3 py-2 text-xs shrink-0" data-i18n="stores.copy_password">Copy</button>
+                </div>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button type="button" onclick="closeShowPasswordModal()" class="btn-primary px-6 py-2.5 text-sm" data-i18n="action.close">Close</button>
+            </div>
+        </div>
     </div>
     <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
         let storesList = [];
         let storeBalances = {};
+        let usersList = [];
+        const passwordCache = {};
         const companyColors = {
             'Barri': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
             'Viamericas': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
@@ -297,32 +321,104 @@
             const sel = document.getElementById('user-store-input');
             sel.innerHTML = storesList.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
             document.getElementById('user-form').reset();
+            document.getElementById('user-password-input').value = generateTempPassword();
             App.openModal('user-modal');
         }
         function closeUserModal() { App.closeModal('user-modal'); }
-        function openResetPasswordsModal() {
-            document.getElementById('reset-passwords-form').reset();
-            App.openModal('reset-passwords-modal');
+        function generateTempPassword() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            let p = '';
+            for (let i = 0; i < 12; i++) p += chars[Math.floor(Math.random() * chars.length)];
+            return p;
         }
-        function closeResetPasswordsModal() { App.closeModal('reset-passwords-modal'); }
 
+        function cacheUserPassword(userId, name, email, password) {
+            passwordCache[userId] = { name, email, password };
+        }
+
+        function openShowPasswordModal(userId) {
+            const cached = passwordCache[userId];
+            if (!cached) return;
+            document.getElementById('show-password-user-meta').textContent = cached.name + ' · ' + cached.email;
+            document.getElementById('show-password-value').value = cached.password;
+            App.openModal('show-password-modal');
+        }
+        function closeShowPasswordModal() { App.closeModal('show-password-modal'); }
+
+        function openSetPasswordModal(userId) {
+            const u = usersList.find(x => String(x.id) === String(userId));
+            if (!u) return;
+            document.getElementById('set-password-user-id').value = u.id;
+            document.getElementById('set-password-modal-title').textContent = t('stores.set_password_title', { name: u.name });
+            document.getElementById('set-password-user-meta').textContent = u.email + ' · ' + roleLabel(u.role);
+            document.getElementById('set-password-input').value = generateTempPassword();
+            App.openModal('set-password-modal');
+        }
+        function closeSetPasswordModal() { App.closeModal('set-password-modal'); }
+
+        function showPasswordReveal(userId, name, email, password) {
+            cacheUserPassword(userId, name, email, password);
+            document.getElementById('show-password-user-meta').textContent = name + ' · ' + email;
+            document.getElementById('show-password-value').value = password;
+            App.openModal('show-password-modal');
+        }
+
+        async function copyPasswordToClipboard() {
+            const value = document.getElementById('show-password-value').value;
+            try {
+                await navigator.clipboard.writeText(value);
+                App.toastKey('stores.password_copied', 'success');
+            } catch (err) {
+                document.getElementById('show-password-value').select();
+                document.execCommand('copy');
+                App.toastKey('stores.password_copied', 'success');
+            }
+        }
+
+        function wireUserTableActions() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.querySelectorAll('.set-password-btn').forEach(btn => {
+                btn.addEventListener('click', () => openSetPasswordModal(btn.dataset.id));
+            });
+            tbody.querySelectorAll('.view-password-btn').forEach(btn => {
+                btn.addEventListener('click', () => openShowPasswordModal(btn.dataset.id));
+            });
+        }
         async function loadUsers() {
             const tbody = document.getElementById('users-table-body');
-            tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-text-muted">' + esc(t('stores.loading_users')) + '</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-text-muted">' + esc(t('stores.loading_users')) + '</td></tr>';
             try {
                 const res = await App.api('GET', '/api/users');
-                const users = res.users || [];
-                if (!users.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-text-muted">' + esc(t('stores.users_empty')) + '</td></tr>';
+                usersList = res.users || [];
+                if (!usersList.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-text-muted">' + esc(t('stores.users_empty')) + '</td></tr>';
                     return;
                 }
-                tbody.innerHTML = users.map(u => `<tr class="border-b border-border/50">
-                    <td class="py-3 pr-4 font-medium">${esc(u.name)}</td>
-                    <td class="py-3 pr-4 text-text-secondary">${esc(u.email)}</td>
-                    <td class="py-3 pr-4">${esc(roleLabel(u.role))}</td>
-                    <td class="py-3 pr-4">${esc(u.store_name || t('empty.none'))}</td>
-                    <td class="py-3">${u.active == 1 ? '<span class="text-success text-xs font-semibold">' + esc(t('stores.user.role_active')) + '</span>' : '<span class="text-danger text-xs font-semibold">' + esc(t('stores.user.role_inactive')) + '</span>'}</td>
-                </tr>`).join('');
+                const selfId = App.user ? String(App.user.id) : '';
+                tbody.innerHTML = usersList.map(u => {
+                    const isSelf = String(u.id) === selfId;
+                    const hasCached = passwordCache[u.id];
+                    let actions = '';
+                    if (!isSelf) {
+                        actions += '<button type="button" class="btn-secondary px-2 py-1 text-xs set-password-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('stores.set_password')) + '</button>';
+                    }
+                    if (hasCached) {
+                        actions += ' <button type="button" class="btn-secondary px-2 py-1 text-xs view-password-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('stores.view_password')) + '</button>';
+                    }
+                    if (!actions) actions = '<span class="text-xs text-text-muted">' + esc(t('empty.none')) + '</span>';
+                    return '<tr class="border-b border-border/50">'
+                        + '<td class="py-3 pr-4 font-medium">' + esc(u.name) + '</td>'
+                        + '<td class="py-3 pr-4 text-text-secondary">' + esc(u.email) + '</td>'
+                        + '<td class="py-3 pr-4">' + esc(roleLabel(u.role)) + '</td>'
+                        + '<td class="py-3 pr-4">' + esc(u.store_name || t('empty.none')) + '</td>'
+                        + '<td class="py-3 pr-4">' + (u.active == 1
+                            ? '<span class="text-success text-xs font-semibold">' + esc(t('stores.user.role_active')) + '</span>'
+                            : '<span class="text-danger text-xs font-semibold">' + esc(t('stores.user.role_inactive')) + '</span>')
+                        + '</td>'
+                        + '<td class="py-3"><div class="flex flex-wrap gap-2">' + actions + '</div></td>'
+                        + '</tr>';
+                }).join('');
+                wireUserTableActions();
             } catch (err) {
                 App.toast(err.message, 'danger');
             }
@@ -499,44 +595,63 @@
             document.getElementById('page-date').textContent = new Date().toLocaleDateString(localeTag(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
             document.getElementById('btn-add-store').addEventListener('click', function() { openStoreModal(null); });
             document.getElementById('btn-add-user')?.addEventListener('click', openUserModal);
-            document.getElementById('btn-reset-all-passwords')?.addEventListener('click', openResetPasswordsModal);
-            document.getElementById('reset-passwords-form')?.addEventListener('submit', async function(e) {
+            document.getElementById('btn-generate-create-password')?.addEventListener('click', () => {
+                document.getElementById('user-password-input').value = generateTempPassword();
+            });
+            document.getElementById('btn-generate-set-password')?.addEventListener('click', () => {
+                document.getElementById('set-password-input').value = generateTempPassword();
+            });
+            document.getElementById('btn-copy-password')?.addEventListener('click', copyPasswordToClipboard);
+            document.getElementById('set-password-form')?.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                if (!App.confirmKey('confirm.reset_all_passwords')) return;
-                const btn = document.getElementById('btn-confirm-reset-passwords');
-                const password = document.getElementById('reset-password-input').value;
+                const userId = document.getElementById('set-password-user-id').value;
+                const password = document.getElementById('set-password-input').value;
+                const u = usersList.find(x => String(x.id) === String(userId));
+                if (!u) return;
+                if (!App.confirmKey('confirm.set_user_password', { name: u.name })) return;
+                const btn = document.getElementById('btn-save-set-password');
                 btn.disabled = true;
                 btn.textContent = t('common.saving');
                 try {
-                    const res = await App.api('POST', '/api/users', {
-                        action: 'reset_all_employee_passwords',
+                    await App.api('POST', '/api/users', {
+                        action: 'update',
+                        id: parseInt(userId, 10),
                         password,
                     });
-                    App.toastKey('toast.passwords_reset', 'success', { count: res.updated ?? 0 });
-                    closeResetPasswordsModal();
+                    closeSetPasswordModal();
+                    showPasswordReveal(u.id, u.name, u.email, password);
+                    App.toastKey('toast.password_updated', 'success', { name: u.name });
+                    await loadUsers();
                 } catch (err) {
                     App.toast(err.message || t('toast.error_generic'), 'danger');
                 } finally {
                     btn.disabled = false;
-                    btn.textContent = t('stores.reset_passwords_apply');
+                    btn.textContent = t('stores.set_password_apply');
                 }
             });
             document.getElementById('user-form')?.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const btn = document.getElementById('btn-save-user');
+                const name = document.getElementById('user-name-input').value.trim();
+                const email = document.getElementById('user-email-input').value.trim();
+                const password = document.getElementById('user-password-input').value;
                 btn.disabled = true;
                 btn.textContent = t('common.creating');
                 try {
-                    await App.api('POST', '/api/users', {
+                    const res = await App.api('POST', '/api/users', {
                         action: 'create',
-                        name: document.getElementById('user-name-input').value.trim(),
-                        email: document.getElementById('user-email-input').value.trim(),
-                        password: document.getElementById('user-password-input').value,
+                        name,
+                        email,
+                        password,
                         role: document.getElementById('user-role-input').value,
                         store_id: parseInt(document.getElementById('user-store-input').value, 10),
                     });
                     App.toastKey('toast.user_created', 'success');
                     closeUserModal();
+                    if (res.id) {
+                        cacheUserPassword(res.id, name, email, password);
+                        showPasswordReveal(res.id, name, email, password);
+                    }
                     await loadUsers();
                 } catch (err) { App.toastKey('toast.error_generic', 'danger'); }
                 finally { btn.disabled = false; btn.textContent = t('stores.create_user'); }
