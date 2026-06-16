@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test": "bash scripts/run-tests.sh"
+  },
   "dependencies": {
     "pdfjs-dist": "^4.0.379",
     "xlsx": "^0.18.5"
