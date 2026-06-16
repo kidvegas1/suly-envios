@@ -174,7 +174,7 @@ if ($method === 'POST') {
                                 ['transfer_count'],
                                 ['store_id', 'company', 'month', 'year']
                             ))
-                                ->execute([$storeId, $company, $monthNum, $year, $count]);
+                                ->execute([$storeId, $company, $monthNum, $year, $count, 0]);
                             $rowsImported++;
                         }
                     }

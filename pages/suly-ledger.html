@@ -268,7 +268,11 @@
                         </td>
                     </tr>
                 `).join('');
-            } catch (err) { App.toast(err.message, 'danger'); }
+            } catch (err) {
+                App.toast(err.message, 'danger');
+                document.getElementById('ledger-tbody').innerHTML =
+                    '<tr><td colspan="7" class="text-center text-danger py-8">Failed to load ledger. Try again.</td></tr>';
+            }
         }
 
         async function editEntry(id) {

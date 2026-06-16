@@ -243,13 +243,15 @@
 
         async function loadToday() {
             const date = document.getElementById('filter-date').value;
-            try {
-                const [todayRes, empRes] = await Promise.all([
-                    App.api('GET', `/api/clock-in?action=today&date=${date}`),
-                    App.api('GET', '/api/clock-in?action=employees'),
-                ]);
+            const cards = document.getElementById('clockin-cards');
+            const sel = document.getElementById('clockin-employee-select');
+            const [todayResult, empResult] = await Promise.allSettled([
+                App.api('GET', `/api/clock-in?action=today&date=${date}`),
+                App.api('GET', '/api/clock-in?action=employees'),
+            ]);
 
-                const cards = document.getElementById('clockin-cards');
+            if (todayResult.status === 'fulfilled') {
+                const todayRes = todayResult.value;
                 if (!todayRes.clock_ins.length) {
                     cards.innerHTML = '<p class="text-sm text-text-muted col-span-full py-4">No clock-ins for this date</p>';
                 } else {
@@ -271,13 +273,19 @@
                         </div>
                     `).join('');
                 }
+            } else {
+                const msg = todayResult.reason?.message || 'Failed to load attendance';
+                cards.innerHTML = '<p class="text-sm text-danger col-span-full py-4">Failed to load attendance. Try again.</p>';
+                App.toast(msg, 'danger');
+            }
 
-                // Update employee select in modal
-                const sel = document.getElementById('clockin-employee-select');
+            if (empResult.status === 'fulfilled') {
                 sel.innerHTML = '<option value="">Select employee...</option>' +
-                    empRes.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-
-            } catch (err) { App.toast(err.message, 'danger'); }
+                    empResult.value.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+            } else {
+                sel.innerHTML = '<option value="">Failed to load employees</option>';
+                App.toast(empResult.reason?.message || 'Failed to load employees', 'danger');
+            }
         }
 
         async function loadHistory() {

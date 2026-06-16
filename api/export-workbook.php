@@ -33,9 +33,10 @@ $stmt->execute(array_merge([$dateFrom, $dateTo], $storeParam));
 $caja = $stmt->fetchAll();
 
 // ESTADISTICAS GIROS — transfer_statistics in date range
+$monthPad = db_is_pgsql() ? "LPAD(month::text, 2, '0')" : 'LPAD(month, 2, \'0\')';
 $statsQ = "SELECT company, month, year, transfer_count, total_usd
     FROM transfer_statistics
-    WHERE CONCAT(year,'-',LPAD(month,2,'0'),'-01') BETWEEN ? AND ?{$storeWhere}
+    WHERE CONCAT(year,'-',{$monthPad},'-01') BETWEEN ? AND ?{$storeWhere}
     ORDER BY year, month, company";
 $stmt = $pdo->prepare($statsQ);
 $stmt->execute(array_merge([$dateFrom, $dateTo], $storeParam));

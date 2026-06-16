@@ -28,7 +28,7 @@ if ($method === 'GET') {
     $sums = $totals->fetch();
 
     // Employee list
-    $employees = $pdo->prepare('SELECT DISTINCT employee_name FROM suly_ledger WHERE store_id = ? AND employee_name IS NOT NULL AND employee_name != "" ORDER BY employee_name');
+    $employees = $pdo->prepare('SELECT DISTINCT employee_name FROM suly_ledger WHERE store_id = ? AND employee_name IS NOT NULL AND employee_name != \'\' ORDER BY employee_name');
     $employees->execute([$storeId]);
 
     json_response([

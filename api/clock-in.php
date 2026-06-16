@@ -15,11 +15,11 @@ if ($method === 'GET') {
 
     if ($action === 'today') {
         $date = $_GET['date'] ?? date('Y-m-d');
-        $stmt = $pdo->prepare("SELECT ci.*, e.name as employee_name
+        $stmt = $pdo->prepare('SELECT ci.*, e.name as employee_name
             FROM clock_ins ci
             JOIN employees e ON e.id = ci.employee_id
             WHERE ci.store_id = ? AND ' . sql_date('ci.clock_in_time') . ' = ?
-            ORDER BY ci.clock_in_time DESC");
+            ORDER BY ci.clock_in_time DESC');
         $stmt->execute([$storeId, $date]);
         json_response(['clock_ins' => $stmt->fetchAll()]);
     }

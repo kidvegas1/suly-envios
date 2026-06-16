@@ -227,7 +227,7 @@ if ($method === 'POST') {
             sanitize($data['name']),
             sanitize($data['phone'] ?? ''),
             (float)($data['monthly_limit'] ?? 3000),
-            (int)($data['income_verified'] ?? 0),
+            db_bool((bool)($data['income_verified'] ?? false)),
             sanitize($data['notes'] ?? ''),
             (int)$data['id'],
         ]);

@@ -20,7 +20,7 @@ if ($method === 'GET') {
     $yearReportFrom = sql_year('report_date_from');
     $yearTxnDate = sql_year('bt.transaction_date');
 
-    $revenueStmt = $pdo->prepare("SELECT s.name as store_name, s.id as store_id, COUNT(t.id) as transfer_count, COALESCE(SUM(t.amount_usd),0) as total_usd, COALESCE(SUM(t.fee),0) as total_fees FROM stores s LEFT JOIN transfers t ON t.store_id = s.id AND {$yearSent} = ? WHERE " . sql_is_active('s.active') . ($filterStore ? ' AND s.id = ?' : '') . " GROUP BY s.id ORDER BY total_usd DESC");
+    $revenueStmt = $pdo->prepare("SELECT s.name as store_name, s.id as store_id, COUNT(t.id) as transfer_count, COALESCE(SUM(t.amount_usd),0) as total_usd, COALESCE(SUM(t.fee),0) as total_fees FROM stores s LEFT JOIN transfers t ON t.store_id = s.id AND {$yearSent} = ? WHERE " . sql_is_active('s.active') . ($filterStore ? ' AND s.id = ?' : '') . " GROUP BY s.id, s.name ORDER BY total_usd DESC");
     $revenueStmt->execute($filterStore ? [$year, (int)$filterStore] : [$year]);
     $revenue = $revenueStmt->fetchAll();
 
@@ -29,7 +29,7 @@ if ($method === 'GET') {
     $monthlyStmt->execute(array_merge([$year], $storeParam));
     $monthly = $monthlyStmt->fetchAll();
 
-    $topQ = "SELECT c.id, c.name, c.phone, c.sender_id_path, COUNT(t.id) as transfer_count, SUM(t.amount_usd) as total_sent, MAX(t.date_sent) as last_transfer FROM clients c JOIN transfers t ON t.client_id = c.id WHERE {$yearSent} = ?{$storeWhere} GROUP BY c.id ORDER BY total_sent DESC LIMIT 50";
+    $topQ = "SELECT c.id, c.name, c.phone, c.sender_id_path, COUNT(t.id) as transfer_count, SUM(t.amount_usd) as total_sent, MAX(t.date_sent) as last_transfer FROM clients c JOIN transfers t ON t.client_id = c.id WHERE {$yearSent} = ?{$storeWhere} GROUP BY c.id, c.name, c.phone, c.sender_id_path ORDER BY total_sent DESC LIMIT 50";
     $topStmt = $pdo->prepare($topQ);
     $topStmt->execute(array_merge([$year], $storeParam));
     $topSenders = $topStmt->fetchAll();

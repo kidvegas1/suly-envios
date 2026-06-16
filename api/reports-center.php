@@ -111,7 +111,7 @@ if ($method === 'GET') {
         FROM transfers t
         JOIN clients c ON c.id = t.client_id
         WHERE {$where}
-        GROUP BY c.id ORDER BY total_sent DESC LIMIT 100";
+        GROUP BY c.id, c.name, c.phone, c.monthly_limit, c.income_verified, c.sender_id_path ORDER BY total_sent DESC LIMIT 100";
     $stmt = $pdo->prepare($topQ);
     $stmt->execute($params);
     $topSenders = $stmt->fetchAll();
@@ -145,7 +145,7 @@ if ($method === 'GET') {
         JOIN stores s ON s.id = t.store_id
         LEFT JOIN clients c ON c.id = t.client_id
         WHERE {$where}
-        GROUP BY s.id ORDER BY total DESC";
+        GROUP BY s.id, s.name ORDER BY total DESC";
     $stmt = $pdo->prepare($storeQ);
     $stmt->execute($params);
     $storeBreakdown = $stmt->fetchAll();
