@@ -5,3 +5,4 @@ assets/uploads/*
 !assets/uploads/.gitkeep
 node_modules/
 *.log
+.vercel
