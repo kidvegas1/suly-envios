@@ -171,6 +171,8 @@ Rules:
 - company must reflect the report vendor (Barri, Viamericas, Intercambio, Intermex, or Ria).
 - totals should match document summary when present; otherwise sum transactions.
 - Do not invent transactions that are not in the document.
+- Viamericas ViaRemote "Creación de Envíos" PDFs: each row has customer, beneficiary, status (Pagado/Cancelado), amounts; transaction ID often on the line after the tab-separated row. Agency ref format A22592-12345678.
+- Viamericas email/table reports: refs like A10556-75771 with date, sender, beneficiary, principal, fee.
 - If the document is not a remittance report, return {"agency_name":"Unknown","date_from":"","date_to":"","transactions":[],"totals":{"qty":0,"principal":0,"fee":0,"tax":0,"total":0,"agcomm":0,"var_fee":0,"var_fx":0}}
 PROMPT;
 }

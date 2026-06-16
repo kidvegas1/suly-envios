@@ -85,28 +85,131 @@ function barri_report_label(array $data): string {
     return $agency . ' (' . ($data['report_date_from'] ?? '?') . ' — ' . ($data['report_date_to'] ?? '?') . ')';
 }
 
+/** @return array<int, string> reference numbers already stored for this store */
+function barri_find_existing_transaction_refs(PDO $pdo, int $storeId, array $refs): array {
+    $refs = array_values(array_unique(array_filter(array_map(static function ($r) {
+        return trim((string)$r);
+    }, $refs))));
+    if ($refs === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($refs), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT DISTINCT reference_number FROM barri_transactions
+         WHERE store_id = ? AND reference_number IN ($placeholders)"
+    );
+    $stmt->execute(array_merge([$storeId], $refs));
+    return array_column($stmt->fetchAll(), 'reference_number');
+}
+
+/** @return list<array<string, mixed>> */
+function barri_find_duplicate_transactions_detail(PDO $pdo, int $storeId, array $refs): array {
+    $refs = array_values(array_unique(array_filter(array_map(static function ($r) {
+        return trim((string)$r);
+    }, $refs))));
+    if ($refs === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($refs), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT bt.reference_number AS reference, bt.report_id, bt.transaction_date, bt.customer_name,
+                br.report_date_from, br.report_date_to, br.agency_number, br.agency_name
+         FROM barri_transactions bt
+         INNER JOIN barri_reports br ON br.id = bt.report_id
+         WHERE bt.store_id = ? AND bt.reference_number IN ($placeholders)
+         ORDER BY bt.reference_number"
+    );
+    $stmt->execute(array_merge([$storeId], $refs));
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function barri_resolve_import_store_id(PDO $pdo, array $user, array $data, ?int $explicitStore): array {
+    $autoStoreId = barri_auto_match_store($pdo, $data);
+    $unassigned = $autoStoreId === null;
+
+    if ($autoStoreId) {
+        $storeId = $autoStoreId;
+        auth_require_store_access($storeId);
+    } elseif ($explicitStore) {
+        $storeId = $explicitStore;
+        auth_require_store_access($storeId);
+    } else {
+        $storeId = resolve_store_id();
+    }
+
+    return ['store_id' => $storeId, 'unassigned' => $unassigned, 'auto_matched' => !$unassigned];
+}
+
+function barri_recompute_payload_totals(array $data): array {
+    $txns = $data['transactions'] ?? [];
+    $totals = [
+        'qty' => count($txns),
+        'principal' => 0.0,
+        'fee' => 0.0,
+        'tax' => 0.0,
+        'total' => 0.0,
+        'agcomm' => 0.0,
+    ];
+    foreach ($txns as $txn) {
+        $totals['principal'] += (float)($txn['principal'] ?? 0);
+        $totals['fee'] += (float)($txn['fee'] ?? 0);
+        $totals['tax'] += (float)($txn['tax'] ?? 0);
+        $totals['total'] += (float)($txn['total'] ?? 0);
+        $totals['agcomm'] += (float)($txn['agcomm'] ?? $txn['ag_commission'] ?? 0);
+    }
+    foreach (['principal', 'fee', 'tax', 'total', 'agcomm'] as $k) {
+        $totals[$k] = round($totals[$k], 2);
+    }
+    $data['transactions'] = $txns;
+    $data['totals'] = $totals;
+    $data['total_transactions'] = $totals['qty'];
+    $data['total_principal'] = $totals['principal'];
+    $data['total_fees'] = $totals['fee'];
+    $data['total_tax'] = $totals['tax'];
+    $data['total_amount'] = $totals['total'];
+    $data['total_agcomm'] = $totals['agcomm'];
+    return $data;
+}
+
+function barri_refresh_report_totals(PDO $pdo, int $reportId): void {
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) AS cnt, COALESCE(SUM(principal), 0) AS principal, COALESCE(SUM(fee), 0) AS fee,
+                COALESCE(SUM(tax), 0) AS tax, COALESCE(SUM(total), 0) AS total,
+                COALESCE(SUM(ag_commission), 0) AS agcomm
+         FROM barri_transactions WHERE report_id = ?'
+    );
+    $stmt->execute([$reportId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        return;
+    }
+    $pdo->prepare(
+        'UPDATE barri_reports SET total_transactions = ?, total_principal = ?, total_fees = ?, total_tax = ?, total_amount = ?, total_agcomm = ? WHERE id = ?'
+    )->execute([
+        (int)$row['cnt'],
+        round((float)$row['principal'], 2),
+        round((float)$row['fee'], 2),
+        round((float)$row['tax'], 2),
+        round((float)$row['total'], 2),
+        round((float)$row['agcomm'], 2),
+        $reportId,
+    ]);
+}
+
 function barri_import_report(PDO $pdo, array $user, array $data, array $options = []): array {
     $explicitStore = $options['explicit_store'] ?? null;
     $pdfFile = $options['pdf_file'] ?? null;
     $skipDuplicates = $options['skip_duplicates'] ?? true;
+    $skipTxnDuplicates = $options['skip_duplicate_transactions'] ?? true;
     $sourceLabel = $options['source_label'] ?? barri_report_label($data);
 
     try {
         $data = barri_normalize_report_data($data);
         validate_required($data, ['agency_name', 'report_date_from', 'report_date_to', 'transactions']);
 
-        $autoStoreId = barri_auto_match_store($pdo, $data);
-        $unassigned = $autoStoreId === null;
-
-        if ($autoStoreId) {
-            $storeId = $autoStoreId;
-            auth_require_store_access($storeId);
-        } elseif ($explicitStore) {
-            $storeId = (int)$explicitStore;
-            auth_require_store_access($storeId);
-        } else {
-            $storeId = resolve_store_id();
-        }
+        $storeCtx = barri_resolve_import_store_id($pdo, $user, $data, $explicitStore ? (int)$explicitStore : null);
+        $storeId = $storeCtx['store_id'];
+        $unassigned = $storeCtx['unassigned'];
 
         $pdfPath = '';
         $originalName = '';
@@ -119,22 +222,58 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         $dateTo = $data['report_date_to'];
         $agencyNum = sanitize($data['agency_number'] ?? '');
 
+        $existingReportId = null;
         if ($skipDuplicates) {
             $dup = $pdo->prepare('SELECT id FROM barri_reports WHERE store_id = ? AND agency_number = ? AND report_date_from = ? AND report_date_to = ?');
             $dup->execute([$storeId, $agencyNum, $dateFrom, $dateTo]);
             $existing = $dup->fetch();
             if ($existing) {
-                return [
-                    'status' => 'duplicate',
-                    'label' => $sourceLabel,
-                    'report_id' => (int)$existing['id'],
-                    'store_id' => $storeId,
-                    'unassigned' => $unassigned,
-                    'auto_matched' => !$unassigned,
-                    'error' => 'Duplicate report for agency and date range',
-                ];
+                $existingReportId = (int)$existing['id'];
             }
         }
+
+        $skippedTxnDuplicates = 0;
+        if ($skipTxnDuplicates && !empty($data['transactions'])) {
+            $refs = [];
+            foreach ($data['transactions'] as $txn) {
+                $r = trim($txn['reference_number'] ?? $txn['reference'] ?? '');
+                if ($r !== '') {
+                    $refs[] = $r;
+                }
+            }
+            $existingRefs = barri_find_existing_transaction_refs($pdo, $storeId, $refs);
+            if ($existingRefs !== []) {
+                $existingSet = array_flip($existingRefs);
+                $filtered = [];
+                foreach ($data['transactions'] as $txn) {
+                    $r = trim($txn['reference_number'] ?? $txn['reference'] ?? '');
+                    if ($r !== '' && isset($existingSet[$r])) {
+                        $skippedTxnDuplicates++;
+                        continue;
+                    }
+                    $filtered[] = $txn;
+                }
+                $data['transactions'] = $filtered;
+            }
+        }
+
+        if (empty($data['transactions'])) {
+            return [
+                'status' => 'duplicate',
+                'label' => $sourceLabel,
+                'report_id' => $existingReportId,
+                'store_id' => $storeId,
+                'unassigned' => $unassigned,
+                'auto_matched' => !$unassigned,
+                'skipped_transaction_duplicates' => $skippedTxnDuplicates,
+                'error' => $skippedTxnDuplicates > 0 || $existingReportId
+                    ? 'All transactions in this file are already imported'
+                    : 'No transactions to import',
+            ];
+        }
+
+        $data = barri_recompute_payload_totals($data);
+        $appendToExisting = $existingReportId !== null;
 
         $company = sanitize($data['company'] ?? 'Barri');
         $storeName = sanitize($data['store_name'] ?? '');
@@ -150,19 +289,23 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
 
         $pdo->beginTransaction();
 
-        $ins = $pdo->prepare('INSERT INTO barri_reports (store_id, user_id, agency_number, agency_name, agency_address, company, store_name, ar_executive, phone, report_date_from, report_date_to, beginning_balance, ending_balance, total_transactions, total_principal, total_fees, total_tax, total_amount, total_agcomm, filename, original_name, status, report_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-        $ins->execute([
-            $storeId, $user['id'], $agencyNum, sanitize($data['agency_name']),
-            sanitize($data['agency_address'] ?? ''), $company, $storeName, $arExec, $reportPhone,
-            $dateFrom, $dateTo,
-            (float)($data['beginning_balance'] ?? 0), (float)($data['ending_balance'] ?? 0),
-            (int)($data['total_transactions'] ?? 0), (float)($data['total_principal'] ?? 0),
-            (float)($data['total_fees'] ?? 0), (float)($data['total_tax'] ?? 0),
-            (float)($data['total_amount'] ?? 0), (float)($data['total_agcomm'] ?? 0),
-            $pdfPath, sanitize($originalName),
-            'pending', $reportType
-        ]);
-        $reportId = sql_last_insert_id($pdo, 'barri_reports');
+        if ($appendToExisting) {
+            $reportId = $existingReportId;
+        } else {
+            $ins = $pdo->prepare('INSERT INTO barri_reports (store_id, user_id, agency_number, agency_name, agency_address, company, store_name, ar_executive, phone, report_date_from, report_date_to, beginning_balance, ending_balance, total_transactions, total_principal, total_fees, total_tax, total_amount, total_agcomm, filename, original_name, status, report_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $ins->execute([
+                $storeId, $user['id'], $agencyNum, sanitize($data['agency_name']),
+                sanitize($data['agency_address'] ?? ''), $company, $storeName, $arExec, $reportPhone,
+                $dateFrom, $dateTo,
+                (float)($data['beginning_balance'] ?? 0), (float)($data['ending_balance'] ?? 0),
+                (int)($data['total_transactions'] ?? 0), (float)($data['total_principal'] ?? 0),
+                (float)($data['total_fees'] ?? 0), (float)($data['total_tax'] ?? 0),
+                (float)($data['total_amount'] ?? 0), (float)($data['total_agcomm'] ?? 0),
+                $pdfPath, sanitize($originalName),
+                'pending', $reportType
+            ]);
+            $reportId = sql_last_insert_id($pdo, 'barri_reports');
+        }
 
         $txnIns = $pdo->prepare('INSERT INTO barri_transactions (report_id, store_id, client_id, transaction_time, transaction_date, transaction_type, reference_number, customer_name, beneficiary_name, description, operator, quantity, principal, fee, tax, total, running_balance, ag_commission, variable_fee, variable_fx, matched, amount_received, received_currency, paying_bank, destination_country, destination_state, destination_city, payment_date, transaction_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $transferIns = $pdo->prepare('INSERT INTO transfers (client_id, store_id, transaction_code, beneficiary, date_sent, amount_usd, fee, tax, company, transaction_type, source) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
@@ -258,6 +401,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         }
 
         $pdo->prepare('UPDATE barri_reports SET status = ? WHERE id = ?')->execute(['processed', $reportId]);
+        barri_refresh_report_totals($pdo, $reportId);
         $pdo->commit();
 
         return [
@@ -267,11 +411,13 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             'store_id' => $storeId,
             'unassigned' => $unassigned,
             'auto_matched' => !$unassigned,
+            'appended_to_existing' => $appendToExisting,
             'total_transactions' => $matchedCount + $unmatchedCount,
             'matched_count' => $matchedCount,
             'unmatched_count' => $unmatchedCount,
             'clients_created' => $createdCount,
             'pushed_to_transfers' => $pushedCount,
+            'skipped_transaction_duplicates' => $skippedTxnDuplicates,
         ];
     } catch (\Throwable $e) {
         if ($pdo->inTransaction()) {
@@ -472,14 +618,24 @@ if ($method === 'POST') {
         }
 
         $pdfFile = (!empty($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) ? $_FILES['pdf_file'] : null;
+        $skipTxnDupes = !isset($_POST['skip_duplicate_transactions']) || $_POST['skip_duplicate_transactions'] !== '0';
         $result = barri_import_report($pdo, $user, $data, [
             'explicit_store' => $explicitStore,
             'pdf_file' => $pdfFile,
             'skip_duplicates' => true,
+            'skip_duplicate_transactions' => $skipTxnDupes,
         ]);
 
         if ($result['status'] === 'duplicate') {
-            json_error($result['error'] ?? 'A report for this agency and date range already exists', 409);
+            json_response([
+                'success' => true,
+                'duplicate' => true,
+                'report_id' => $result['report_id'],
+                'store_id' => $result['store_id'],
+                'unassigned' => $result['unassigned'] ?? false,
+                'skipped_transaction_duplicates' => $result['skipped_transaction_duplicates'] ?? 0,
+                'message' => $result['error'] ?? 'Duplicate report skipped',
+            ]);
         }
         if ($result['status'] === 'failed') {
             json_error($result['error'] ?? 'Import failed', 400);
@@ -494,6 +650,8 @@ if ($method === 'POST') {
             'clients_created' => $result['clients_created'],
             'pushed_to_transfers' => $result['pushed_to_transfers'],
             'unassigned' => $result['unassigned'],
+            'skipped_transaction_duplicates' => $result['skipped_transaction_duplicates'] ?? 0,
+            'appended_to_existing' => $result['appended_to_existing'] ?? false,
         ], 201);
     }
 
@@ -544,6 +702,62 @@ if ($method === 'POST') {
 
     $requestedStore = !empty($data['store_id']) ? (int)$data['store_id'] : null;
     $storeId = resolve_store_id($requestedStore);
+
+    if ($act === 'check_import') {
+        $parsed = $data['parsed'] ?? $data;
+        if (!is_array($parsed)) {
+            json_error('parsed report data is required', 400);
+        }
+        $parsed = barri_normalize_report_data($parsed);
+
+        $explicitStore = $requestedStore;
+        if (!auth_is_admin()) {
+            $explicitStore = null;
+        }
+        $storeCtx = barri_resolve_import_store_id($pdo, $user, $parsed, $explicitStore);
+        $storeId = $storeCtx['store_id'];
+
+        $dateFrom = $parsed['report_date_from'];
+        $dateTo = $parsed['report_date_to'];
+        $agencyNum = sanitize($parsed['agency_number'] ?? '');
+
+        $reportDuplicate = null;
+        $dupStmt = $pdo->prepare(
+            'SELECT id, agency_name, agency_number, report_date_from, report_date_to, total_transactions, created_at
+             FROM barri_reports WHERE store_id = ? AND agency_number = ? AND report_date_from = ? AND report_date_to = ?'
+        );
+        $dupStmt->execute([$storeId, $agencyNum, $dateFrom, $dateTo]);
+        $existingReport = $dupStmt->fetch();
+        if ($existingReport) {
+            $reportDuplicate = $existingReport;
+        }
+
+        $refs = [];
+        foreach ($parsed['transactions'] ?? [] as $txn) {
+            $r = trim($txn['reference_number'] ?? $txn['reference'] ?? '');
+            if ($r !== '') {
+                $refs[] = $r;
+            }
+        }
+        $duplicateTransactions = barri_find_duplicate_transactions_detail($pdo, $storeId, $refs);
+        $dupRefSet = array_flip(array_column($duplicateTransactions, 'reference'));
+        $newCount = 0;
+        foreach ($parsed['transactions'] ?? [] as $txn) {
+            $r = trim($txn['reference_number'] ?? $txn['reference'] ?? '');
+            if ($r === '' || !isset($dupRefSet[$r])) {
+                $newCount++;
+            }
+        }
+
+        json_response([
+            'store_id' => $storeId,
+            'unassigned' => $storeCtx['unassigned'],
+            'report_duplicate' => $reportDuplicate,
+            'duplicate_transactions' => $duplicateTransactions,
+            'duplicate_transaction_count' => count($duplicateTransactions),
+            'new_transaction_count' => $newCount,
+        ]);
+    }
 
     if ($act === 'match') {
         validate_required($data, ['transaction_id', 'client_id']);

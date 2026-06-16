@@ -64,9 +64,9 @@ function resolve_store_filter(?int $requested = null): ?int {
     return resolve_store_id($requested);
 }
 
-/** Build optional store_id SQL fragment for admin all-store reads. */
+/** Build optional store_id SQL fragment for admin all-store reads. Uses ? placeholder — bind store id in params when non-null. */
 function store_filter_sql(string $column = 'store_id', ?int $storeId = null, string $prefix = ' AND '): string {
-    return $storeId ? $prefix . $column . ' = ' . (int)$storeId : '';
+    return $storeId ? $prefix . $column . ' = ?' : '';
 }
 
 function paginate(int $total, int $perPage = 50): array {

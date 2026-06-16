@@ -280,6 +280,36 @@
                     </div>
                 </div>
 
+                <div id="preview-duplicate-banner" class="hidden card !p-4 border-warning/40 bg-warning/5 space-y-3">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-warning/15 flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-warning"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-semibold text-text-primary" id="preview-dup-title">Duplicates detected</p>
+                            <p class="text-sm text-text-muted mt-1" id="preview-dup-summary"></p>
+                            <p class="text-xs text-text-muted mt-2" id="preview-dup-hint">Import will skip duplicate report and transactions automatically.</p>
+                        </div>
+                    </div>
+                    <div id="preview-dup-report" class="hidden text-sm p-3 rounded-lg bg-bg-elevated"></div>
+                    <div id="preview-dup-tx-wrap" class="hidden">
+                        <p class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Duplicate transactions (already in system)</p>
+                        <div class="table-container overflow-x-auto max-h-48">
+                            <table class="text-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Customer</th>
+                                        <th>Existing report</th>
+                                        <th>Dates</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preview-dup-tx-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-container overflow-x-auto">
                     <table>
                         <thead>
@@ -528,6 +558,8 @@
         lastDetailTxs: null,
         lastMatchStats: null,
         lastBulkSummary: null,
+        duplicateCheck: null,
+        duplicateRefSet: new Set(),
 
         t(key, params) { return App.t(key, params); },
 
@@ -798,6 +830,9 @@
 
         async handleFile(file) {
             this.currentPdfFile = file;
+            this.duplicateCheck = null;
+            this.duplicateRefSet = new Set();
+            document.getElementById('preview-duplicate-banner')?.classList.add('hidden');
             const ext = file.name.split('.').pop().toLowerCase();
 
             document.getElementById('drop-zone').classList.add('hidden');
@@ -901,6 +936,100 @@
             return res.parsed;
         },
 
+        evaluateParseQuality(parsed, allLines, allText) {
+            const txCount = parsed?.transactions?.length || 0;
+            const lineCount = allLines?.length || 0;
+            const isViamericas = parsed?.company === 'Viamericas'
+                || /Viamericas|ViaRemote|Creaci[oó]n de Env[ií]os/i.test(allText);
+            const isCreacion = /Creaci[oó]n de Env[ií]os/i.test(allText);
+            let needsAiEnhancement = txCount === 0;
+            if (!needsAiEnhancement && isViamericas && lineCount > 40) {
+                const ratio = lineCount > 0 ? txCount / lineCount : 1;
+                if (ratio < 0.18 || (isCreacion && txCount < 40)) {
+                    needsAiEnhancement = true;
+                }
+            }
+            if (!needsAiEnhancement && lineCount > 80 && txCount < 15) {
+                needsAiEnhancement = true;
+            }
+            return { txCount, lineCount, needsAiEnhancement, isViamericas };
+        },
+
+        mergeParsedReports(clientParsed, aiParsed) {
+            const empty = { transactions: [], totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0 } };
+            const client = clientParsed?.transactions?.length ? clientParsed : empty;
+            const ai = aiParsed?.transactions?.length ? aiParsed : empty;
+            if (!client.transactions.length && !ai.transactions.length) return null;
+            if (!ai.transactions.length) return clientParsed;
+            if (!client.transactions.length) return aiParsed;
+
+            const meta = ai.transactions.length >= client.transactions.length ? { ...aiParsed } : { ...clientParsed };
+            const byRef = new Map();
+
+            const ingest = (tx, preferAi) => {
+                const ref = (tx.reference || tx.reference_number || '').trim();
+                const key = ref || `__noref_${(tx.customer_name || '')}_${tx.principal}_${tx.transaction_date || tx.time || ''}`;
+                const existing = byRef.get(key);
+                if (!existing || preferAi) {
+                    byRef.set(key, { ...tx, reference: ref || tx.reference || '' });
+                }
+            };
+            client.transactions.forEach(tx => ingest(tx, false));
+            ai.transactions.forEach(tx => ingest(tx, true));
+
+            const transactions = [...byRef.values()];
+            const totals = { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 };
+            transactions.forEach(tx => {
+                totals.qty++;
+                totals.principal += parseFloat(tx.principal) || 0;
+                totals.fee += parseFloat(tx.fee) || 0;
+                totals.tax += parseFloat(tx.tax) || 0;
+                totals.total += parseFloat(tx.total) || 0;
+                totals.agcomm += parseFloat(tx.agcomm || tx.ag_commission) || 0;
+            });
+            Object.keys(totals).forEach(k => {
+                if (k !== 'qty') totals[k] = Math.round(totals[k] * 100) / 100;
+            });
+
+            console.log('[Parser Pipeline] merged', client.transactions.length, 'client +', ai.transactions.length, 'AI →', transactions.length);
+            return {
+                ...meta,
+                transactions,
+                totals,
+                parser_pipeline: {
+                    client_count: client.transactions.length,
+                    ai_count: ai.transactions.length,
+                    merged_count: transactions.length,
+                },
+            };
+        },
+
+        async resolveParsePipeline(file, clientParsed, allLines, allText) {
+            const quality = this.evaluateParseQuality(clientParsed, allLines, allText);
+            let aiParsed = null;
+
+            if (quality.needsAiEnhancement) {
+                try {
+                    aiParsed = await this.parseDocumentWithGemini(file);
+                } catch (err) {
+                    console.warn('[Parser Pipeline] AI enhancement failed:', err);
+                    if (!clientParsed?.transactions?.length) {
+                        if (quality.isViamericas) {
+                            throw new Error('Viamericas report detected but parsing failed. Configure GEMINI_API_KEY or paste report text.');
+                        }
+                        throw err;
+                    }
+                }
+            }
+
+            if (aiParsed && clientParsed?.transactions?.length) {
+                return this.mergeParsedReports(clientParsed, aiParsed);
+            }
+            if (aiParsed) return aiParsed;
+            if (clientParsed?.transactions?.length) return clientParsed;
+            return null;
+        },
+
         async handlePdfFile(file) {
             document.getElementById('parse-status').textContent = this.t('reports.parse_status.loading_pdf_lib');
             const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs');
@@ -943,17 +1072,13 @@
 
             let parsed = this.parseBarriReport(allLines);
             const detectedCompany = parsed?.company || '';
+            parsed = await this.resolveParsePipeline(file, parsed, allLines, allText);
+
             if (!parsed?.transactions?.length) {
-                console.log('[Report Parser] Client parse empty — trying Gemini server parser');
-                try {
-                    parsed = await this.parseDocumentWithGemini(file);
-                } catch (geminiErr) {
-                    console.warn('[Report Parser] Gemini fallback failed:', geminiErr);
-                    if (detectedCompany === 'Viamericas' || /Viamericas|ViaRemote/i.test(allText)) {
-                        throw new Error('Viamericas report detected but no transactions parsed. Try the Paste tab with report text, or configure GEMINI_API_KEY on the server for AI fallback.');
-                    }
-                    throw geminiErr;
+                if (detectedCompany === 'Viamericas' || /Viamericas|ViaRemote/i.test(allText)) {
+                    throw new Error('Viamericas report detected but no transactions parsed. Try Paste tab or check GEMINI_API_KEY on server.');
                 }
+                throw new Error('No transactions found in this document.');
             }
             return parsed;
         },
@@ -3247,7 +3372,7 @@
 
         // ── Preview ──
 
-        showPreview(data) {
+        showPreview(data, opts = {}) {
             const companyLabel = data.company ? ` [${data.company}]` : '';
             document.getElementById('preview-agency').textContent = `${data.agency_number} ${data.agency_name}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`;
             document.getElementById('preview-from').textContent = data.date_from;
@@ -3279,14 +3404,20 @@
                 }
             }
 
+            const dupRefs = this.duplicateRefSet;
+            const dupRowClass = (ref) => dupRefs.has((ref || '').trim()) ? 'bg-warning/10' : '';
+
             const tbody = document.getElementById('preview-tbody');
             tbody.innerHTML = data.transactions.map(tx => {
+                const ref = tx.reference || tx.reference_number || '';
+                const isDup = dupRefs.has(ref.trim());
+                const dupBadge = isDup ? '<span class="badge badge-warning text-[10px] ml-1">dup</span>' : '';
                 if (hasViaFields) {
                     const dest = [tx.destination_city, tx.destination_state, tx.destination_country].filter(Boolean).join(', ');
                     const recvAmt = tx.amount_received ? `${App.money(tx.amount_received).replace('$','')} ${tx.received_currency || ''}` : '—';
-                    return `<tr>
+                    return `<tr class="${dupRowClass(ref)}">
                         <td class="font-mono text-sm text-text-primary whitespace-nowrap">${this.esc(tx.transaction_date)}</td>
-                        <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
+                        <td class="font-mono text-sm text-text-secondary">${this.esc(ref)}${dupBadge}</td>
                         <td class="text-text-primary text-sm">${this.esc(tx.customer_name)}</td>
                         <td class="text-text-secondary text-sm">${this.esc(tx.beneficiary)}</td>
                         <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.principal)}</td>
@@ -3297,10 +3428,10 @@
                 }
                 const typeBadge = this.typeBadge(tx.type);
                 const nameDisplay = tx.beneficiary ? `${this.esc(tx.customer_name)}<br><span class="text-xs text-text-muted">→ ${this.esc(tx.beneficiary)}</span>` : this.esc(tx.customer_name);
-                return `<tr>
+                return `<tr class="${dupRowClass(ref)}">
                     <td class="font-mono text-sm text-text-primary">${this.esc(tx.transaction_date || tx.time)}</td>
                     <td>${typeBadge}</td>
-                    <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
+                    <td class="font-mono text-sm text-text-secondary">${this.esc(ref)}${dupBadge}</td>
                     <td class="text-text-primary text-sm">${nameDisplay}</td>
                     <td class="text-right font-mono tabular-nums">${App.money(tx.principal)}</td>
                     <td class="text-right font-mono tabular-nums">${App.money(tx.fee)}</td>
@@ -3309,6 +3440,97 @@
                     <td class="text-right font-mono tabular-nums text-success">${App.money(tx.agcomm)}</td>
                 </tr>`;
             }).join('');
+
+            if (!opts.skipDupCheck) {
+                this.checkImportDuplicates(data);
+            }
+        },
+
+        async checkImportDuplicates(data) {
+            try {
+                const storeId = document.getElementById('report-store-selector')?.value;
+                const res = await App.api('POST', '/api/barri-reports', {
+                    action: 'check_import',
+                    store_id: storeId || undefined,
+                    parsed: data,
+                });
+                this.duplicateCheck = res;
+                this.duplicateRefSet = new Set(
+                    (res.duplicate_transactions || []).map(d => (d.reference || '').trim()).filter(Boolean)
+                );
+                this.renderDuplicateBanner(res);
+                if (this.duplicateRefSet.size > 0) {
+                    this.showPreview(data, { skipDupCheck: true });
+                }
+            } catch (err) {
+                console.warn('[Duplicate check]', err);
+                this.duplicateCheck = null;
+                this.duplicateRefSet = new Set();
+                document.getElementById('preview-duplicate-banner')?.classList.add('hidden');
+            }
+        },
+
+        renderDuplicateBanner(check) {
+            const banner = document.getElementById('preview-duplicate-banner');
+            const reportBlock = document.getElementById('preview-dup-report');
+            const txWrap = document.getElementById('preview-dup-tx-wrap');
+            const summary = document.getElementById('preview-dup-summary');
+            if (!banner) return;
+
+            const reportDup = check?.report_duplicate;
+            const txDupes = check?.duplicate_transactions || [];
+            const newCount = check?.new_transaction_count ?? 0;
+            const hasDup = reportDup || txDupes.length > 0;
+
+            if (!hasDup) {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            banner.classList.remove('hidden');
+            const parts = [];
+            if (reportDup) parts.push('This report period is already imported');
+            if (txDupes.length) parts.push(`${txDupes.length} transaction(s) already exist in the system`);
+            if (newCount > 0) parts.push(`${newCount} new transaction(s) will import`);
+            summary.textContent = parts.join('. ') + '.';
+
+            const hint = document.getElementById('preview-dup-hint');
+            if (hint) {
+                if (reportDup && newCount > 0) {
+                    hint.textContent = `Import will add ${newCount} new transaction(s) to the existing report and skip duplicates automatically.`;
+                } else if (reportDup) {
+                    hint.textContent = 'This report is already imported. Import will open the existing report.';
+                } else {
+                    hint.textContent = 'Import will skip duplicate transactions automatically.';
+                }
+            }
+
+            if (reportDup && reportBlock) {
+                reportBlock.classList.remove('hidden');
+                reportBlock.innerHTML = `
+                    <p class="font-medium text-text-primary">Existing report #${reportDup.id}</p>
+                    <p class="text-text-muted mt-1">${this.esc(reportDup.agency_number || '')} ${this.esc(reportDup.agency_name || '')}</p>
+                    <p class="font-mono text-xs text-text-muted mt-1">${this.esc(reportDup.report_date_from)} — ${this.esc(reportDup.report_date_to)} · ${reportDup.total_transactions || 0} txns</p>
+                    <button type="button" class="text-accent text-sm font-medium mt-2 hover:underline" onclick="Reports.viewReport(${reportDup.id})">View existing report</button>
+                `;
+            } else if (reportBlock) {
+                reportBlock.classList.add('hidden');
+            }
+
+            if (txDupes.length && txWrap) {
+                txWrap.classList.remove('hidden');
+                const tbody = document.getElementById('preview-dup-tx-tbody');
+                tbody.innerHTML = txDupes.map(d => `
+                    <tr>
+                        <td class="font-mono">${this.esc(d.reference)}</td>
+                        <td>${this.esc(d.customer_name || '')}</td>
+                        <td><button type="button" class="text-accent hover:underline" onclick="Reports.viewReport(${d.report_id})">#${d.report_id}</button></td>
+                        <td class="font-mono text-xs">${this.esc(d.report_date_from)} — ${this.esc(d.report_date_to)}</td>
+                    </tr>
+                `).join('');
+            } else if (txWrap) {
+                txWrap.classList.add('hidden');
+            }
         },
 
         // ── Bulk Historical Upload ──
@@ -3457,11 +3679,26 @@
                 const storeId = document.getElementById('report-store-selector')?.value;
                 const fd = new FormData();
                 fd.append('action', 'import');
+                fd.append('skip_duplicate_transactions', '1');
                 if (storeId) fd.append('store_id', storeId);
                 fd.append('data', JSON.stringify(this.parsedData));
                 if (this.currentPdfFile) fd.append('pdf_file', this.currentPdfFile);
                 const res = await App.apiForm('/api/barri-reports', fd);
+
+                if (res.duplicate) {
+                    const skipped = res.skipped_transaction_duplicates || 0;
+                    const msg = res.message || 'Duplicate report skipped';
+                    App.toast(skipped ? `${msg}. ${skipped} duplicate transaction(s) ignored.` : msg, 'warning');
+                    if (res.report_id) {
+                        this.currentReportId = res.report_id;
+                        this.viewReport(res.report_id);
+                    }
+                    return;
+                }
+
                 const parts = [];
+                if (res.appended_to_existing) parts.push('Added new transactions to existing report');
+                if (res.skipped_transaction_duplicates) parts.push(`${res.skipped_transaction_duplicates} duplicate txns skipped`);
                 if (res.matched_count) parts.push(`${res.matched_count} clients matched`);
                 if (res.clients_created) parts.push(`${res.clients_created} new clients created`);
                 if (res.pushed_to_transfers) parts.push(`${res.pushed_to_transfers} transfers recorded`);
@@ -3470,7 +3707,8 @@
                 this.currentReportId = res.report_id;
                 this.viewReport(res.report_id);
             } catch (err) {
-                App.toastKey('toast.import_failed', 'danger');
+                const msg = err?.message || '';
+                App.toast(msg && msg.length < 120 ? msg : this.t('toast.import_failed'), 'danger');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> ${this.t('reports.import_report')}`;
@@ -3816,6 +4054,9 @@
             storeSel.innerHTML = App.stores.map(s =>
                 `<option value="${s.id}" ${s.id == App.currentStore?.id ? 'selected' : ''}>${s.name}</option>`
             ).join('');
+            storeSel.addEventListener('change', () => {
+                if (Reports.parsedData) Reports.checkImportDuplicates(Reports.parsedData);
+            });
         }
 
         const bulkStoreSel = document.getElementById('bulk-store-selector');
