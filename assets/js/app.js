@@ -6,10 +6,11 @@ const App = {
     lang: 'en',
 
     t(key, vars = {}) {
+        const safeVars = vars && typeof vars === 'object' ? vars : {};
         const table = window.SULY_I18N?.[this.lang] || window.SULY_I18N?.en || {};
         let text = table[key] ?? window.SULY_I18N?.en?.[key] ?? key;
-        Object.keys(vars).forEach((k) => {
-            text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(vars[k]));
+        Object.keys(safeVars).forEach((k) => {
+            text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(safeVars[k]));
         });
         return text;
     },
@@ -218,19 +219,29 @@ const App = {
             opts.headers['X-CSRF-Token'] = this.csrf;
         }
         const res = await fetch(url, opts);
-        const data = await res.json();
+        let data = {};
+        const raw = await res.text();
+        if (raw) {
+            try {
+                data = JSON.parse(raw);
+            } catch (e) {
+                if (!res.ok) {
+                    throw new Error(raw.slice(0, 200) || `HTTP ${res.status}`);
+                }
+            }
+        }
         if (!res.ok) {
-            throw new Error(data.error || `HTTP ${res.status}`);
+            throw new Error(data.error || raw.slice(0, 200) || `HTTP ${res.status}`);
         }
         return data;
     },
 
     toastKey(key, type = 'info', vars = null) {
-        this.toast(this.t(key, vars), type);
+        this.toast(this.t(key, vars || {}), type);
     },
 
     confirmKey(key, vars = null) {
-        return confirm(this.t(key, vars));
+        return confirm(this.t(key, vars || {}));
     },
 
     toast(message, type = 'info') {

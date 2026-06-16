@@ -834,7 +834,12 @@
                 document.getElementById('parse-progress').classList.add('hidden');
                 document.getElementById('input-tabs').classList.remove('hidden');
                 this.switchInputTab(this.activeInputTab || 'upload');
-                App.toastKey('toast.parse_error', 'danger');
+                const msg = err?.message || '';
+                if (msg && !msg.includes('No transactions found')) {
+                    App.toast(msg, 'danger');
+                } else {
+                    App.toastKey('toast.parse_error', 'danger');
+                }
                 console.error('Parse error:', err);
             }
         },
@@ -937,9 +942,18 @@
             }
 
             let parsed = this.parseBarriReport(allLines);
+            const detectedCompany = parsed?.company || '';
             if (!parsed?.transactions?.length) {
                 console.log('[Report Parser] Client parse empty — trying Gemini server parser');
-                parsed = await this.parseDocumentWithGemini(file);
+                try {
+                    parsed = await this.parseDocumentWithGemini(file);
+                } catch (geminiErr) {
+                    console.warn('[Report Parser] Gemini fallback failed:', geminiErr);
+                    if (detectedCompany === 'Viamericas' || /Viamericas|ViaRemote/i.test(allText)) {
+                        throw new Error('Viamericas report detected but no transactions parsed. Try the Paste tab with report text, or configure GEMINI_API_KEY on the server for AI fallback.');
+                    }
+                    throw geminiErr;
+                }
             }
             return parsed;
         },
@@ -1862,7 +1876,7 @@
         },
 
         // ── FORMAT 4: Viamericas / ViaRemote ──
-        parseViamericasFormat(lines) {
+        parseViamericasTabularRows(lines) {
             const result = {
                 agency_number: '', agency_name: '', agency_address: '',
                 operator_number: '', date_from: '', date_to: '',
@@ -1871,6 +1885,111 @@
                 transactions: [],
                 totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
             };
+            const txnRefRe = /^A\d{4,6}-{1,2}\d+$/;
+            const inlineRowRe = /^(A\d{4,6}-\d+)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+)$/;
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+
+                const inline = trimmed.match(inlineRowRe);
+                if (inline) {
+                    const ref = inline[1];
+                    const txnDate = this.parseBarriDate(inline[2]);
+                    const rest = inline[3];
+                    const amounts = rest.match(/([\d,]+\.\d{2})/g) || [];
+                    const principal = amounts.length ? this.parseMoney(amounts[0]) : 0;
+                    const fee = amounts.length > 1 ? this.parseMoney(amounts[1]) : 0;
+                    const tax = amounts.length > 2 ? this.parseMoney(amounts[2]) : 0;
+                    const total = amounts.length > 3 ? this.parseMoney(amounts[3]) : principal + fee + tax;
+                    const namePart = rest.replace(/([\d,]+\.\d{2})/g, '').replace(/\$+/g, '').trim();
+
+                    if (!result.agency_number) {
+                        const agMatch = ref.match(/^(A\d{4,6})-/);
+                        if (agMatch) result.agency_number = agMatch[1];
+                    }
+                    if (principal === 0 && total === 0) continue;
+
+                    result.transactions.push({
+                        time: '00:00', type: 'money_transfer', reference: ref,
+                        customer_name: namePart || 'Unknown', beneficiary: '',
+                        operator: '', qty: 1, principal, fee, tax, total,
+                        balance: 0, agcomm: amounts.length > 4 ? this.parseMoney(amounts[4]) : 0,
+                        var_fee: amounts.length > 5 ? this.parseMoney(amounts[5]) : 0,
+                        var_fx: 0, transaction_date: txnDate,
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_country: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                    continue;
+                }
+
+                if (!trimmed.includes('\t')) continue;
+                const cols = line.split('\t').map(c => c.trim());
+                const ref = cols[0];
+                if (!txnRefRe.test(ref)) continue;
+                if (cols.length < 4) continue;
+
+                const txnDate = this.parseBarriDate(cols[1] || '');
+                const customerName = (cols[2] || '').replace(/\.{3}$/, '').trim();
+                const country = (cols[3] || '').trim();
+                const principal = this.parseMoney(cols[4] || '0');
+                const fee = this.parseMoney(cols[5] || '0');
+                const tax = this.parseMoney(cols[6] || '0');
+                const total = this.parseMoney(cols[7] || '0') || (principal + fee + tax);
+                const commission = this.parseMoney(cols[8] || '0');
+                const viaTasa = this.parseMoney(cols[9] || '0');
+                const otrosCargos = cols.length > 10 ? this.parseMoney(cols[10]) : 0;
+
+                if (!result.agency_number) {
+                    const agMatch = ref.match(/^(A\d{4,6})-/);
+                    if (agMatch) result.agency_number = agMatch[1];
+                }
+                if (principal === 0 && fee === 0 && total === 0) continue;
+
+                result.transactions.push({
+                    reference: ref, transaction_date: txnDate,
+                    customer_name: customerName, destination_country: country,
+                    type: 'money_transfer', principal, fee, tax, total,
+                    agcomm: commission, var_fee: viaTasa, var_fx: otrosCargos,
+                    balance: 0, operator: '', qty: 1, time: '00:00',
+                    beneficiary: '', amount_received: 0, received_currency: '',
+                    paying_bank: '', destination_state: '', destination_city: '',
+                    payment_date: '', transaction_status: '',
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+                const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                result.date_from = dates[0] || '';
+                result.date_to = dates[dates.length - 1] || result.date_from;
+            }
+            if (!result.agency_name) {
+                result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
+            }
+            return result;
+        },
+
+        parseViamericasFormat(lines) {
+            const tabular = this.parseViamericasTabularRows(lines);
+            if (tabular.transactions.length > 0) {
+                console.log('[Report Parser] Viamericas tabular/inline result:', tabular.transactions.length, 'txns');
+                return tabular;
+            }
+
+            const emailStyle = this.parseViamericasEmailFormat(lines);
+            if (emailStyle.transactions.length > 0) {
+                console.log('[Report Parser] Viamericas email-style result:', emailStyle.transactions.length, 'txns');
+                return emailStyle;
+            }
+
+            const result = tabular;
 
             const dateRe = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
             const timeRe = /^\d{1,2}:\d{2}:\d{2}$/;
@@ -1892,8 +2011,9 @@
                 if (result.agency_number && result.ending_balance) break;
             }
 
-            // Viamericas PDFs split reference across two lines: "A30097-" then "905"
+            // Viamericas PDFs: full ref "A30097-905" on one line, or split "A30097-" then "905"
             const refPrefixRe = /^(A\d{4,6})-\s*$/;
+            const fullRefRe = /^(A\d{4,6}-\d+)$/;
             let idx = 0;
 
             while (idx < lines.length) {
@@ -1904,17 +2024,33 @@
                     idx++; continue;
                 }
 
-                // Detect reference: "A30097-" on this line, number on next
-                const prefixMatch = line.match(refPrefixRe);
-                if (!prefixMatch) { idx++; continue; }
+                let reference = '';
+                const fullRefMatch = line.match(fullRefRe);
+                if (fullRefMatch) {
+                    reference = fullRefMatch[1];
+                    idx++;
+                } else {
+                    const prefixMatch = line.match(refPrefixRe);
+                    if (!prefixMatch) { idx++; continue; }
 
-                const refPrefix = prefixMatch[1];
-                idx++;
-                if (idx >= lines.length) break;
-                const refNumLine = lines[idx].trim();
-                if (!/^\d+$/.test(refNumLine)) continue;
-                const reference = refPrefix + '-' + refNumLine;
-                idx++;
+                    const refPrefix = prefixMatch[1];
+                    idx++;
+                    if (idx >= lines.length) break;
+                    const refNumLine = lines[idx].trim();
+                    const combinedRef = refNumLine.match(/^(A\d{4,6}-\d+)$/);
+                    if (combinedRef) {
+                        reference = combinedRef[1];
+                        idx++;
+                    } else if (/^\d+$/.test(refNumLine)) {
+                        reference = refPrefix + '-' + refNumLine;
+                        idx++;
+                    } else {
+                        idx++;
+                        continue;
+                    }
+                }
+
+                if (!reference) continue;
 
                 // Collect name lines until we hit a date
                 // Edge case: a name line may contain a tab+date like "MARTHA VACA \t02/28/2026"
