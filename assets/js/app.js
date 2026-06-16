@@ -16,6 +16,17 @@ const App = {
         this.csrf = res.csrf;
         this.stores = res.stores;
         this.currentStore = res.stores.find(s => s.id == res.user.store_id) || res.stores[0];
+        if (
+            this.user?.role === 'admin'
+            && this.currentStore
+            && !res.user.store_id
+        ) {
+            await this.api('POST', '/api/auth', {
+                action: 'switch_store',
+                store_id: this.currentStore.id,
+            });
+            this.user.store_id = this.currentStore.id;
+        }
         return true;
     },
 

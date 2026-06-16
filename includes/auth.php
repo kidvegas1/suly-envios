@@ -30,13 +30,15 @@ function auth_login(string $email, string $password): array|false {
     $_SESSION['user_role'] = $user['role'];
     $_SESSION['store_id']  = $user['store_id'];
 
+    auth_ensure_admin_store_context();
+
     session_regenerate_id(true);
 
     return [
         'id'       => $user['id'],
         'name'     => $user['name'],
         'role'     => $user['role'],
-        'store_id' => $user['store_id'],
+        'store_id' => $_SESSION['store_id'],
     ];
 }
 
@@ -55,6 +57,7 @@ function auth_check(): bool {
 
 function auth_user(): ?array {
     if (!auth_check()) return null;
+    auth_ensure_admin_store_context();
     return [
         'id'       => $_SESSION['user_id'],
         'name'     => $_SESSION['user_name'],
@@ -105,4 +108,21 @@ function auth_require_store_access(int $storeId): void {
 
 function auth_set_store(int $storeId): void {
     $_SESSION['store_id'] = $storeId;
+}
+
+/**
+ * Admins may have null store_id in DB; store-scoped APIs need a session store.
+ * Default to the first active store when none is selected.
+ */
+function auth_ensure_admin_store_context(): void {
+    if (!auth_check() || !auth_is_admin()) {
+        return;
+    }
+    if ((int)($_SESSION['store_id'] ?? 0) > 0) {
+        return;
+    }
+    $row = db()->query('SELECT id FROM stores WHERE ' . sql_is_active() . ' ORDER BY name LIMIT 1')->fetch();
+    if ($row) {
+        $_SESSION['store_id'] = (int)$row['id'];
+    }
 }
