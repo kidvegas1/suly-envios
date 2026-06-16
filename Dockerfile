@@ -5,6 +5,7 @@ FROM php:8.2-apache
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         libpq-dev \
+        postgresql-client \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql \
     && a2enmod rewrite headers \
     && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf \
