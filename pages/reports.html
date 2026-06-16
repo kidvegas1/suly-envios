@@ -1,0 +1,3387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Reports — Suly Envios</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs" type="module"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style type="text/tailwindcss">
+        @theme {
+            --color-bg-base: oklch(0.97 0.005 70);
+            --color-bg-surface: oklch(1 0 0);
+            --color-bg-elevated: oklch(0.97 0.008 55);
+            --color-accent: oklch(0.75 0.16 55);
+            --color-accent-hover: oklch(0.82 0.12 55);
+            --color-success: oklch(0.52 0.14 155);
+            --color-danger: oklch(0.55 0.18 25);
+            --color-warning: oklch(0.60 0.14 85);
+            --color-info: oklch(0.55 0.12 50);
+            --color-text-primary: oklch(0.25 0.03 45);
+            --color-text-secondary: oklch(0.45 0.03 50);
+            --color-text-muted: oklch(0.60 0.02 55);
+            --color-border: oklch(0.90 0.01 70);
+            --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+            --font-mono: "JetBrains Mono", ui-monospace, monospace;
+        }
+    </style>
+    <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="bg-bg-base text-text-primary font-sans">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar fixed top-0 left-0 h-dvh flex flex-col z-40" id="sidebar">
+        <div class="p-5 border-b border-border">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-[oklch(0.55_0.12_40)] flex items-center justify-center shadow-lg shadow-accent/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold text-text-primary">Suly Envios</h1>
+                    <p class="text-xs text-text-secondary">Company Reports</p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+            <a href="dashboard" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Dashboard
+            </a>
+            <a href="caja" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                Caja
+            </a>
+            <a href="clients" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Clientes
+            </a>
+            <a href="suly-ledger" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                Suly Ledger
+            </a>
+            <a href="schedule" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Horarios
+            </a>
+            <a href="statistics" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Estadisticas
+            </a>
+            <a href="reports" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg>
+                Reportes
+            </a>
+            <a href="analytics" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Analytics
+            </a>
+            <a href="reports-center" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+                Reports Center
+            </a>
+            <a href="accounting" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M10 3v18"/></svg>
+                Contabilidad
+            </a>
+            <a href="inventory" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                Inventario
+            </a>
+            <a href="events" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                Eventos
+            </a>
+            <a href="plates" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                Placas
+            </a>
+            <a href="import" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importar Excel
+            </a>
+            <a href="stores" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>Stores</a>
+        </nav>
+
+        <div class="p-4 border-t border-border">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-bg-elevated flex items-center justify-center text-sm font-semibold text-accent" id="user-avatar"></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-text-primary truncate" id="user-name"></p>
+                    <p class="text-xs text-text-muted capitalize" id="user-role"></p>
+                </div>
+                <button id="logout-btn" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-danger transition-colors" title="Sign out">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="lg:ml-[280px] min-h-dvh">
+        <!-- Top Bar -->
+        <header class="sticky top-0 z-30 glass-strong px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="sidebar-toggle" class="lg:hidden p-2 rounded-lg hover:bg-bg-elevated text-text-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                </button>
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight" id="page-title">Company Reports</h2>
+                    <p class="text-xs text-text-muted" id="page-date"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3" id="header-actions"></div>
+        </header>
+
+        <!-- VIEW 1: Report List -->
+        <main class="p-6 lg:p-8 space-y-6" id="view-list">
+            <div id="store-filter-banner" class="hidden flex items-center gap-3 px-4 py-3 rounded-xl bg-accent/10 border border-accent/20 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" class="text-accent shrink-0" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
+                <span class="text-sm text-text-primary">Showing reports for <strong id="store-filter-name" class="text-accent"></strong></span>
+                <a href="/reports" class="ml-auto text-xs text-text-muted hover:text-accent transition-colors flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Show all
+                </a>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold">Company Reports</h3>
+                    <p class="text-sm text-text-muted">Upload and manage reports from Barri, Viamericas, Intercambio, Intermex, Ria and more</p>
+                </div>
+                <button class="btn-primary" id="btn-upload-report">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Report
+                </button>
+                <button class="btn-secondary hidden" id="btn-bulk-upload">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
+                    Bulk Historical Upload
+                </button>
+            </div>
+
+            <div id="reports-table-wrap">
+                <div class="table-container overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date Range</th>
+                                <th>Agency</th>
+                                <th class="text-right">Txns</th>
+                                <th class="text-right">Principal</th>
+                                <th class="text-right">Fees</th>
+                                <th class="text-right">Total Amount</th>
+                                <th class="text-right">Commission</th>
+                                <th>Status</th>
+                                <th class="text-right">Matched</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="reports-empty" class="hidden">
+                <div class="card text-center py-16">
+                    <div class="w-16 h-16 rounded-2xl bg-bg-elevated flex items-center justify-center mx-auto mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-text-muted" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+                    </div>
+                    <p class="text-text-secondary font-medium">No reports uploaded yet</p>
+                    <p class="text-sm text-text-muted mt-1">Upload a company report (PDF or Excel) to get started</p>
+                </div>
+            </div>
+
+            <div id="reports-loading" class="hidden">
+                <div class="space-y-3">
+                    <div class="skeleton h-12 w-full"></div>
+                    <div class="skeleton h-12 w-full"></div>
+                    <div class="skeleton h-12 w-full"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 2: Upload & Preview -->
+        <main class="p-6 lg:p-8 space-y-6 hidden" id="view-upload">
+            <div class="flex items-center justify-between flex-wrap gap-3 mb-2">
+                <button class="btn-secondary" id="btn-back-from-upload">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Back to Reports
+                </button>
+                <div class="flex items-center gap-3">
+                    <label class="text-xs font-semibold text-text-muted uppercase tracking-wider">Store:</label>
+                    <select id="report-store-selector" class="input py-2 px-3 text-sm w-48">
+                        <option value="">Loading stores...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Input Mode Tabs -->
+            <div id="input-tabs" class="flex gap-1 p-1 rounded-xl bg-bg-elevated w-fit">
+                <button id="tab-upload" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-bg-surface text-accent shadow-sm" data-tab="upload">
+                    <span class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Upload File
+                    </span>
+                </button>
+                <button id="tab-paste" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-text-muted hover:text-text-primary" data-tab="paste">
+                    <span class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+                        Paste Report
+                    </span>
+                </button>
+            </div>
+
+            <!-- Drop Zone (Tab: Upload) -->
+            <div id="drop-zone" class="card border-2 border-dashed border-border hover:border-accent/50 transition-all duration-300 cursor-pointer group">
+                <div class="py-12 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/10 to-accent/5 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-accent" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <p class="text-text-primary font-semibold">Drop your company report here</p>
+                    <p class="text-sm text-text-muted mt-1">or click to browse files</p>
+                    <p class="text-xs text-text-muted mt-3">Accepts PDF, XLS, and XLSX files — Barri, Viamericas, Intercambio, Intermex, Ria</p>
+                </div>
+                <input type="file" id="file-input" accept=".pdf,.xls,.xlsx" class="hidden">
+            </div>
+
+            <!-- Paste Zone (Tab: Paste) -->
+            <div id="paste-zone" class="hidden">
+                <div class="card space-y-4">
+                    <div>
+                        <p class="text-text-primary font-semibold mb-1">Paste your report data</p>
+                        <p class="text-sm text-text-muted">Paste the full Viamericas email report, Barri data, or any tab-separated report text</p>
+                    </div>
+                    <textarea id="paste-input" class="input w-full font-mono text-xs leading-relaxed" rows="16" placeholder="Paste your report here...&#10;&#10;Example: Viamericas email with transactions like&#10;A10556-75771  03/22/2026  JOSE EDIN GA...  HON  $1,200.00  $12.00  ..."></textarea>
+                    <div class="flex items-center justify-between">
+                        <p class="text-xs text-text-muted" id="paste-line-count"></p>
+                        <button id="btn-parse-paste" class="btn-primary px-5 py-2.5 text-sm flex items-center gap-2" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+                            Parse Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parsing Progress -->
+            <div id="parse-progress" class="hidden">
+                <div class="card">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                            <svg class="animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-text-primary">Parsing PDF...</p>
+                            <p class="text-xs text-text-muted" id="parse-status">Extracting text from pages</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="preview-section" class="hidden space-y-6">
+                <div class="card">
+                    <div class="flex items-start justify-between flex-wrap gap-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-text-primary">Report Preview</h3>
+                            <p class="text-sm text-text-muted mt-1" id="preview-agency"></p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="px-3 py-1.5 rounded-lg bg-bg-elevated text-sm">
+                                <span class="text-text-muted">From:</span>
+                                <span class="font-medium font-mono" id="preview-from"></span>
+                            </div>
+                            <div class="px-3 py-1.5 rounded-lg bg-bg-elevated text-sm">
+                                <span class="text-text-muted">To:</span>
+                                <span class="font-medium font-mono" id="preview-to"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-5">
+                        <div class="p-3 rounded-xl bg-bg-elevated">
+                            <p class="text-xs text-text-muted">Beginning Balance</p>
+                            <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="preview-begin-bal"></p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-bg-elevated">
+                            <p class="text-xs text-text-muted">Ending Balance</p>
+                            <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="preview-end-bal"></p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-bg-elevated">
+                            <p class="text-xs text-text-muted">Total Principal</p>
+                            <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="preview-principal"></p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-bg-elevated">
+                            <p class="text-xs text-text-muted">Total Amount</p>
+                            <p class="text-lg font-bold font-mono tabular-nums text-accent" id="preview-total-amount"></p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-bg-elevated">
+                            <p class="text-xs text-text-muted">Transactions</p>
+                            <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="preview-tx-count"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Reference</th>
+                                <th>Customer</th>
+                                <th class="text-right">Principal</th>
+                                <th class="text-right">Fee</th>
+                                <th class="text-right">Tax</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">AgComm</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-tbody"></tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-end gap-3">
+                    <button class="btn-secondary" id="btn-cancel-import">Cancel</button>
+                    <button class="btn-primary" id="btn-import-report">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        Import Report
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 4: Bulk Historical Upload (admin) -->
+        <main class="p-6 lg:p-8 space-y-6 hidden" id="view-bulk">
+            <div class="flex items-center justify-between flex-wrap gap-3 mb-2">
+                <button class="btn-secondary" id="btn-back-from-bulk">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Back to Reports
+                </button>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <label class="flex items-center gap-2 text-sm text-text-secondary">
+                        <input type="checkbox" id="bulk-skip-duplicates" class="rounded border-border" checked>
+                        Skip duplicates
+                    </label>
+                    <label class="text-xs font-semibold text-text-muted uppercase tracking-wider">Fallback store:</label>
+                    <select id="bulk-store-selector" class="input py-2 px-3 text-sm w-48">
+                        <option value="">Auto-match only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card border-2 border-dashed border-border">
+                <div class="py-10 text-center">
+                    <p class="text-text-primary font-semibold">Select multiple report files</p>
+                    <p class="text-sm text-text-muted mt-1">PDF, XLS, or XLSX — each file is parsed and imported with agency auto-match</p>
+                    <button class="btn-primary mt-4" id="btn-bulk-select-files">Choose Files</button>
+                    <input type="file" id="bulk-file-input" accept=".pdf,.xls,.xlsx" multiple class="hidden">
+                    <p class="text-xs text-text-muted mt-3" id="bulk-file-count"></p>
+                </div>
+            </div>
+
+            <div id="bulk-progress-wrap" class="hidden card space-y-3">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="font-medium text-text-primary" id="bulk-progress-label">Processing...</span>
+                    <span class="font-mono text-text-muted" id="bulk-progress-count">0 / 0</span>
+                </div>
+                <div class="progress-bar w-full">
+                    <div class="progress-fill" id="bulk-progress-bar" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-text-muted" id="bulk-progress-status"></p>
+            </div>
+
+            <div id="bulk-results-wrap" class="hidden space-y-4">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="card !p-4 text-center">
+                        <p class="text-xs text-text-muted">Imported</p>
+                        <p class="text-2xl font-bold text-success" id="bulk-stat-success">0</p>
+                    </div>
+                    <div class="card !p-4 text-center">
+                        <p class="text-xs text-text-muted">Failed</p>
+                        <p class="text-2xl font-bold text-danger" id="bulk-stat-failed">0</p>
+                    </div>
+                    <div class="card !p-4 text-center">
+                        <p class="text-xs text-text-muted">Skipped (dup)</p>
+                        <p class="text-2xl font-bold text-warning" id="bulk-stat-skipped">0</p>
+                    </div>
+                    <div class="card !p-4 text-center">
+                        <p class="text-xs text-text-muted">Unassigned store</p>
+                        <p class="text-2xl font-bold text-info" id="bulk-stat-unassigned">0</p>
+                    </div>
+                </div>
+                <div class="table-container overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Report</th>
+                                <th>Status</th>
+                                <th>Store</th>
+                                <th class="text-right">Txns</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-results-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 3: Report Detail -->
+        <main class="p-6 lg:p-8 space-y-6 hidden" id="view-detail">
+            <div class="flex items-center gap-3 mb-2">
+                <button class="btn-secondary" id="btn-back-from-detail">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Back to Reports
+                </button>
+            </div>
+
+            <!-- Report Header -->
+            <div class="card">
+                <div class="flex items-start justify-between flex-wrap gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-text-primary" id="detail-title"></h3>
+                        <p class="text-sm text-text-muted mt-1" id="detail-agency"></p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <div class="px-3 py-1.5 rounded-lg bg-bg-elevated text-sm">
+                            <span class="text-text-muted">From:</span>
+                            <span class="font-medium font-mono" id="detail-from"></span>
+                        </div>
+                        <div class="px-3 py-1.5 rounded-lg bg-bg-elevated text-sm">
+                            <span class="text-text-muted">To:</span>
+                            <span class="font-medium font-mono" id="detail-to"></span>
+                        </div>
+                        <a class="btn-secondary hidden" id="btn-download-pdf" target="_blank">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download PDF
+                        </a>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-5">
+                    <div class="p-3 rounded-xl bg-bg-elevated">
+                        <p class="text-xs text-text-muted">Beginning Balance</p>
+                        <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="detail-begin-bal"></p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-bg-elevated">
+                        <p class="text-xs text-text-muted">Ending Balance</p>
+                        <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="detail-end-bal"></p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-bg-elevated">
+                        <p class="text-xs text-text-muted">Total Principal</p>
+                        <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="detail-principal"></p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-bg-elevated">
+                        <p class="text-xs text-text-muted">Total Amount</p>
+                        <p class="text-lg font-bold font-mono tabular-nums text-accent" id="detail-total-amount"></p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-bg-elevated">
+                        <p class="text-xs text-text-muted">Total Commission</p>
+                        <p class="text-lg font-bold font-mono tabular-nums text-success" id="detail-commission"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Match Stats -->
+            <div class="card">
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-3 mb-2">
+                            <p class="text-sm font-semibold text-text-primary" id="match-label">0/0 matched</p>
+                            <span class="badge badge-warning" id="match-badge">0%</span>
+                        </div>
+                        <div class="progress-bar w-full max-w-md">
+                            <div class="progress-fill" id="match-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="btn-push-transfers" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        Sync to Clients
+                    </button>
+                </div>
+            </div>
+
+            <!-- Detail Transactions Table -->
+            <div class="table-container overflow-x-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Reference</th>
+                            <th>Customer Name</th>
+                            <th class="text-right">Principal</th>
+                            <th class="text-right">Fee</th>
+                            <th class="text-right">Tax</th>
+                            <th class="text-right">Total</th>
+                            <th>Match</th>
+                            <th>Matched Client</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-tbody"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Confirm Push Modal -->
+    <div class="modal-backdrop" id="push-modal-backdrop"></div>
+    <div class="modal-content" id="push-modal">
+        <h3 class="text-lg font-semibold text-text-primary mb-2">Sync to Client Records</h3>
+        <p class="text-sm text-text-secondary mb-6">This will sync remaining matched transactions to the clients page so their sending totals and history are updated. Unmatched transactions will be skipped. Continue?</p>
+        <div class="flex items-center justify-end gap-3">
+            <button class="btn-secondary" id="btn-push-cancel">Cancel</button>
+            <button class="btn-primary" id="btn-push-confirm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Confirm Push
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal-backdrop" id="delete-modal-backdrop"></div>
+    <div class="modal-content" id="delete-modal">
+        <h3 class="text-lg font-semibold text-text-primary mb-2">Delete Report</h3>
+        <p class="text-sm text-text-secondary mb-6">This will permanently delete this report and all its transactions. This action cannot be undone.</p>
+        <div class="flex items-center justify-end gap-3">
+            <button class="btn-secondary" id="btn-delete-cancel">Cancel</button>
+            <button class="btn-danger" id="btn-delete-confirm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                Delete
+            </button>
+        </div>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+    <script type="module">
+
+    const Reports = {
+        parsedData: null,
+        currentPdfFile: null,
+        currentReportId: null,
+        deleteTargetId: null,
+        filterStoreId: null,
+        filterStoreName: '',
+        bulkFiles: [],
+
+        async init() {
+            const params = new URLSearchParams(window.location.search);
+            this.filterStoreId = params.get('store_id') || null;
+            this.filterStoreName = params.get('store_name') || '';
+
+            if (this.filterStoreId) {
+                const banner = document.getElementById('store-filter-banner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                    document.getElementById('store-filter-name').textContent = this.filterStoreName || `Store #${this.filterStoreId}`;
+                }
+            }
+
+            this.bindEvents();
+            this.showView('list');
+            this.loadReports();
+        },
+
+        bindEvents() {
+            document.getElementById('btn-upload-report').addEventListener('click', () => this.showView('upload'));
+            document.getElementById('btn-bulk-upload')?.addEventListener('click', () => this.showView('bulk'));
+            document.getElementById('btn-back-from-bulk')?.addEventListener('click', () => {
+                this.showView('list');
+                this.loadReports();
+            });
+            document.getElementById('btn-bulk-select-files')?.addEventListener('click', () => {
+                document.getElementById('bulk-file-input')?.click();
+            });
+            document.getElementById('bulk-file-input')?.addEventListener('change', (e) => {
+                this.bulkFiles = Array.from(e.target.files || []);
+                const countEl = document.getElementById('bulk-file-count');
+                if (countEl) {
+                    countEl.textContent = this.bulkFiles.length
+                        ? `${this.bulkFiles.length} file(s) selected — starting import...`
+                        : '';
+                }
+                if (this.bulkFiles.length) this.runBulkImport();
+            });
+            document.getElementById('btn-back-from-upload').addEventListener('click', () => this.showView('list'));
+            document.getElementById('btn-back-from-detail').addEventListener('click', () => {
+                this.showView('list');
+                this.loadReports();
+            });
+            document.getElementById('btn-cancel-import').addEventListener('click', () => {
+                this.parsedData = null;
+                this.currentPdfFile = null;
+                document.getElementById('preview-section').classList.add('hidden');
+                document.getElementById('input-tabs').classList.remove('hidden');
+                this.switchInputTab(this.activeInputTab || 'upload');
+            });
+            document.getElementById('btn-import-report').addEventListener('click', () => this.importReport());
+
+            // Tab switching
+            document.getElementById('tab-upload').addEventListener('click', () => this.switchInputTab('upload'));
+            document.getElementById('tab-paste').addEventListener('click', () => this.switchInputTab('paste'));
+
+            // File upload
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-accent', 'bg-accent/5');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('border-accent', 'bg-accent/5');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-accent', 'bg-accent/5');
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (['pdf', 'xls', 'xlsx'].includes(ext) || file.type === 'application/pdf') {
+                        this.handleFile(file);
+                    } else {
+                        App.toast('Please upload a PDF, XLS, or XLSX file', 'danger');
+                    }
+                }
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleFile(e.target.files[0]);
+            });
+
+            // Paste input
+            const pasteInput = document.getElementById('paste-input');
+            const parseBtn = document.getElementById('btn-parse-paste');
+            pasteInput.addEventListener('input', () => {
+                const text = pasteInput.value.trim();
+                const lineCount = text ? text.split('\n').length : 0;
+                document.getElementById('paste-line-count').textContent = lineCount > 0 ? `${lineCount} lines` : '';
+                parseBtn.disabled = lineCount < 3;
+            });
+            parseBtn.addEventListener('click', () => this.handlePastedText(pasteInput.value));
+
+            document.getElementById('btn-push-transfers').addEventListener('click', () => {
+                App.openModal('push-modal');
+            });
+            document.getElementById('btn-push-cancel').addEventListener('click', () => App.closeModal('push-modal'));
+            document.getElementById('btn-push-confirm').addEventListener('click', () => this.pushToTransfers());
+
+            document.getElementById('btn-delete-cancel').addEventListener('click', () => App.closeModal('delete-modal'));
+            document.getElementById('btn-delete-confirm').addEventListener('click', () => this.deleteReport());
+        },
+
+        showView(view) {
+            document.getElementById('view-list').classList.toggle('hidden', view !== 'list');
+            document.getElementById('view-upload').classList.toggle('hidden', view !== 'upload');
+            document.getElementById('view-bulk').classList.toggle('hidden', view !== 'bulk');
+            document.getElementById('view-detail').classList.toggle('hidden', view !== 'detail');
+
+            if (view === 'bulk') {
+                this.resetBulkUi();
+            }
+
+            if (view === 'upload') {
+                this.parsedData = null;
+                this.currentPdfFile = null;
+                document.getElementById('preview-section').classList.add('hidden');
+                document.getElementById('parse-progress').classList.add('hidden');
+                document.getElementById('input-tabs').classList.remove('hidden');
+                this.switchInputTab(this.activeInputTab || 'upload');
+                document.getElementById('file-input').value = '';
+                document.getElementById('paste-input').value = '';
+                document.getElementById('paste-line-count').textContent = '';
+                document.getElementById('btn-parse-paste').disabled = true;
+            }
+        },
+
+        activeInputTab: 'upload',
+
+        switchInputTab(tab) {
+            this.activeInputTab = tab;
+            const tabUpload = document.getElementById('tab-upload');
+            const tabPaste = document.getElementById('tab-paste');
+            const dropZone = document.getElementById('drop-zone');
+            const pasteZone = document.getElementById('paste-zone');
+
+            if (tab === 'paste') {
+                tabPaste.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-bg-surface text-accent shadow-sm';
+                tabUpload.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all text-text-muted hover:text-text-primary';
+                dropZone.classList.add('hidden');
+                pasteZone.classList.remove('hidden');
+            } else {
+                tabUpload.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-bg-surface text-accent shadow-sm';
+                tabPaste.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all text-text-muted hover:text-text-primary';
+                dropZone.classList.remove('hidden');
+                pasteZone.classList.add('hidden');
+            }
+        },
+
+        // ── Report List ──
+
+        async loadReports() {
+            const tbody = document.getElementById('reports-tbody');
+            const empty = document.getElementById('reports-empty');
+            const tableWrap = document.getElementById('reports-table-wrap');
+            const loading = document.getElementById('reports-loading');
+
+            tableWrap.classList.add('hidden');
+            empty.classList.add('hidden');
+            loading.classList.remove('hidden');
+
+            try {
+                let url = '/api/barri-reports';
+                if (this.filterStoreId) url += '?store_id=' + this.filterStoreId;
+                const data = await App.api('GET', url);
+                loading.classList.add('hidden');
+
+                if (!data.reports || data.reports.length === 0) {
+                    empty.classList.remove('hidden');
+                    return;
+                }
+
+                tableWrap.classList.remove('hidden');
+                tbody.innerHTML = data.reports.map(r => {
+                    const statusClass = r.status === 'processed' ? 'success' : r.status === 'error' ? 'danger' : 'warning';
+                    const matchPct = r.total_transactions > 0 ? Math.round((r.matched_count / r.total_transactions) * 100) : 0;
+                    const companyBadge = r.company ? `<span class="badge badge-info text-[10px] ml-1">${this.esc(r.company)}</span>` : '';
+                    return `<tr>
+                        <td class="text-text-primary font-mono text-sm whitespace-nowrap">${this.esc(r.date_from)} — ${this.esc(r.date_to)}</td>
+                        <td class="text-text-secondary text-sm">${this.esc(r.agency_name)}${companyBadge}</td>
+                        <td class="text-right font-mono tabular-nums">${r.total_transactions}</td>
+                        <td class="text-right font-mono tabular-nums">${App.money(r.total_principal)}</td>
+                        <td class="text-right font-mono tabular-nums">${App.money(r.total_fees)}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold">${App.money(r.total_amount)}</td>
+                        <td class="text-right font-mono tabular-nums text-success">${App.money(r.total_agcomm || r.total_commission)}</td>
+                        <td><span class="badge badge-${statusClass}">${r.status}</span></td>
+                        <td class="text-right font-mono tabular-nums">${matchPct}%</td>
+                        <td>
+                            <div class="flex items-center gap-1">
+                                <button class="p-1.5 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-accent transition-colors" onclick="Reports.viewReport(${r.id})" title="View">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                                <button class="p-1.5 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-danger transition-colors" onclick="Reports.confirmDelete(${r.id})" title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (err) {
+                loading.classList.add('hidden');
+                empty.classList.remove('hidden');
+                App.toast('Failed to load reports: ' + err.message, 'danger');
+            }
+        },
+
+        confirmDelete(id) {
+            this.deleteTargetId = id;
+            App.openModal('delete-modal');
+        },
+
+        async deleteReport() {
+            App.closeModal('delete-modal');
+            try {
+                await App.api('POST', '/api/barri-reports', { action: 'delete', report_id: this.deleteTargetId });
+                App.toast('Report deleted', 'success');
+                this.loadReports();
+            } catch (err) {
+                App.toast('Delete failed: ' + err.message, 'danger');
+            }
+        },
+
+        // ── PDF Parsing ──
+
+        async handleFile(file) {
+            this.currentPdfFile = file;
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            document.getElementById('drop-zone').classList.add('hidden');
+            document.getElementById('paste-zone').classList.add('hidden');
+            document.getElementById('input-tabs').classList.add('hidden');
+            document.getElementById('parse-progress').classList.remove('hidden');
+
+            try {
+                let parsed;
+
+                if (ext === 'xls' || ext === 'xlsx') {
+                    document.getElementById('parse-status').textContent = 'Reading Excel file...';
+                    parsed = await this.handleExcelFile(file);
+                } else {
+                    parsed = await this.handlePdfFile(file);
+                }
+
+                if (!parsed || parsed.transactions.length === 0) {
+                    if (ext === 'pdf' || ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'webp') {
+                        parsed = await this.parseDocumentWithGemini(file);
+                    }
+                }
+
+                if (!parsed || parsed.transactions.length === 0) {
+                    throw new Error('No transactions found. Supported: Barri, Viamericas, Intercambio, Intermex, Ria (PDF/XLS/XLSX).');
+                }
+
+                this.parsedData = parsed;
+                this.showPreview(parsed);
+
+                document.getElementById('parse-progress').classList.add('hidden');
+                document.getElementById('preview-section').classList.remove('hidden');
+            } catch (err) {
+                document.getElementById('parse-progress').classList.add('hidden');
+                document.getElementById('input-tabs').classList.remove('hidden');
+                this.switchInputTab(this.activeInputTab || 'upload');
+                App.toast('Parse error: ' + err.message, 'danger');
+                console.error('Parse error:', err);
+            }
+        },
+
+        async handlePastedText(text) {
+            const trimmed = text.trim();
+            if (!trimmed) return;
+
+            this.currentPdfFile = null;
+            document.getElementById('paste-zone').classList.add('hidden');
+            document.getElementById('input-tabs').classList.add('hidden');
+            document.getElementById('parse-progress').classList.remove('hidden');
+            document.getElementById('parse-status').textContent = 'Parsing pasted text...';
+
+            try {
+                const lines = trimmed.split('\n').map(l => l.trimEnd());
+                console.log('[Paste Parser] Lines:', lines.length);
+
+                let parsed;
+                const allText = lines.join(' ');
+                const isViamericasEmail = /Total\s+a\s+Depositar/i.test(allText)
+                    || (/Env[ií]os\s+De\s+Dinero/i.test(allText) && /A\d{4,6}-\d+/.test(allText));
+
+                if (isViamericasEmail) {
+                    console.log('[Paste Parser] Detected Viamericas email format');
+                    parsed = this.parseViamericasEmailFormat(lines);
+                } else {
+                    console.log('[Paste Parser] Falling back to standard parser');
+                    parsed = this.parseBarriReport(lines);
+                }
+
+                if (!parsed || parsed.transactions.length === 0) {
+                    throw new Error('No transactions found in pasted text. Supported: Viamericas email, Barri, Intercambio, Intermex, Ria.');
+                }
+
+                this.parsedData = parsed;
+                this.showPreview(parsed);
+
+                document.getElementById('parse-progress').classList.add('hidden');
+                document.getElementById('preview-section').classList.remove('hidden');
+            } catch (err) {
+                document.getElementById('parse-progress').classList.add('hidden');
+                document.getElementById('input-tabs').classList.remove('hidden');
+                this.switchInputTab('paste');
+                App.toast('Parse error: ' + err.message, 'danger');
+                console.error('Paste parse error:', err);
+            }
+        },
+
+        async parseDocumentWithGemini(file) {
+            document.getElementById('parse-status').textContent = 'AI parser analyzing document (Gemini)...';
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await App.apiForm('/api/parse-document', fd);
+            if (!res?.parsed?.transactions?.length) {
+                throw new Error('AI parser found no transactions in this document');
+            }
+            console.log('[Gemini Parser]', res.transaction_count, 'transactions via', res.model);
+            return res.parsed;
+        },
+
+        async handlePdfFile(file) {
+            document.getElementById('parse-status').textContent = 'Loading PDF library...';
+            const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs';
+
+            document.getElementById('parse-status').textContent = 'Reading PDF file...';
+            const arrayBuffer = await file.arrayBuffer();
+
+            document.getElementById('parse-status').textContent = 'Extracting text from pages...';
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+            let allLines = [];
+            const allPageItems = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                document.getElementById('parse-status').textContent = `Processing page ${i} of ${pdf.numPages}...`;
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                allPageItems.push(content.items);
+                const lines = this.extractLines(content.items);
+                allLines = allLines.concat(lines);
+            }
+
+            if (allLines.length < 5 || allLines.join(' ').trim().length < 50) {
+                console.log('[Report Parser] No text layer found, attempting OCR...');
+                document.getElementById('parse-status').textContent = 'Image PDF detected — loading OCR engine...';
+                allLines = await this.ocrPdf(pdf);
+                allPageItems.length = 0;
+            }
+
+            document.getElementById('parse-status').textContent = 'Parsing transactions...';
+            const allText = allLines.join(' ');
+            const isRiaTxnSearch = /B[uú]squeda de Transacciones/i.test(allText)
+                || ((/Ria Money Transfer|Dandelion Payments/i.test(allText)) && /Env[ií]os de Dinero/i.test(allText));
+
+            if (isRiaTxnSearch && allPageItems.length > 0) {
+                console.log('[Report Parser] Detected RIA TRANSACTION SEARCH format');
+                const riaParsed = this.parseRiaTransactionSearchFromPages(allPageItems, allLines);
+                if (riaParsed?.transactions?.length) return riaParsed;
+            }
+
+            let parsed = this.parseBarriReport(allLines);
+            if (!parsed?.transactions?.length) {
+                console.log('[Report Parser] Client parse empty — trying Gemini server parser');
+                parsed = await this.parseDocumentWithGemini(file);
+            }
+            return parsed;
+        },
+
+        async handleExcelFile(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const wb = XLSX.read(arrayBuffer, { type: 'array' });
+
+            document.getElementById('parse-status').textContent = 'Analyzing Excel sheets...';
+            console.log('[Excel Parser] Sheets:', wb.SheetNames);
+
+            for (const sheetName of wb.SheetNames) {
+                const ws = wb.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                if (rows.length < 2) continue;
+
+                // Detect Ria / Intermex Account Statement (Estado de Cuenta)
+                const allText = rows.slice(0, 20).flat().map(c => String(c)).join(' ');
+                const isRiaStatement = /Estado de Cuenta/i.test(allText) || /Agent_Statement/i.test(sheetName) || /Ria Money Transfer/i.test(allText) || /Dandelion Payments/i.test(allText) || (/Sucursal/i.test(allText) && /Actividad/i.test(allText));
+
+                if (isRiaStatement) {
+                    console.log('[Excel Parser] Detected Ria/Intermex Account Statement');
+                    const parsed = this.parseRiaAccountStatement(rows, file.name);
+                    if (parsed) return parsed;
+                }
+
+                // Generic fallback: header-based detection
+                const headerRow = rows.find(r => r.some(c => /trans|date|amount|agent|principal/i.test(String(c))));
+                if (!headerRow) continue;
+
+                const headers = headerRow.map(h => String(h).toLowerCase().trim());
+                console.log('[Excel Parser] Generic headers found:', headers);
+
+                const result = {
+                    agency_number: '', agency_name: file.name.replace(/\.[^.]+$/, ''),
+                    agency_address: '', operator_number: '',
+                    date_from: '', date_to: '', currency: 'USD',
+                    beginning_balance: 0, ending_balance: 0,
+                    company: 'Intermex',
+                    transactions: [],
+                    totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+                };
+
+                const headerIdx = rows.indexOf(headerRow);
+                const dataRows = rows.slice(headerIdx + 1);
+
+                const colMap = {};
+                const patterns = {
+                    date: /date|fecha/i, reference: /trans|ref|confirm|number|nro/i,
+                    name: /name|client|sender|nombre/i, amount: /amount|principal|monto|cantidad|usd/i,
+                    fee: /fee|cargo/i, tax: /tax|impuesto/i, type: /type|tipo|actividad/i,
+                    beneficiary: /benefi|recip/i, company: /company|compan/i,
+                    commission: /comisi[oó]n|commission|agcomm/i
+                };
+                headers.forEach((h, i) => {
+                    for (const [key, pat] of Object.entries(patterns)) {
+                        if (pat.test(h) && !colMap[key]) { colMap[key] = i; break; }
+                    }
+                });
+
+                for (const row of dataRows) {
+                    if (!row || row.length < 3) continue;
+                    const amt = parseFloat(String(row[colMap.amount] || 0).replace(/[$,]/g, '')) || 0;
+                    if (amt === 0) continue;
+
+                    let dateVal = row[colMap.date] || '';
+                    if (typeof dateVal === 'number') {
+                        const d = XLSX.SSF.parse_date_code(dateVal);
+                        if (d) dateVal = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+                    } else {
+                        dateVal = this.parseBarriDate(String(dateVal)) || String(dateVal);
+                    }
+
+                    const fee = parseFloat(String(row[colMap.fee] || 0).replace(/[$,]/g, '')) || 0;
+                    const tax = parseFloat(String(row[colMap.tax] || 0).replace(/[$,]/g, '')) || 0;
+                    const comm = parseFloat(String(row[colMap.commission] || 0).replace(/[$,]/g, '')) || 0;
+
+                    result.transactions.push({
+                        time: '00:00', type: String(row[colMap.type] || 'giros'),
+                        reference: String(row[colMap.reference] || ''),
+                        customer_name: String(row[colMap.name] || 'Unknown'),
+                        beneficiary: String(row[colMap.beneficiary] || ''),
+                        operator: '', qty: 1,
+                        principal: amt, fee, tax, total: amt + fee + tax,
+                        balance: 0, agcomm: comm, var_fee: 0, var_fx: 0,
+                        transaction_date: dateVal,
+                    });
+                }
+
+                if (result.transactions.length > 0) {
+                    const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                    result.date_from = dates[0] || '';
+                    result.date_to = dates[dates.length - 1] || result.date_from;
+                    result.totals.qty = result.transactions.length;
+                    result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                    result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                    result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                    result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                    result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+                    console.log('[Excel Parser] Generic parsed:', result.transactions.length, 'transactions');
+                    return result;
+                }
+            }
+
+            throw new Error('No transaction data found in Excel file. Check that the sheet has column headers (Date, Amount, Name, etc.).');
+        },
+
+        // ── Ria / Intermex Account Statement (Estado de Cuenta) XLS ──
+        parseRiaAccountStatement(rows, fileName) {
+            const result = {
+                agency_number: '', agency_name: '',
+                agency_address: '', operator_number: '',
+                date_from: '', date_to: '', currency: 'USD',
+                beginning_balance: 0, ending_balance: 0,
+                company: 'Intermex',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const str = (v) => String(v ?? '').trim();
+            const money = (v) => parseFloat(String(v ?? 0).replace(/[$,]/g, '')) || 0;
+
+            // Extract agency info from header rows (first 15 rows)
+            for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                const rowText = rows[i].map(c => str(c)).join(' ');
+
+                // "Sulys Multiservices #3 (TX3499)" — agency name + number
+                const agencyMatch = rowText.match(/([A-Za-z][\w\s#.&'-]+?)\s*\(([A-Z]{1,3}\d{3,6})\)/);
+                if (agencyMatch && !result.agency_number) {
+                    result.agency_name = agencyMatch[1].trim();
+                    result.agency_number = agencyMatch[2];
+                }
+
+                // "De 01/03/2026 a 09/03/2026" — date range
+                const dateRange = rowText.match(/De\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+a\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (dateRange) {
+                    result.date_from = this.parseDMYDate(dateRange[1]);
+                    result.date_to = this.parseDMYDate(dateRange[2]);
+                }
+
+                // Previous balance — look for "Balance previo" in summary section
+                const balMatch = rowText.match(/Balance\s+previo.*?([\d,]+\.\d{2})/i);
+                if (balMatch && !result.beginning_balance) {
+                    result.beginning_balance = money(balMatch[1]);
+                }
+            }
+
+            if (!result.agency_name) result.agency_name = fileName.replace(/\.[^.]+$/, '');
+
+            // Find the header row with "Sucursal" and "Fecha"
+            let headerIdx = -1;
+            let colBranch = -1, colDate = -1, colActivity = -1, colQty = -1;
+            let colAmount = -1, colFee = -1, colTax = -1, colComm = -1;
+            let colDebit = -1, colCredit = -1, colBalance = -1;
+
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i];
+                for (let c = 0; c < r.length; c++) {
+                    const v = str(r[c]).toLowerCase();
+                    if (v === 'sucursal') colBranch = c;
+                    if (v === 'fecha') colDate = c;
+                    if (v === 'actividad') colActivity = c;
+                    if (/numero de trans/i.test(v)) colQty = c;
+                    if (v === 'cantidad') colAmount = c;
+                    if (/cargo de cliente/i.test(v)) colFee = c;
+                    if (v === 'impuesto') colTax = c;
+                    if (/comisi[oó]n/i.test(v)) colComm = c;
+                    if (/d[eé]bitos/i.test(v)) colDebit = c;
+                    if (/cr[eé]ditos/i.test(v)) colCredit = c;
+                    if (/balance actual/i.test(v)) colBalance = c;
+                }
+                if (colBranch >= 0 && colDate >= 0) { headerIdx = i; break; }
+            }
+
+            if (headerIdx < 0) {
+                console.log('[Ria Parser] Could not find header row');
+                return null;
+            }
+
+            console.log('[Ria Parser] Header at row', headerIdx, { colBranch, colDate, colActivity, colQty, colAmount, colFee, colTax, colComm, colDebit, colCredit, colBalance });
+
+            // Parse data rows after header
+            for (let i = headerIdx + 1; i < rows.length; i++) {
+                const r = rows[i];
+                const branch = str(r[colBranch]);
+                const dateVal = str(r[colDate >= 0 ? colDate : 6]);
+                const activity = str(r[colActivity >= 0 ? colActivity : 9]);
+
+                // Skip non-data rows
+                if (!branch && !dateVal) continue;
+                if (/^(total|gran total|balance previo)$/i.test(dateVal)) continue;
+                if (/total/i.test(dateVal)) continue;
+                if (/balance previo/i.test(dateVal)) continue;
+
+                // Must have a real date (DD/MM/YYYY)
+                if (!/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(dateVal)) continue;
+
+                // Skip non-transfer rows (commission payouts, checks)
+                const actLower = activity.toLowerCase();
+                if (/comisi[oó]n de agente/i.test(actLower)) continue;
+                if (/cheque\s*\(s\)/i.test(actLower)) continue;
+
+                const principal = money(r[colAmount >= 0 ? colAmount : 12]);
+                if (principal <= 0) continue;
+
+                const fee = money(r[colFee >= 0 ? colFee : 14]);
+                const tax = money(r[colTax >= 0 ? colTax : 16]);
+                const comm = money(r[colComm >= 0 ? colComm : 23]);
+                const debit = money(r[colDebit >= 0 ? colDebit : 24]);
+                const balance = money(r[colBalance >= 0 ? colBalance : 33]);
+
+                // Parse DD/MM/YYYY date format
+                const txnDate = this.parseDMYDate(dateVal);
+
+                // Map activity type
+                let txnType = 'giros';
+                if (/money transfer|env[ií]o/i.test(activity)) txnType = 'giros';
+                else if (/bill payment|pago/i.test(activity)) txnType = 'bill_payment';
+                else if (/money order/i.test(activity)) txnType = 'money_order';
+
+                const qty = parseInt(str(r[colQty >= 0 ? colQty : 11])) || 1;
+
+                result.transactions.push({
+                    time: '00:00',
+                    type: txnType,
+                    reference: '',
+                    customer_name: result.agency_name || 'Unknown',
+                    beneficiary: '',
+                    operator: branch || result.agency_number,
+                    qty,
+                    principal,
+                    fee,
+                    tax,
+                    total: debit || (principal + fee + tax),
+                    balance,
+                    agcomm: comm,
+                    var_fee: 0,
+                    var_fx: 0,
+                    transaction_date: txnDate,
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.reduce((s, t) => s + t.qty, 0);
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+                result.ending_balance = result.transactions[result.transactions.length - 1].balance || 0;
+
+                if (!result.date_from) {
+                    const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                    result.date_from = dates[0] || '';
+                    result.date_to = dates[dates.length - 1] || result.date_from;
+                }
+            }
+
+            console.log('[Ria Parser] Result:', {
+                agency: result.agency_name, num: result.agency_number,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length, totals: result.totals
+            });
+            return result.transactions.length > 0 ? result : null;
+        },
+
+        // ── Ria Transaction Search (Búsqueda de Transacciones) PDF ──
+        parseRiaTransactionSearchFromPages(pageItemsList, lines) {
+            const result = this.buildRiaTransactionSearchResult(lines);
+            const txns = [];
+
+            pageItemsList.forEach((items, pageIndex) => {
+                txns.push(...this.parseRiaTransactionSearchPageItems(items, pageIndex > 0));
+            });
+
+            result.transactions = txns.map((txn) => ({
+                time: '00:00',
+                type: 'giros',
+                reference: txn.reference,
+                customer_name: txn.client,
+                beneficiary: txn.beneficiary,
+                operator: result.agency_number || '',
+                qty: 1,
+                principal: txn.principal,
+                fee: 0,
+                tax: 0,
+                total: txn.principal,
+                balance: 0,
+                agcomm: 0,
+                var_fee: 0,
+                var_fx: 0,
+                transaction_date: result.date_from,
+                amount_received: txn.amount_received,
+                received_currency: txn.received_currency,
+                transaction_status: txn.status,
+            }));
+
+            this.finalizeRiaTransactionSearchResult(result);
+            return result;
+        },
+
+        buildRiaTransactionSearchResult(lines) {
+            const allText = lines.join(' ');
+            const result = {
+                agency_number: '',
+                agency_name: '',
+                agency_address: '',
+                operator_number: '',
+                date_from: '',
+                date_to: '',
+                currency: 'USD',
+                beginning_balance: 0,
+                ending_balance: 0,
+                company: 'Ria',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 },
+            };
+
+            const dateRange = allText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}).*?(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+            if (dateRange) {
+                result.date_from = this.parseBarriDate(dateRange[1]);
+                result.date_to = this.parseBarriDate(dateRange[2]);
+            }
+
+            for (const line of lines) {
+                const agentMatch = line.match(/Sulys[^\t.]+/i) || line.match(/([A-Za-z][\w\s#.&'-]{4,}?)\s*\(([A-Z]{1,3}\d{3,6})\)/);
+                if (agentMatch && !result.agency_name) {
+                    result.agency_name = agentMatch[1] ? agentMatch[1].trim() : agentMatch[0].trim();
+                    if (agentMatch[2]) result.agency_number = agentMatch[2];
+                }
+            }
+
+            if (!result.agency_name) result.agency_name = 'Ria Agency';
+            return result;
+        },
+
+        parseRiaTransactionSearchPageItems(items, continuationPage = false) {
+            const yThreshold = 3;
+            const lineMap = new Map();
+
+            for (const item of items) {
+                if (!item.str || !item.str.trim()) continue;
+                const y = Math.round(item.transform[5]);
+                let key = null;
+                for (const existingKey of lineMap.keys()) {
+                    if (Math.abs(existingKey - y) <= yThreshold) {
+                        key = existingKey;
+                        break;
+                    }
+                }
+                if (key === null) {
+                    key = y;
+                    lineMap.set(key, []);
+                }
+                lineMap.get(key).push(item);
+            }
+
+            const colForX = (x) => {
+                if (x < 130) return 'order';
+                if (x < 170) return 'seq';
+                if (x < 210) return 'client';
+                if (x < 275) return 'beneficiary';
+                if (x < 320) return 'amount';
+                if (x < 400) return 'foreign';
+                return 'status';
+            };
+
+            const rows = [...lineMap.entries()]
+                .sort((a, b) => b[0] - a[0])
+                .map(([y, rowItems]) => {
+                    const cells = { order: [], seq: [], client: [], beneficiary: [], amount: [], foreign: [], status: [] };
+                    rowItems
+                        .sort((a, b) => a.transform[4] - b.transform[4])
+                        .forEach((item) => {
+                            const column = colForX(Math.round(item.transform[4]));
+                            cells[column].push(item.str.trim());
+                        });
+                    const orderText = cells.order.join(' ').trim();
+                    const orderMatch = orderText.match(/(US\d{9,10})/);
+                    return {
+                        y,
+                        cells,
+                        order: orderMatch ? orderMatch[1] : '',
+                        amount: cells.amount.join(' ').trim(),
+                    };
+                });
+
+            let started = continuationPage;
+            const txns = [];
+            let current = null;
+
+            for (const row of rows) {
+                const lineText = Object.values(row.cells).flat().join(' ');
+                if (!started) {
+                    if (/No\.\s*Orden/i.test(lineText) && /Monto\s+Local/i.test(lineText)) started = true;
+                    continue;
+                }
+
+                const isTxnStart = /^US\d{9,10}$/.test(row.order) && /[\d,]+\.\d{2}\s*USD/i.test(row.amount);
+                if (isTxnStart) {
+                    if (current) txns.push(current);
+                    const cells = row.cells;
+                    const principal = parseFloat((row.amount.match(/([\d,]+\.\d{2})\s*USD/i) || [])[1]?.replace(/,/g, '') || '0');
+                    const foreignText = cells.foreign.join(' ');
+                    const foreignMatch = foreignText.match(/([\d,]+\.\d{2})\s+([A-Z]{3})/);
+                    current = {
+                        reference: row.order,
+                        client: cells.client.join(' ').trim(),
+                        beneficiary: cells.beneficiary.join(' ').trim(),
+                        principal,
+                        amount_received: foreignMatch ? parseFloat(foreignMatch[1].replace(/,/g, '')) : 0,
+                        received_currency: foreignMatch ? foreignMatch[2] : '',
+                        status: cells.status.join(' ').replace(/Acción/gi, '').trim(),
+                    };
+                } else if (current && (row.cells.client.length || row.cells.beneficiary.length) && !row.order) {
+                    if (row.cells.client.length) current.client += ' ' + row.cells.client.join(' ');
+                    if (row.cells.beneficiary.length) current.beneficiary += ' ' + row.cells.beneficiary.join(' ');
+                }
+            }
+
+            if (current) txns.push(current);
+            return txns;
+        },
+
+        // Text/line fallback for pasted Ria Transaction Search exports
+        parseRiaTransactionSearchLines(lines) {
+            const result = this.buildRiaTransactionSearchResult(lines);
+            const txns = [];
+            let current = null;
+
+            const flushCurrent = () => {
+                if (!current) return;
+                current.client = current.client.trim();
+                current.beneficiary = current.beneficiary.trim();
+                if (current.reference && current.principal > 0) txns.push(current);
+                current = null;
+            };
+
+            const txnStartRe = /^(US\d{9,10})\s+(\d+)\s+(.+?)\s+([\d,]+\.\d{2})\s+USD\s+([\d,]+\.\d{2})\s+([A-Z]{3})\s+(Pagado|Devuelto|Depositado)/i;
+            const continuationRe = /^([A-Za-z][\w\s]+?)\s+([A-Za-z][\w\s].+)$/;
+
+            for (const rawLine of lines) {
+                const line = rawLine.replace(/\s+/g, ' ').trim();
+                if (!line || /Dandelion Payments|Política de privacidad/i.test(line)) continue;
+
+                const startMatch = line.match(txnStartRe);
+                if (startMatch) {
+                    flushCurrent();
+                    const nameParts = startMatch[3].trim().split(/\s{2,}|\s+(?=[A-Z]{2,})/);
+                    const clientStart = nameParts[0] || '';
+                    const beneficiaryStart = nameParts.slice(1).join(' ') || '';
+                    current = {
+                        reference: startMatch[1],
+                        client: clientStart,
+                        beneficiary: beneficiaryStart,
+                        principal: parseFloat(startMatch[4].replace(/,/g, '')),
+                        amount_received: parseFloat(startMatch[5].replace(/,/g, '')),
+                        received_currency: startMatch[6],
+                        status: startMatch[7],
+                    };
+                    continue;
+                }
+
+                if (current && !/^US\d/.test(line)) {
+                    const contMatch = line.match(continuationRe);
+                    if (contMatch) {
+                        if (contMatch[1]) current.client += ' ' + contMatch[1].trim();
+                        if (contMatch[2]) current.beneficiary += ' ' + contMatch[2].trim();
+                    }
+                }
+            }
+            flushCurrent();
+
+            result.transactions = txns.map((txn) => ({
+                time: '00:00',
+                type: 'giros',
+                reference: txn.reference,
+                customer_name: txn.client,
+                beneficiary: txn.beneficiary,
+                operator: result.agency_number || '',
+                qty: 1,
+                principal: txn.principal,
+                fee: 0,
+                tax: 0,
+                total: txn.principal,
+                balance: 0,
+                agcomm: 0,
+                var_fee: 0,
+                var_fx: 0,
+                transaction_date: result.date_from,
+                amount_received: txn.amount_received,
+                received_currency: txn.received_currency,
+                transaction_status: txn.status,
+            }));
+
+            this.finalizeRiaTransactionSearchResult(result);
+            console.log('[Ria Parser] Transaction Search result:', {
+                agency: result.agency_name,
+                from: result.date_from,
+                to: result.date_to,
+                txns: result.transactions.length,
+                totals: result.totals,
+            });
+            return result;
+        },
+
+        finalizeRiaTransactionSearchResult(result) {
+            if (!result.transactions.length) return;
+            result.totals.qty = result.transactions.length;
+            result.totals.principal = result.transactions.reduce((sum, txn) => sum + txn.principal, 0);
+            result.totals.total = result.totals.principal;
+            if (!result.date_from) {
+                const dates = result.transactions.map((txn) => txn.transaction_date).filter(Boolean).sort();
+                result.date_from = dates[0] || '';
+                result.date_to = dates[dates.length - 1] || result.date_from;
+            }
+        },
+
+        // DD/MM/YYYY → YYYY-MM-DD
+        parseDMYDate(str) {
+            if (!str) return '';
+            const m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+            if (!m) return '';
+            const day = m[1].padStart(2, '0');
+            const month = m[2].padStart(2, '0');
+            let year = m[3];
+            if (year.length === 2) year = (parseInt(year) > 50 ? '19' : '20') + year;
+            return `${year}-${month}-${day}`;
+        },
+
+        async ocrPdf(pdf) {
+            const mod = await import('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.esm.min.js');
+            const Tesseract = mod.default || mod;
+            const createWorker = Tesseract.createWorker;
+            if (!createWorker) throw new Error('OCR library failed to load — createWorker not found.');
+            const worker = await createWorker('eng+spa');
+            const allLines = [];
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                document.getElementById('parse-status').textContent = `OCR: scanning page ${i} of ${pdf.numPages}...`;
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 2.0 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+
+                const { data: { text } } = await worker.recognize(canvas);
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                allLines.push(...lines);
+            }
+
+            await worker.terminate();
+            console.log('[OCR] Extracted lines:', allLines.length, allLines.slice(0, 20));
+            return allLines;
+        },
+
+        extractLines(items) {
+            if (!items.length) return [];
+
+            const yThreshold = 3;
+            const lineMap = new Map();
+
+            for (const item of items) {
+                const y = Math.round(item.transform[5]);
+                let matched = false;
+                for (const [key] of lineMap) {
+                    if (Math.abs(key - y) <= yThreshold) {
+                        lineMap.get(key).push(item);
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    lineMap.set(y, [item]);
+                }
+            }
+
+            const sortedKeys = [...lineMap.keys()].sort((a, b) => b - a);
+            return sortedKeys.map(key => {
+                const lineItems = lineMap.get(key).sort((a, b) => a.transform[4] - b.transform[4]);
+                // Use tab separator for items with large horizontal gaps (>50px)
+                let result = '';
+                for (let i = 0; i < lineItems.length; i++) {
+                    const item = lineItems[i];
+                    if (i > 0) {
+                        const prevItem = lineItems[i - 1];
+                        const prevEnd = prevItem.transform[4] + (prevItem.width || 0);
+                        const gap = item.transform[4] - prevEnd;
+                        result += gap > 50 ? '\t' : ' ';
+                    }
+                    result += item.str;
+                }
+                return result.trim();
+            }).filter(l => l.length > 0);
+        },
+
+        parseBarriReport(lines) {
+            console.log('[Report Parser] Lines extracted:', lines.length, lines.slice(0, 25));
+
+            const allText = lines.join(' ');
+
+            // Detect Barri Agency Activity (English) — must come BEFORE remittance check
+            const isAgencyActivity = /DETAILED\s+AGENCY\s+ACTIVITY/i.test(allText) || /Agency\s+Activity/i.test(allText) || (/Agency:\s*\n?\s*\d{4,}/i.test(allText) && /Beginning\s+Balance/i.test(allText) && /Ending\s+Balance/i.test(allText));
+            if (isAgencyActivity) {
+                console.log('[Report Parser] Detected BARRI AGENCY ACTIVITY format (English)');
+                return this.parseAgencyActivityFormat(lines);
+            }
+
+            // Detect Viamericas / ViaRemote
+            const isViamericas = /ViaRemote/i.test(allText) || /Viamericas/i.test(allText) || /Nro\.\s*Transacci/i.test(allText) || /Nombre del\s+Cliente/i.test(allText) || /A\d{5}\s*-\s*[A-Z]/i.test(allText) || /Nombre\s+Beneficiario/i.test(allText);
+            if (isViamericas) {
+                console.log('[Report Parser] Detected VIAMERICAS format');
+                return this.parseViamericasFormat(lines);
+            }
+
+            // Detect Ria Transaction Search export (Búsqueda de Transacciones)
+            const isRiaTxnSearch = /B[uú]squeda de Transacciones/i.test(allText)
+                || ((/Ria Money Transfer|Dandelion Payments/i.test(allText)) && /Env[ií]os de Dinero/i.test(allText) && /US\d{9,10}/.test(allText));
+            if (isRiaTxnSearch) {
+                console.log('[Report Parser] Detected RIA TRANSACTION SEARCH format (text)');
+                return this.parseRiaTransactionSearchLines(lines);
+            }
+
+            // Detect Intermex (standalone — not as a paying bank inside Viamericas)
+            const isIntermex = /Agent_Statement/i.test(allText) || /Estado\s+de\s+Cuenta.*Intermex/i.test(allText) || (/Intermex/i.test(allText) && !isViamericas && /comisi[oó]n|agent|statement|estado/i.test(allText));
+            if (isIntermex) {
+                console.log('[Report Parser] Detected INTERMEX format');
+                return this.parseIntermexFormat(lines);
+            }
+
+            // Detect Intercambio Express
+            const isIntercambio = /InterCambio/i.test(allText) || /INTERCAMBIO\s+EXPRESS/i.test(allText) || /Nueva\s+Orden/i.test(allText) || /Cheque\s+Escaneado/i.test(allText) || /Resumen\s+de\s+Transacciones/i.test(allText);
+            if (isIntercambio) {
+                console.log('[Report Parser] Detected INTERCAMBIO EXPRESS format');
+                return this.parseIntercambioFormat(lines);
+            }
+
+            // Detect Barri Remittance (Spanish/Cyber portal)
+            const isRemittance = /Fecha\s+Desde/i.test(allText) || /Operador:\s*a\d+/i.test(allText);
+            if (isRemittance) {
+                console.log('[Report Parser] Detected BARRI REMITTANCE format (Spanish/Cyber)');
+                return this.parseRemittanceFormat(lines);
+            }
+
+            console.log('[Report Parser] No specific format detected, trying Agency Activity fallback');
+            return this.parseAgencyActivityFormat(lines);
+        },
+
+        // ── FORMAT: Viamericas Email (Pasted Text) ──
+        parseViamericasEmailFormat(lines) {
+            const result = {
+                agency_number: '', agency_name: '', agency_address: '',
+                operator_number: '', date_from: '', date_to: '',
+                currency: 'USD', beginning_balance: 0, ending_balance: 0,
+                company: 'Viamericas',
+                store_name: '',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const parseMoney = (s) => {
+                if (!s) return 0;
+                const clean = s.replace(/[$,\s]/g, '');
+                return parseFloat(clean) || 0;
+            };
+
+            // Extract "Total a Depositar" as ending balance
+            for (const line of lines) {
+                const depMatch = line.match(/Total\s+a\s+Depositar:\s*\$?([\d,.-]+)/i);
+                if (depMatch) { result.ending_balance = parseMoney(depMatch[1]); break; }
+            }
+
+            // Extract Balance Inicial from the Balance section
+            for (const line of lines) {
+                const balMatch = line.match(/Balance\s+Inicial\s+\$?([\d,.-]+)/i);
+                if (balMatch) { result.beginning_balance = parseMoney(balMatch[1]); break; }
+            }
+
+            // Extract commissions total from "Comisiones" section
+            let totalCommission = 0;
+            let inComisiones = false;
+            for (const line of lines) {
+                if (/^Comisiones\s*$/i.test(line.trim())) { inComisiones = true; continue; }
+                if (inComisiones) {
+                    if (/^Cheques\s+en\s+Tr/i.test(line.trim()) || /^Env[ií]os\s+De\s+Dinero/i.test(line.trim())) break;
+                    const totalMatch = line.match(/^Total\s+\$?([\d,.-]+)/i);
+                    if (totalMatch) { totalCommission = parseMoney(totalMatch[1]); break; }
+                }
+            }
+
+            // Identify section boundaries and parse transaction tables
+            // Sections: "Envios De Dinero" transactions, "Envios De Dinero - Cancelados", "Pago de Biles", "Money Orders"
+            const txnRefRe = /^A\d{4,6}-{1,2}\d+$/;
+            const sectionHeaderRe = /^(Transacci[oó]n|Referencia|N[uú]mero del Bill)\t/i;
+
+            let currentSection = '';
+            let headerCols = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+
+                // Track section changes
+                if (/^Env[ií]os\s+De\s+Dinero\s*-\s*Cancelados/i.test(trimmed)) {
+                    currentSection = 'cancelados'; headerCols = []; continue;
+                }
+                if (/^Env[ií]os\s+De\s+Dinero\s*-\s*Anulados/i.test(trimmed)) {
+                    currentSection = 'anulados'; headerCols = []; continue;
+                }
+                if (/^Env[ií]os\s+De\s+Dinero\s*$/i.test(trimmed)) {
+                    currentSection = 'envios'; headerCols = []; continue;
+                }
+                if (/^Pago\s+de\s+Env[ií]os\s*$/i.test(trimmed)) {
+                    currentSection = 'pago_envios'; headerCols = []; continue;
+                }
+                if (/^Pago\s+de\s+Biles\s*$/i.test(trimmed)) {
+                    currentSection = 'biles'; headerCols = []; continue;
+                }
+                if (/^Money\s+Orders\s*$/i.test(trimmed)) {
+                    currentSection = 'money_orders'; headerCols = []; continue;
+                }
+                if (/^(Balance|Comisiones|Cheques|Dep[oó]sitos|D[eé]bitos|Cr[eé]ditos|Otros\s+Servicios|SubTotal|Total\s+(Cheques|Otros|Env|Cr|D[eé]b|Dep))/i.test(trimmed)) {
+                    currentSection = 'skip'; continue;
+                }
+                if (/^[ÚU]ltimos\s+cuatro/i.test(trimmed)) {
+                    currentSection = 'skip'; continue;
+                }
+
+                // Skip header rows
+                if (sectionHeaderRe.test(trimmed)) {
+                    headerCols = trimmed.split('\t');
+                    continue;
+                }
+
+                // Skip empty or non-data lines
+                if (!trimmed || !trimmed.includes('\t')) continue;
+
+                const cols = line.split('\t').map(c => c.trim());
+
+                // Parse "Envios De Dinero" and "Cancelados" transactions
+                if ((currentSection === 'envios' || currentSection === 'cancelados') && cols.length >= 10) {
+                    const ref = cols[0];
+                    if (!txnRefRe.test(ref) && !/^\d+$/.test(ref)) continue;
+                    // Skip subtotal rows (first col is just a number like "1050" or "14")
+                    if (/^\d+$/.test(ref)) {
+                        // Extract agency number from previous transaction refs
+                        continue;
+                    }
+
+                    const txnDate = this.parseBarriDate(cols[1] || '');
+                    const customerName = (cols[2] || '').replace(/\.{3}$/, '').trim();
+                    const country = (cols[3] || '').trim();
+                    const principal = parseMoney(cols[4]);
+                    const fee = parseMoney(cols[5]);
+                    const tax = parseMoney(cols[6]);
+                    const total = parseMoney(cols[7]);
+                    const commission = parseMoney(cols[8]);
+                    const viaTasa = parseMoney(cols[9]);
+                    const otrosCargos = cols.length > 10 ? parseMoney(cols[10]) : 0;
+
+                    // Extract agency number from reference
+                    if (!result.agency_number) {
+                        const agMatch = ref.match(/^(A\d{4,6})-/);
+                        if (agMatch) result.agency_number = agMatch[1];
+                    }
+
+                    // Skip zero-amount rows (anulados that show $0.00 across the board)
+                    if (principal === 0 && fee === 0 && total === 0) continue;
+
+                    result.transactions.push({
+                        reference: ref,
+                        transaction_date: txnDate,
+                        customer_name: customerName,
+                        destination_country: country,
+                        type: 'money_transfer',
+                        principal, fee, tax, total,
+                        agcomm: commission,
+                        var_fee: viaTasa,
+                        var_fx: otrosCargos,
+                        balance: 0,
+                        operator: '',
+                        qty: 1,
+                        time: '00:00',
+                        beneficiary: '',
+                        amount_received: 0,
+                        received_currency: '',
+                        paying_bank: '',
+                        destination_state: '',
+                        destination_city: '',
+                        payment_date: '',
+                        transaction_status: currentSection === 'cancelados' ? 'cancelled' : '',
+                    });
+                }
+
+                // Parse "Pago de Envios" (payment of transfers)
+                if (currentSection === 'pago_envios' && cols.length >= 4) {
+                    const ref = cols[0];
+                    if (!/^\d+$/.test(ref) || cols[1] === '') continue;
+                    if (/^(Transacci|Total|\d+\s*$)/.test(ref) && !cols[1]) continue;
+                    const txnDate = this.parseBarriDate(cols[1] || '');
+                    const beneficiary = (cols[2] || '').trim();
+                    const amount = parseMoney(cols[3]);
+                    const commission = cols.length > 4 ? parseMoney(cols[4]) : 0;
+                    if (amount === 0) continue;
+
+                    result.transactions.push({
+                        reference: ref,
+                        transaction_date: txnDate,
+                        customer_name: beneficiary,
+                        destination_country: '',
+                        type: 'pago_envios',
+                        principal: amount, fee: 0, tax: 0, total: amount,
+                        agcomm: commission,
+                        var_fee: 0, var_fx: 0, balance: 0,
+                        operator: '', qty: 1, time: '00:00',
+                        beneficiary: beneficiary,
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                }
+
+                // Parse "Pago de Biles" (bill payments)
+                if (currentSection === 'biles' && cols.length >= 5) {
+                    const ref = cols[0];
+                    if (!txnRefRe.test(ref)) continue;
+                    const txnDate = this.parseBarriDate(cols[1] || '');
+                    const customerName = (cols[2] || '').trim();
+                    const company = (cols[3] || '').trim();
+                    const amount = parseMoney(cols[4]);
+                    const commission = cols.length > 5 ? parseMoney(cols[5]) : 0;
+                    const fee = cols.length > 6 ? parseMoney(cols[6]) : 0;
+                    if (amount === 0) continue;
+
+                    if (!result.agency_number) {
+                        const agMatch = ref.match(/^(A\d{4,6})-/);
+                        if (agMatch) result.agency_number = agMatch[1];
+                    }
+
+                    result.transactions.push({
+                        reference: ref,
+                        transaction_date: txnDate,
+                        customer_name: customerName,
+                        destination_country: '',
+                        type: 'bill_payment',
+                        principal: amount, fee, tax: 0, total: amount + fee,
+                        agcomm: commission,
+                        var_fee: 0, var_fx: 0, balance: 0,
+                        operator: '', qty: 1, time: '00:00',
+                        beneficiary: company,
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                }
+
+                // Parse "Money Orders"
+                if (currentSection === 'money_orders' && cols.length >= 3) {
+                    const ref = cols[0];
+                    if (!txnRefRe.test(ref)) continue;
+                    const txnDate = this.parseBarriDate(cols[1] || '');
+                    const amount = parseMoney(cols[2]);
+                    const fee = cols.length > 3 ? parseMoney(cols[3]) : 0;
+                    if (amount === 0) continue;
+
+                    if (!result.agency_number) {
+                        const agMatch = ref.match(/^(A\d{4,6})-/);
+                        if (agMatch) result.agency_number = agMatch[1];
+                    }
+
+                    result.transactions.push({
+                        reference: ref,
+                        transaction_date: txnDate,
+                        customer_name: 'Money Order',
+                        destination_country: '',
+                        type: 'money_order',
+                        principal: amount, fee, tax: 0, total: amount + fee,
+                        agcomm: 0,
+                        var_fee: 0, var_fx: 0, balance: 0,
+                        operator: '', qty: 1, time: '00:00',
+                        beneficiary: '',
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                }
+            }
+
+            // Compute totals and date range from parsed transactions
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+                result.totals.var_fee = result.transactions.reduce((s, t) => s + t.var_fee, 0);
+                result.totals.var_fx = result.transactions.reduce((s, t) => s + t.var_fx, 0);
+
+                const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                result.date_from = dates[0] || '';
+                result.date_to = dates[dates.length - 1] || result.date_from;
+            }
+
+            if (!result.agency_name) {
+                result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
+            }
+
+            console.log('[Viamericas Email Parser] Result:', {
+                agency: result.agency_name, num: result.agency_number,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length, totals: result.totals,
+                beginBal: result.beginning_balance, endBal: result.ending_balance,
+                commission: totalCommission
+            });
+
+            return result;
+        },
+
+        // ── FORMAT 4: Viamericas / ViaRemote ──
+        parseViamericasFormat(lines) {
+            const result = {
+                agency_number: '', agency_name: '', agency_address: '',
+                operator_number: '', date_from: '', date_to: '',
+                currency: 'USD', beginning_balance: 0, ending_balance: 0,
+                company: 'Viamericas',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const dateRe = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+            const timeRe = /^\d{1,2}:\d{2}:\d{2}$/;
+            const moneyRe = /^[\d,]+\.\d{2}$/;
+            const currRe = /^(USD|MXN|GTQ|HNL|COP|NIO|BRL|PEN|DOP)$/i;
+            const skipWords = new Set(['imprimir','modificar','cancelar','modificación','no','disponible','ya','modificada','ver más']);
+            const footerRe = /^(Producto:|Transacciones|Listo\s|Pendiente|Bajo\s|En el|Requiere|Pagado|Cancelado|ViaRemote|Mis contactos|©|Centro de|Autenticar|Inicio\s|Transacciones\s|Status\s|Procesar|Reportes|\d+%$)/i;
+
+            for (const line of lines) {
+                const agencyMatch = line.match(/(A\d{4,6})\s*-\s*([A-Z].*)/i);
+                if (agencyMatch && !result.agency_number) {
+                    result.agency_number = agencyMatch[1];
+                    result.agency_name = agencyMatch[2].trim();
+                }
+                const totalMatch = line.match(/\$([\d,]+\.\d{2})\s*USD/);
+                if (totalMatch && !result.ending_balance) {
+                    result.ending_balance = this.parseMoney(totalMatch[1]);
+                }
+                if (result.agency_number && result.ending_balance) break;
+            }
+
+            // Viamericas PDFs split reference across two lines: "A30097-" then "905"
+            const refPrefixRe = /^(A\d{4,6})-\s*$/;
+            let idx = 0;
+
+            while (idx < lines.length) {
+                const line = lines[idx].trim();
+
+                // Skip footer/header/UI lines
+                if (footerRe.test(line) || /^Nro\.\s*Transacci/i.test(line) || /^Nombre\s/i.test(line) || /^Fecha\s/i.test(line) || /^Monto\s/i.test(line) || /^Pagador/i.test(line) || /^Ciudad/i.test(line) || /^--\s*\d+\s*of\s*\d+\s*--$/.test(line) || /^Buscar\s/i.test(line)) {
+                    idx++; continue;
+                }
+
+                // Detect reference: "A30097-" on this line, number on next
+                const prefixMatch = line.match(refPrefixRe);
+                if (!prefixMatch) { idx++; continue; }
+
+                const refPrefix = prefixMatch[1];
+                idx++;
+                if (idx >= lines.length) break;
+                const refNumLine = lines[idx].trim();
+                if (!/^\d+$/.test(refNumLine)) continue;
+                const reference = refPrefix + '-' + refNumLine;
+                idx++;
+
+                // Collect name lines until we hit a date
+                // Edge case: a name line may contain a tab+date like "MARTHA VACA \t02/28/2026"
+                const nameParts = [];
+                let txnDate = '', txnTime = '', payDate = '', payTime = '';
+
+                while (idx < lines.length) {
+                    let l = lines[idx].trim();
+                    if (!l || skipWords.has(l.toLowerCase())) { idx++; continue; }
+                    if (footerRe.test(l) || refPrefixRe.test(l)) break;
+
+                    // Check if line has tab-separated name+date: "MARTHA VACA \t02/28/2026"
+                    if (l.includes('\t')) {
+                        const tabParts = l.split('\t').map(s => s.trim()).filter(Boolean);
+                        let foundDate = false;
+                        for (const tp of tabParts) {
+                            if (dateRe.test(tp)) {
+                                txnDate = this.parseBarriDate(tp);
+                                foundDate = true;
+                            } else if (tp && !skipWords.has(tp.toLowerCase())) {
+                                nameParts.push(tp);
+                            }
+                        }
+                        idx++;
+                        if (foundDate) break;
+                        continue;
+                    }
+
+                    if (dateRe.test(l)) {
+                        txnDate = this.parseBarriDate(l);
+                        idx++;
+                        break;
+                    }
+                    nameParts.push(l);
+                    idx++;
+                }
+
+                // Split names: sender (first half) + beneficiary (second half)
+                let senderName = '', beneficiaryName = '';
+                if (nameParts.length >= 4) {
+                    const mid = Math.ceil(nameParts.length / 2);
+                    senderName = nameParts.slice(0, mid).join(' ');
+                    beneficiaryName = nameParts.slice(mid).join(' ');
+                } else if (nameParts.length === 3) {
+                    senderName = nameParts[0];
+                    beneficiaryName = nameParts.slice(1).join(' ');
+                } else if (nameParts.length === 2) {
+                    senderName = nameParts[0];
+                    beneficiaryName = nameParts[1];
+                } else {
+                    senderName = nameParts.join(' ') || 'Unknown';
+                }
+
+                // Transaction time
+                if (idx < lines.length && timeRe.test(lines[idx].trim())) {
+                    txnTime = lines[idx].trim().substring(0, 5);
+                    idx++;
+                }
+                // Payment date
+                if (idx < lines.length && dateRe.test(lines[idx].trim())) {
+                    payDate = this.parseBarriDate(lines[idx].trim());
+                    idx++;
+                }
+                // Payment time
+                if (idx < lines.length && timeRe.test(lines[idx].trim())) {
+                    payTime = lines[idx].trim().substring(0, 5);
+                    idx++;
+                }
+
+                // Amount sent
+                let amountSent = 0, sentCurrency = 'USD';
+                if (idx < lines.length) {
+                    const l = lines[idx].trim();
+                    const inlineAmt = l.match(/^([\d,]+\.\d{2})\s+(USD|MXN|GTQ|HNL|COP|NIO|BRL|PEN|DOP)/i);
+                    if (inlineAmt) {
+                        amountSent = this.parseMoney(inlineAmt[1]);
+                        sentCurrency = inlineAmt[2].toUpperCase();
+                        idx++;
+                    } else if (moneyRe.test(l)) {
+                        amountSent = this.parseMoney(l);
+                        idx++;
+                        if (idx < lines.length && currRe.test(lines[idx].trim())) {
+                            sentCurrency = lines[idx].trim().toUpperCase();
+                            idx++;
+                        }
+                    }
+                }
+
+                // Amount received
+                let amountReceived = 0, receivedCurrency = '';
+                if (idx < lines.length) {
+                    const l = lines[idx].trim();
+                    const inlineAmt = l.match(/^([\d,]+\.\d{2})\s+(USD|MXN|GTQ|HNL|COP|NIO|BRL|PEN|DOP)/i);
+                    if (inlineAmt) {
+                        amountReceived = this.parseMoney(inlineAmt[1]);
+                        receivedCurrency = inlineAmt[2].toUpperCase();
+                        idx++;
+                    } else if (moneyRe.test(l)) {
+                        amountReceived = this.parseMoney(l);
+                        idx++;
+                        if (idx < lines.length && currRe.test(lines[idx].trim())) {
+                            receivedCurrency = lines[idx].trim().toUpperCase();
+                            idx++;
+                        }
+                    }
+                }
+
+                // Bank + destination: collect lines until next ref or action buttons
+                // Lines may contain tabs: "ELEKTRA \tMEXICO -" or "BANRURAL \tGUATEMALA -"
+                const destParts = [];
+                while (idx < lines.length) {
+                    const l = lines[idx].trim();
+                    if (refPrefixRe.test(l) || footerRe.test(l)) break;
+                    if (skipWords.has(l.toLowerCase()) || /^Ver más/i.test(l)) { idx++; continue; }
+                    if (!l) { idx++; continue; }
+                    destParts.push(l.replace(/\t+/g, ' '));
+                    idx++;
+                }
+
+                // Parse "BANK COUNTRY - STATE - CITY" from collected parts
+                let payingBank = '', destCountry = '', destState = '', destCity = '';
+                const destStr = destParts.join(' ').replace(/\s+/g, ' ').trim();
+                if (destStr) {
+                    const countryRe = /\b(MEXICO|GUATEMALA|NICARAGUA|HONDURAS|EL SALVADOR|COLOMBIA|PERU|BRASIL|REP(?:UBLICA)?\s*DOMINICANA)\b/i;
+                    const countryIdx = destStr.search(countryRe);
+                    if (countryIdx > 0) {
+                        payingBank = destStr.substring(0, countryIdx).replace(/[-\s]+$/, '').trim();
+                        const geo = destStr.substring(countryIdx).trim();
+                        const geoParts = geo.split(/\s*-\s*/);
+                        destCountry = (geoParts[0] || '').trim();
+                        destState = (geoParts[1] || '').trim();
+                        destCity = (geoParts[2] || '').trim();
+                    } else if (destStr.includes('-')) {
+                        const parts = destStr.split(/\s*-\s*/);
+                        payingBank = parts[0].trim();
+                        destCountry = (parts[1] || '').trim();
+                        destState = (parts[2] || '').trim();
+                        destCity = (parts[3] || '').trim();
+                    } else {
+                        payingBank = destStr;
+                    }
+                }
+
+                if (amountSent === 0 && amountReceived === 0) continue;
+
+                result.transactions.push({
+                    time: txnTime || '00:00',
+                    type: 'money_transfer',
+                    reference,
+                    customer_name: senderName,
+                    beneficiary: beneficiaryName,
+                    operator: '',
+                    qty: 1,
+                    principal: amountSent,
+                    fee: 0,
+                    tax: 0,
+                    total: amountSent,
+                    balance: 0,
+                    agcomm: 0,
+                    var_fee: 0,
+                    var_fx: 0,
+                    transaction_date: txnDate,
+                    payment_date: payDate ? (payDate + (payTime ? ' ' + payTime + ':00' : '')) : '',
+                    amount_received: amountReceived,
+                    received_currency: receivedCurrency || sentCurrency,
+                    paying_bank: payingBank,
+                    destination_country: destCountry,
+                    destination_state: destState,
+                    destination_city: destCity,
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.total = result.totals.principal;
+                const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                result.date_from = dates[0] || '';
+                result.date_to = dates[dates.length - 1] || result.date_from;
+            }
+
+            if (!result.agency_name) result.agency_name = 'Viamericas Agency';
+
+            console.log('[Report Parser] Viamericas result:', {
+                agency: result.agency_name, num: result.agency_number,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length, totals: result.totals
+            });
+            return result;
+        },
+
+        // ── FORMAT 5: Intermex PDF ──
+        parseIntermexFormat(lines) {
+            const result = {
+                agency_number: '', agency_name: 'Intermex',
+                agency_address: '', operator_number: '',
+                date_from: '', date_to: '', currency: 'USD',
+                beginning_balance: 0, ending_balance: 0,
+                company: 'Intermex',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            for (const line of lines) {
+                const agentMatch = line.match(/(TX\d+)/i);
+                if (agentMatch && !result.agency_number) {
+                    result.agency_number = agentMatch[1];
+                }
+                const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                if (dateMatch && !result.date_from) {
+                    result.date_from = this.parseBarriDate(dateMatch[1]);
+                    result.date_to = result.date_from;
+                }
+            }
+
+            // Try to parse tabular data
+            const txnRegex = /^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+)/;
+            for (const line of lines) {
+                const m = line.match(txnRegex);
+                if (!m) continue;
+                const txnDate = this.parseBarriDate(m[1]);
+                const rest = m[2].trim();
+                const amounts = rest.match(/([\d,]+\.\d{2})/g);
+                if (!amounts || amounts.length === 0) continue;
+
+                const principal = this.parseMoney(amounts[0]);
+                if (principal === 0) continue;
+
+                const namePart = rest.replace(/([\d,]+\.\d{2})/g, '').trim();
+
+                result.transactions.push({
+                    time: '00:00', type: 'giros',
+                    reference: '', customer_name: namePart || 'Unknown',
+                    beneficiary: '', operator: '', qty: 1,
+                    principal, fee: amounts.length > 1 ? this.parseMoney(amounts[1]) : 0,
+                    tax: 0, total: principal,
+                    balance: 0, agcomm: 0, var_fee: 0, var_fx: 0,
+                    transaction_date: txnDate,
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.total = result.totals.principal;
+                const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                result.date_from = dates[0] || '';
+                result.date_to = dates[dates.length - 1] || result.date_from;
+            }
+
+            console.log('[Report Parser] Intermex result:', {
+                agency: result.agency_name, num: result.agency_number,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length
+            });
+            return result;
+        },
+
+        // ── FORMAT 2: Barri Remittance (Spanish / Cyber Portal) ──
+        parseRemittanceFormat(lines) {
+            const result = {
+                agency_number: '',
+                agency_name: '',
+                agency_address: '',
+                operator_number: '',
+                date_from: '',
+                date_to: '',
+                currency: 'USD',
+                beginning_balance: 0,
+                ending_balance: 0,
+                company: 'Barri',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            // Extract dates from "Fecha Desde MM/DD/YYYY ... Fecha Hasta MM/DD/YYYY"
+            for (const line of lines) {
+                const dateMatch = line.match(/Fecha\s+Desde\s+(\d{1,2}\/\d{1,2}\/\d{2,4}).*?Fecha\s+Hasta\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (dateMatch) {
+                    result.date_from = this.parseBarriDate(dateMatch[1]);
+                    result.date_to = this.parseBarriDate(dateMatch[2]);
+                    break;
+                }
+            }
+
+            // Extract Operador and Agencia from footer
+            for (const line of lines) {
+                const opMatch = line.match(/Operador:\s*(a?\d+)\s*Agencia:\s*(\d+)/i);
+                if (opMatch) {
+                    result.operator_number = opMatch[1];
+                    result.agency_number = opMatch[2];
+                    result.agency_name = `Agencia ${opMatch[2]}`;
+                    break;
+                }
+            }
+            if (!result.agency_name) result.agency_name = 'Unknown Agency';
+
+            // Fallback dates
+            if (!result.date_from) {
+                for (const line of lines.slice(0, 10)) {
+                    const d = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                    if (d) { result.date_from = this.parseBarriDate(d[1]); result.date_to = result.date_from; break; }
+                }
+            }
+
+            // Type mapping: Spanish → English for DB compatibility
+            const typeMap = {
+                'giro': 'giros',
+                'cambio de cheques': 'money_order',
+                'pago con tarjeta': 'bill_payment',
+                'pago facturas': 'bill_payment',
+                'pago de giro': 'giros',
+            };
+
+            // Status mapping
+            const statusSkip = new Set(['cheque declinado']);
+
+            // Parse transactions: each starts with MM/DD/YYYY HH:MM
+            const txnRegex = /^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}:\d{2})\s+(\d{6,})\s+(.+)/;
+
+            for (let idx = 0; idx < lines.length; idx++) {
+                const line = lines[idx].trim();
+                const m = line.match(txnRegex);
+                if (!m) continue;
+
+                const txnDate = this.parseBarriDate(m[1]);
+                const time = m[2];
+                const reference = m[3];
+                let rest = m[4];
+
+                // Extract transaction type (Spanish)
+                let txnType = 'giros';
+                let afterType = rest;
+                const typePatterns = [
+                    /^(Cambio\s+de\s+Cheques)\s*/i,
+                    /^(Pago\s+con\s+Tarjeta)\s*/i,
+                    /^(Pago\s+Facturas)\s*/i,
+                    /^(Pago\s+de\s+Giro)\s*/i,
+                    /^(Giro)\s+/i,
+                ];
+                for (const tp of typePatterns) {
+                    const tm = rest.match(tp);
+                    if (tm) {
+                        txnType = typeMap[tm[1].toLowerCase()] || 'giros';
+                        afterType = rest.slice(tm[0].length);
+                        break;
+                    }
+                }
+
+                // Extract money values from the end: $principal $fee $stateTax $fedTax $total Status
+                // Money can have commas: $1,000.00
+                const moneyAndStatus = afterType.match(/^(.*?)\s*\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})\s+(.+)$/);
+                if (!moneyAndStatus) continue;
+
+                const namesPart = moneyAndStatus[1].trim();
+                const principal = this.parseMoney(moneyAndStatus[2]);
+                const fee = this.parseMoney(moneyAndStatus[3]);
+                const stateTax = this.parseMoney(moneyAndStatus[4]);
+                const fedTax = this.parseMoney(moneyAndStatus[5]);
+                const total = this.parseMoney(moneyAndStatus[6]);
+                const status = moneyAndStatus[7].trim().toLowerCase();
+                const tax = stateTax + fedTax;
+
+                if (statusSkip.has(status)) continue;
+
+                // Split names into sender / beneficiary
+                let customerName = namesPart;
+                let beneficiary = '';
+                // Heuristic: if there are two capitalized name groups, first is sender, second is beneficiary
+                // But sometimes beneficiary is missing (e.g., Cambio de Cheques)
+                // We'll store the full name as customer_name for matching
+
+                result.transactions.push({
+                    time: time.length === 4 ? '0' + time : time,
+                    type: txnType,
+                    reference,
+                    customer_name: customerName,
+                    beneficiary,
+                    operator: result.operator_number,
+                    qty: 1,
+                    principal,
+                    fee,
+                    tax,
+                    total,
+                    balance: 0,
+                    agcomm: 0,
+                    var_fee: 0,
+                    var_fx: 0,
+                    status: status,
+                    transaction_date: txnDate,
+                });
+            }
+
+            // Compute totals
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+            }
+
+            console.log('[Barri Parser] Remittance result:', {
+                agency: result.agency_name, num: result.agency_number, op: result.operator_number,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length, totals: result.totals
+            });
+            return result;
+        },
+
+        // ── FORMAT 3: Intercambio Express ──
+        parseIntercambioFormat(lines) {
+            const result = {
+                agency_number: '',
+                agency_name: '',
+                agency_address: '',
+                operator_number: '',
+                date_from: '',
+                date_to: '',
+                currency: 'USD',
+                beginning_balance: 0,
+                ending_balance: 0,
+                company: 'Intercambio',
+                store_name: '',
+                ar_executive: '',
+                phone: '',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            // Extract header info
+            for (const line of lines) {
+                // Store code: TX8113 - SULYS HONDURENO Y SALVADORENO BRUTON BAZAR
+                const storeMatch = line.match(/(TX\d+)\s*[-–]\s*(.+)/i);
+                if (storeMatch && !result.agency_number) {
+                    result.agency_number = storeMatch[1];
+                    result.store_name = storeMatch[2].trim();
+                    result.agency_name = result.store_name;
+                }
+
+                // AR Executive
+                const arMatch = line.match(/AR\s+Executive:\s*(.+)/i);
+                if (arMatch) result.ar_executive = arMatch[1].trim();
+
+                // Phone
+                const phoneMatch = line.match(/\((\d{3})\)\s*(\d{3})[- ](\d{4})/);
+                if (phoneMatch && !result.phone) result.phone = phoneMatch[0];
+
+                // Statement Period: 3/1/2026 to 3/12/2026
+                const periodMatch = line.match(/Statement\s+Period:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s+to\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (periodMatch) {
+                    result.date_from = this.parseBarriDate(periodMatch[1]);
+                    result.date_to = this.parseBarriDate(periodMatch[2]);
+                }
+
+                // Balance Inicial: $821.60
+                const balMatch = line.match(/Balance\s+Inicial:?\s*\$?([\d,]+\.\d{2})/i);
+                if (balMatch) result.beginning_balance = this.parseMoney(balMatch[1]);
+
+                // BALANCE TOTAL: ($1,478.09) or $1,478.09
+                const totalBalMatch = line.match(/BALANCE\s+TOTAL:?\s*\(?\$?([\d,]+\.\d{2})\)?/i);
+                if (totalBalMatch) {
+                    result.ending_balance = this.parseMoney(totalBalMatch[1]);
+                    if (line.includes('(')) result.ending_balance *= -1;
+                }
+            }
+
+            if (!result.agency_name) result.agency_name = 'Intercambio Express';
+            if (!result.date_from) {
+                for (const line of lines.slice(0, 15)) {
+                    const d = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                    if (d) { result.date_from = this.parseBarriDate(d[1]); result.date_to = result.date_from; break; }
+                }
+            }
+
+            // Parse transaction detail rows
+            // Format: MM/DD/YYYY  Concepto  Referencia  [Description]  Beneficiario  Operador  Debito  Credito  Balance
+            // Nueva Orden rows have: date, "Nueva Orden", ref#, beneficiary, operator, debit, balance
+            // Cheque Escaneado rows have: date, "Cheque Escaneado Deposito Electronico", ICLBatch#, credit, balance
+
+            const txnDateRegex = /^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+)/;
+
+            for (let idx = 0; idx < lines.length; idx++) {
+                const line = lines[idx].trim();
+                const m = line.match(txnDateRegex);
+                if (!m) continue;
+
+                const txnDate = this.parseBarriDate(m[1]);
+                let rest = m[2].trim();
+
+                // Skip header/summary rows
+                if (/Balance\s+Anterior/i.test(rest)) continue;
+                if (/Envios\s+de\s+Dinero/i.test(rest)) continue;
+                if (/Pago\s+de\s+Servicios/i.test(rest)) continue;
+                if (/Deposito\s+Cheque/i.test(rest)) continue;
+                if (/Total\s+(Cargos|Pagos)/i.test(rest)) continue;
+                if (/Statement/i.test(rest)) continue;
+
+                let txnType = '';
+                let reference = '';
+                let beneficiary = '';
+                let operator = '';
+                let description = '';
+                let debit = 0;
+                let credit = 0;
+                let balance = 0;
+
+                // Detect Nueva Orden (money transfer)
+                const nuevaMatch = rest.match(/^Nueva\s+Orden\s+(\d+)\s+(.*)/i);
+                if (nuevaMatch) {
+                    txnType = 'nueva_orden';
+                    reference = nuevaMatch[1];
+                    let afterRef = nuevaMatch[2].trim();
+
+                    // Extract numbers from end: debit balance or debit (balance)
+                    // Pattern: ...name OPERATOR debit balance
+                    const numPattern = afterRef.match(/^(.*?)\s+([\d,]+\.\d{2})\s+\(?([\d,]+\.\d{2})\)?$/);
+                    if (numPattern) {
+                        const namePart = numPattern[1].trim();
+                        debit = this.parseMoney(numPattern[2]);
+                        balance = this.parseMoney(numPattern[3]);
+                        if (afterRef.includes('(') && afterRef.includes(')')) balance *= -1;
+
+                        // Split name part into beneficiary + operator
+                        // Operator is typically last 1-2 words in ALL CAPS like "CAROLINA CHI"
+                        const opMatch = namePart.match(/^(.*?)\s+([A-Z]{3,}\s+[A-Z]{2,})$/);
+                        if (opMatch) {
+                            beneficiary = opMatch[1].trim();
+                            operator = opMatch[2].trim();
+                        } else {
+                            beneficiary = namePart;
+                        }
+                    } else {
+                        // Fallback: try to get at least the name
+                        beneficiary = afterRef;
+                    }
+                }
+
+                // Detect Cheque Escaneado (check cashing)
+                const chequeMatch = rest.match(/^Cheque\s+Escaneado\s+(.*)/i);
+                if (chequeMatch) {
+                    txnType = 'cheque_escaneado';
+                    let afterType = chequeMatch[1].trim();
+
+                    // May have "Deposito Electronico" description
+                    const descMatch = afterType.match(/^(Deposito\s+Electronico)\s*(.*)/i);
+                    if (descMatch) {
+                        description = descMatch[1].trim();
+                        afterType = descMatch[2].trim();
+                    }
+
+                    // Reference: ICLBatch#NNN NNNNN
+                    const refMatch = afterType.match(/^(ICLBatch#\d+\s*\d*)\s*(.*)/i);
+                    if (refMatch) {
+                        reference = refMatch[1].trim();
+                        afterType = refMatch[2].trim();
+                    }
+
+                    // Numbers at end: credit balance or credit (balance)
+                    const numPattern = afterType.match(/([\d,]+\.\d{2})\s+\(?([\d,]+\.\d{2})\)?$/);
+                    if (numPattern) {
+                        credit = this.parseMoney(numPattern[1]);
+                        balance = this.parseMoney(numPattern[2]);
+                        if (afterType.includes('(') && afterType.includes(')')) balance *= -1;
+                    }
+                }
+
+                if (!txnType) continue;
+
+                const principal = debit || credit;
+                const customerName = beneficiary || result.store_name || 'Unknown';
+
+                result.transactions.push({
+                    time: '00:00',
+                    type: txnType,
+                    reference,
+                    customer_name: customerName,
+                    beneficiary,
+                    operator,
+                    description,
+                    qty: 1,
+                    principal,
+                    fee: 0,
+                    tax: 0,
+                    total: principal,
+                    balance,
+                    agcomm: 0,
+                    var_fee: 0,
+                    var_fx: 0,
+                    transaction_date: txnDate,
+                    is_credit: credit > 0,
+                });
+            }
+
+            // Compute totals
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.total = result.totals.principal;
+            }
+
+            console.log('[Report Parser] Intercambio result:', {
+                agency: result.agency_name, num: result.agency_number,
+                store: result.store_name, exec: result.ar_executive,
+                from: result.date_from, to: result.date_to,
+                begin: result.beginning_balance, end: result.ending_balance,
+                txns: result.transactions.length, totals: result.totals
+            });
+            return result;
+        },
+
+        // ── FORMAT 1: Agency Activity Report (English) ──
+        parseAgencyActivityFormat(lines) {
+            const result = {
+                agency_number: '',
+                agency_name: '',
+                agency_address: '',
+                operator_number: '',
+                date_from: '',
+                date_to: '',
+                currency: 'USD',
+                beginning_balance: 0,
+                ending_balance: 0,
+                company: 'Barri',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            // Find agency info from first page header
+            for (let j = 0; j < Math.min(lines.length, 20); j++) {
+                const line = lines[j];
+                if (/Agency\s*:/i.test(line)) {
+                    const after = line.replace(/^.*Agency\s*:\s*/i, '').trim();
+                    if (after) {
+                        const parts = after.match(/^(\d{4,})\s+(.+)/);
+                        if (parts) { result.agency_number = parts[1]; result.agency_name = parts[2].trim(); }
+                    }
+                    if (!result.agency_name && j + 1 < lines.length) {
+                        const parts = lines[j + 1].trim().match(/^(\d{4,})\s+(.+)/);
+                        if (parts) { result.agency_number = parts[1]; result.agency_name = parts[2].trim(); }
+                    }
+                }
+                if (!result.agency_name) {
+                    const directMatch = line.match(/^(\d{6})\s+([A-Z].*)/);
+                    if (directMatch) { result.agency_number = directMatch[1]; result.agency_name = directMatch[2].trim(); }
+                }
+                if (result.agency_name) break;
+            }
+
+            // Find address
+            for (let j = 0; j < Math.min(lines.length, 20); j++) {
+                const line = lines[j].trim();
+                if (/\d+\s+\w.*(?:AVE|ST|RD|BLVD|DR|LN|HWY|WAY|CT|PL|PKWY)/i.test(line) || /^\d+\s+.*,\s*[A-Z]{2}$/i.test(line)) {
+                    result.agency_address = line; break;
+                }
+            }
+            if (!result.agency_name) result.agency_name = 'Unknown Agency';
+
+            // Find dates: "From" on one line, date on next; "To" on one line, date on next
+            for (let j = 0; j < Math.min(lines.length, 20); j++) {
+                const line = lines[j].trim();
+                if (/^From\s*$/i.test(line) && j + 1 < lines.length) {
+                    const d = lines[j + 1].trim().match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                    if (d) result.date_from = this.parseBarriDate(d[1]);
+                }
+                if (/^To\s*$/i.test(line) && j + 1 < lines.length) {
+                    const d = lines[j + 1].trim().match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                    if (d) result.date_to = this.parseBarriDate(d[1]);
+                }
+                const inlineFrom = line.match(/From\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (inlineFrom) result.date_from = this.parseBarriDate(inlineFrom[1]);
+                const inlineTo = line.match(/To\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (inlineTo) result.date_to = this.parseBarriDate(inlineTo[1]);
+                if (result.date_from && result.date_to) break;
+            }
+            if (!result.date_from) {
+                for (let j = 0; j < Math.min(lines.length, 15); j++) {
+                    const d = lines[j].match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                    if (d) { result.date_from = this.parseBarriDate(d[1]); result.date_to = result.date_from; break; }
+                }
+            }
+
+            // Find first beginning balance
+            for (const line of lines) {
+                const bbMatch = line.match(/Beginning\s+Balance.*?\$?([\d,]+\.\d{2})/i);
+                if (bbMatch) { result.beginning_balance = this.parseMoney(bbMatch[1]); break; }
+            }
+
+            // Pre-process: join lines that are broken by PDF line wrapping.
+            // Normalize parenthesized negatives and strip page headers/footers.
+            const normalized = this.normalizeAgencyActivityLines(lines);
+            result.transactions = this.parseAgencyTransactions(normalized);
+
+            // Extract last ending balance from the report
+            for (let j = lines.length - 1; j >= 0; j--) {
+                const ebMatch = lines[j].match(/Ending\s+Balance.*?\$?([\d,]+\.\d{2})/i);
+                if (ebMatch) { result.ending_balance = this.parseMoney(ebMatch[1]); break; }
+            }
+
+            // Compute totals from parsed transactions
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+                result.totals.var_fee = result.transactions.reduce((s, t) => s + t.var_fee, 0);
+                result.totals.var_fx = result.transactions.reduce((s, t) => s + t.var_fx, 0);
+            }
+
+            console.log('[Barri Parser] Agency Activity result:', {
+                agency: result.agency_name, num: result.agency_number,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length, totals: result.totals
+            });
+            return result;
+        },
+
+        normalizeAgencyActivityLines(lines) {
+            const out = [];
+            const headerRe = /^(DETAILED\s+AGENCY\s+ACTIVITY|Agency:|Currency|USD|To|From|Page\s+\d|Pay\s+Days|CST\/\s*CDT|Time)/i;
+            const footerRe = /^(If you have any questions|--\s*\d+\s+of\s+\d+\s*--)/i;
+            const colHeaderRe = /Transaction\s+Type\s+Reference/i;
+
+            // Detect the agency number from first occurrence to filter repeated headers
+            let agencyNum = '';
+            for (const line of lines.slice(0, 20)) {
+                const m = line.match(/^(\d{6})\s+[A-Z]/);
+                if (m) { agencyNum = m[1]; break; }
+            }
+
+            let seenFirstAgency = false;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                if (headerRe.test(line) || footerRe.test(line) || colHeaderRe.test(line)) continue;
+                // Skip repeated agency number + name lines (page headers after the first)
+                if (agencyNum && line.startsWith(agencyNum + ' ')) {
+                    if (seenFirstAgency) continue;
+                    seenFirstAgency = true; continue;
+                }
+                // Skip address lines repeated on each page (street address patterns)
+                if (/^\d+\s+\w.*(?:AVE|ST|RD|BLVD|DR|LN|HWY|WAY|CT|PL|PKWY)\b/i.test(line) && /[A-Z]{2}\s*$/i.test(line)) continue;
+                // Skip standalone date lines from page headers
+                if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(line)) continue;
+                out.push(line);
+            }
+
+            // Join continuation lines: if a line doesn't start with a time or "Beginning/Ending Balance",
+            // it's a continuation of the previous line
+            const joined = [];
+            for (let i = 0; i < out.length; i++) {
+                const line = out[i];
+                const isNewEntry = /^\d{1,2}:\d{2}\s/.test(line) || /^(Beginning|Ending)\s+Balance/i.test(line);
+                if (isNewEntry || joined.length === 0) {
+                    joined.push(line);
+                } else {
+                    joined[joined.length - 1] += ' ' + line;
+                }
+            }
+
+            // Normalize parenthesized negatives: (1,000.00) → -1000.00 in the numeric fields
+            return joined.map(line => line.replace(/\((\d[\d,]*\.\d{2})\s*\)/g, '-$1'));
+        },
+
+        parseAgencyTransactions(lines) {
+            const transactions = [];
+            const typeMap = {
+                'giros': 'giros', 'giro': 'giros', 'giro - pago': 'giros',
+                'cambio cheques electronico': 'money_order', 'cambio cheques': 'money_order',
+                'cambio de cheques electronico': 'money_order', 'cambio de cheques': 'money_order',
+                'money order': 'money_order',
+                'pago con tarjeta': 'bill_payment', 'bill payment': 'bill_payment',
+                'pago facturas': 'bill_payment',
+                'commission payment': 'commission_payment',
+                'payment': 'payment',
+            };
+
+            // Match: TIME TYPE REFERENCE NAME OPERATOR QTY PRINCIPAL FEE TAX TOTAL BALANCE AGCOMM VARFEE VARFX
+            // Money values can be negative (prefixed with -)
+            const moneyPat = '-?[\\d,]+\\.\\d{2}';
+            const txnRe = new RegExp(
+                '^(\\d{1,2}:\\d{2})\\s+' +                           // time
+                '(.+?)\\s+' +                                         // type (greedy until reference)
+                '(\\d{6,})\\s+' +                                     // reference number
+                '(.+?)\\s+' +                                         // customer name
+                '(a\\d{4,})\\s+' +                                    // operator
+                '(\\d+)\\s+' +                                        // qty
+                '(' + moneyPat + ')\\s+' +                            // principal
+                '(' + moneyPat + ')\\s+' +                            // fee
+                '(' + moneyPat + ')\\s+' +                            // tax
+                '(' + moneyPat + ')\\s+' +                            // total
+                '(' + moneyPat + ')\\s+' +                            // balance
+                '(' + moneyPat + ')\\s+' +                            // agcomm
+                '\\$?(' + moneyPat + ')\\s+' +                        // var_fee
+                '\\$?(' + moneyPat + ')$'                             // var_fx
+            );
+
+            // Some transactions have no operator (Commission Payment, Payment)
+            const noOpRe = new RegExp(
+                '^(\\d{1,2}:\\d{2})\\s+' +                           // time
+                '(.+?)\\s+' +                                         // type
+                '(\\d+)\\s+' +                                        // qty (no reference for these)
+                '(' + moneyPat + ')\\s+' +                            // principal
+                '(' + moneyPat + ')\\s+' +                            // fee
+                '(' + moneyPat + ')\\s+' +                            // tax
+                '(' + moneyPat + ')\\s+' +                            // total
+                '(' + moneyPat + ')\\s+' +                            // balance
+                '(' + moneyPat + ')\\s+' +                            // agcomm
+                '\\$?(' + moneyPat + ')\\s+' +                        // var_fee
+                '\\$?(' + moneyPat + ')$'                             // var_fx
+            );
+
+            let currentDate = '';
+
+            for (const line of lines) {
+                // Track current date from "Ending Balance MM/DD/YYYY" or "Beginning Balance MM/DD/YYYY"
+                const dateInBalance = line.match(/(?:Beginning|Ending)\s+Balance\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (dateInBalance) {
+                    currentDate = this.parseBarriDate(dateInBalance[1]);
+                    continue;
+                }
+                if (/^(Beginning|Ending)\s+Balance/i.test(line)) continue;
+
+                const m = line.match(txnRe);
+                if (m) {
+                    const rawType = m[2].trim().toLowerCase();
+                    const type = typeMap[rawType] || rawType;
+                    transactions.push({
+                        time: m[1].length === 4 ? '0' + m[1] : m[1],
+                        type, reference: m[3],
+                        customer_name: m[4].trim(),
+                        operator: m[5], qty: parseInt(m[6]),
+                        principal: this.parseSignedMoney(m[7]),
+                        fee: this.parseSignedMoney(m[8]),
+                        tax: this.parseSignedMoney(m[9]),
+                        total: this.parseSignedMoney(m[10]),
+                        balance: this.parseSignedMoney(m[11]),
+                        agcomm: this.parseSignedMoney(m[12]),
+                        var_fee: this.parseSignedMoney(m[13]),
+                        var_fx: this.parseSignedMoney(m[14]),
+                        transaction_date: currentDate,
+                    });
+                    continue;
+                }
+
+                // Try no-operator pattern (Commission Payment, Payment)
+                const m2 = line.match(noOpRe);
+                if (m2) {
+                    const rawType = m2[2].trim().toLowerCase();
+                    const type = typeMap[rawType] || rawType;
+                    if (['commission payment', 'payment', 'commission_payment'].includes(type) || /payment|commission/i.test(rawType)) {
+                        transactions.push({
+                            time: m2[1].length === 4 ? '0' + m2[1] : m2[1],
+                            type, reference: '',
+                            customer_name: '',
+                            operator: '', qty: parseInt(m2[3]),
+                            principal: this.parseSignedMoney(m2[4]),
+                            fee: this.parseSignedMoney(m2[5]),
+                            tax: this.parseSignedMoney(m2[6]),
+                            total: this.parseSignedMoney(m2[7]),
+                            balance: this.parseSignedMoney(m2[8]),
+                            agcomm: this.parseSignedMoney(m2[9]),
+                            var_fee: this.parseSignedMoney(m2[10]),
+                            var_fx: this.parseSignedMoney(m2[11]),
+                            transaction_date: currentDate,
+                        });
+                    }
+                }
+            }
+            return transactions;
+        },
+
+        parseBarriDate(str) {
+            if (!str) return '';
+            const parts = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+            if (!parts) return str;
+            const month = parts[1].padStart(2, '0');
+            const day = parts[2].padStart(2, '0');
+            let year = parts[3];
+            if (year.length === 2) year = (parseInt(year) > 50 ? '19' : '20') + year;
+            return `${year}-${month}-${day}`;
+        },
+
+        parseMoney(str) {
+            if (!str) return 0;
+            return parseFloat(str.replace(/[$,]/g, '')) || 0;
+        },
+
+        parseSignedMoney(str) {
+            if (!str) return 0;
+            const negative = str.startsWith('-');
+            const val = parseFloat(str.replace(/[-$,]/g, '')) || 0;
+            return negative ? -val : val;
+        },
+
+        // ── Preview ──
+
+        showPreview(data) {
+            const companyLabel = data.company ? ` [${data.company}]` : '';
+            document.getElementById('preview-agency').textContent = `${data.agency_number} ${data.agency_name}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`;
+            document.getElementById('preview-from').textContent = data.date_from;
+            document.getElementById('preview-to').textContent = data.date_to;
+            document.getElementById('preview-begin-bal').textContent = App.money(data.beginning_balance);
+            document.getElementById('preview-end-bal').textContent = App.money(data.ending_balance);
+            document.getElementById('preview-principal').textContent = App.money(data.totals.principal);
+            document.getElementById('preview-total-amount').textContent = App.money(data.totals.total);
+            document.getElementById('preview-tx-count').textContent = data.transactions.length;
+
+            if (App.stores) {
+                const matched = this.autoMatchStore(data);
+                if (matched) {
+                    const sel = document.getElementById('report-store-selector');
+                    if (sel) sel.value = matched.id;
+                }
+            }
+
+            const hasViaFields = data.company === 'Viamericas' || data.company === 'Ria';
+            const previewHead = document.querySelector('#preview-section thead tr');
+            if (previewHead) {
+                if (hasViaFields) {
+                    previewHead.innerHTML = `<th>Date</th><th>Reference</th><th>Sender</th><th>Beneficiary</th><th class="text-right">Sent (USD)</th><th class="text-right">Received</th><th>Pagador</th><th>Destination</th>`;
+                } else {
+                    const hasPerTxnDates = data.transactions.some(t => t.transaction_date);
+                    const dateCol = hasPerTxnDates ? '<th>Date</th>' : '<th>Time</th>';
+                    previewHead.innerHTML = `${dateCol}<th>Type</th><th>Reference</th><th>Customer</th><th class="text-right">Principal</th><th class="text-right">Fee</th><th class="text-right">Tax</th><th class="text-right">Total</th><th class="text-right">AgComm</th>`;
+                }
+            }
+
+            const tbody = document.getElementById('preview-tbody');
+            tbody.innerHTML = data.transactions.map(tx => {
+                if (hasViaFields) {
+                    const dest = [tx.destination_city, tx.destination_state, tx.destination_country].filter(Boolean).join(', ');
+                    const recvAmt = tx.amount_received ? `${App.money(tx.amount_received).replace('$','')} ${tx.received_currency || ''}` : '—';
+                    return `<tr>
+                        <td class="font-mono text-sm text-text-primary whitespace-nowrap">${this.esc(tx.transaction_date)}</td>
+                        <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
+                        <td class="text-text-primary text-sm">${this.esc(tx.customer_name)}</td>
+                        <td class="text-text-secondary text-sm">${this.esc(tx.beneficiary)}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.principal)}</td>
+                        <td class="text-right font-mono tabular-nums text-text-secondary text-sm">${recvAmt}</td>
+                        <td class="text-sm text-text-secondary">${this.esc(tx.paying_bank || '')}</td>
+                        <td class="text-sm text-text-muted">${this.esc(dest)}</td>
+                    </tr>`;
+                }
+                const typeBadge = this.typeBadge(tx.type);
+                const nameDisplay = tx.beneficiary ? `${this.esc(tx.customer_name)}<br><span class="text-xs text-text-muted">→ ${this.esc(tx.beneficiary)}</span>` : this.esc(tx.customer_name);
+                return `<tr>
+                    <td class="font-mono text-sm text-text-primary">${this.esc(tx.transaction_date || tx.time)}</td>
+                    <td>${typeBadge}</td>
+                    <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
+                    <td class="text-text-primary text-sm">${nameDisplay}</td>
+                    <td class="text-right font-mono tabular-nums">${App.money(tx.principal)}</td>
+                    <td class="text-right font-mono tabular-nums">${App.money(tx.fee)}</td>
+                    <td class="text-right font-mono tabular-nums">${App.money(tx.tax)}</td>
+                    <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.total)}</td>
+                    <td class="text-right font-mono tabular-nums text-success">${App.money(tx.agcomm)}</td>
+                </tr>`;
+            }).join('');
+        },
+
+        // ── Bulk Historical Upload ──
+
+        resetBulkUi() {
+            this.bulkFiles = [];
+            const input = document.getElementById('bulk-file-input');
+            if (input) input.value = '';
+            document.getElementById('bulk-file-count').textContent = '';
+            document.getElementById('bulk-progress-wrap')?.classList.add('hidden');
+            document.getElementById('bulk-results-wrap')?.classList.add('hidden');
+            document.getElementById('bulk-progress-bar').style.width = '0%';
+        },
+
+        async parseReportFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'xls' || ext === 'xlsx') {
+                return this.handleExcelFile(file);
+            }
+            return this.handlePdfFile(file);
+        },
+
+        setBulkProgress(current, total, label, status = '') {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+            document.getElementById('bulk-progress-wrap')?.classList.remove('hidden');
+            document.getElementById('bulk-progress-label').textContent = label;
+            document.getElementById('bulk-progress-count').textContent = `${current} / ${total}`;
+            document.getElementById('bulk-progress-bar').style.width = `${pct}%`;
+            document.getElementById('bulk-progress-status').textContent = status;
+        },
+
+        renderBulkResults(summary) {
+            document.getElementById('bulk-results-wrap')?.classList.remove('hidden');
+            document.getElementById('bulk-stat-success').textContent = summary.success ?? 0;
+            document.getElementById('bulk-stat-failed').textContent = summary.failed ?? 0;
+            document.getElementById('bulk-stat-skipped').textContent = summary.skipped ?? 0;
+            document.getElementById('bulk-stat-unassigned').textContent = summary.unassigned ?? 0;
+
+            const tbody = document.getElementById('bulk-results-tbody');
+            tbody.innerHTML = (summary.results || []).map(r => {
+                const statusClass = r.status === 'success' ? 'success' : r.status === 'duplicate' ? 'warning' : 'danger';
+                const storeLabel = r.store_id
+                    ? (App.stores.find(s => s.id == r.store_id)?.name || `Store #${r.store_id}`)
+                    : '—';
+                const unassignedBadge = r.unassigned
+                    ? '<span class="badge badge-warning ml-1">Unassigned</span>'
+                    : '';
+                const details = r.error
+                    ? this.esc(r.error)
+                    : (r.report_id ? `<button class="btn-secondary !py-1 !px-2 !text-xs" onclick="Reports.viewReport(${r.report_id})">View</button>` : '—');
+                return `<tr>
+                    <td class="font-mono text-sm">${(r.index ?? 0) + 1}</td>
+                    <td class="text-sm text-text-primary">${this.esc(r.label || 'Report')}</td>
+                    <td><span class="badge badge-${statusClass}">${r.status}</span>${unassignedBadge}</td>
+                    <td class="text-sm text-text-secondary">${this.esc(storeLabel)}</td>
+                    <td class="text-right font-mono tabular-nums">${r.total_transactions ?? '—'}</td>
+                    <td class="text-sm">${details}</td>
+                </tr>`;
+            }).join('');
+        },
+
+        async runBulkImport() {
+            const files = this.bulkFiles;
+            if (!files.length) return;
+
+            const selectBtn = document.getElementById('btn-bulk-select-files');
+            if (selectBtn) selectBtn.disabled = true;
+
+            const reports = [];
+            const pdfFiles = [];
+            const parseErrors = [];
+
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    this.setBulkProgress(i, files.length, 'Parsing files', file.name);
+                    try {
+                        let parsed = await this.parseReportFile(file);
+                        if (!parsed?.transactions?.length) {
+                            const ext = file.name.split('.').pop().toLowerCase();
+                            if (['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+                                parsed = await this.parseDocumentWithGemini(file);
+                            }
+                        }
+                        if (!parsed?.transactions?.length) {
+                            throw new Error('No transactions found');
+                        }
+                        parsed.source_label = file.name;
+                        parsed.original_name = file.name;
+                        reports.push(parsed);
+                        pdfFiles.push(file);
+                    } catch (err) {
+                        parseErrors.push({ index: i, file: file.name, error: err.message });
+                    }
+                }
+
+                if (!reports.length) {
+                    throw new Error('No files could be parsed successfully');
+                }
+
+                this.setBulkProgress(files.length, files.length, 'Uploading to server', `${reports.length} report(s)`);
+
+                const fd = new FormData();
+                fd.append('action', 'bulk_import');
+                fd.append('data', JSON.stringify(reports));
+                fd.append('skip_duplicates', document.getElementById('bulk-skip-duplicates')?.checked ? '1' : '0');
+                const fallbackStore = document.getElementById('bulk-store-selector')?.value;
+                if (fallbackStore) fd.append('store_id', fallbackStore);
+                pdfFiles.forEach(file => fd.append('pdf_files[]', file));
+
+                const summary = await App.apiForm('/api/barri-reports', fd);
+
+                if (parseErrors.length) {
+                    parseErrors.forEach(pe => {
+                        summary.failed = (summary.failed || 0) + 1;
+                        summary.results = summary.results || [];
+                        summary.results.push({
+                            index: pe.index,
+                            status: 'failed',
+                            label: pe.file,
+                            error: 'Parse error: ' + pe.error,
+                        });
+                    });
+                }
+
+                this.renderBulkResults(summary);
+                const msg = `Bulk import complete: ${summary.success} imported, ${summary.failed} failed, ${summary.skipped || 0} skipped`;
+                App.toast(msg, summary.failed ? 'warning' : 'success');
+            } catch (err) {
+                App.toast('Bulk import failed: ' + err.message, 'danger');
+            } finally {
+                if (selectBtn) selectBtn.disabled = false;
+                document.getElementById('bulk-progress-label').textContent = 'Complete';
+            }
+        },
+
+        // ── Import ──
+
+        async importReport() {
+            if (!this.parsedData) return;
+            const btn = document.getElementById('btn-import-report');
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Importing...`;
+
+            try {
+                const storeId = document.getElementById('report-store-selector')?.value;
+                const fd = new FormData();
+                fd.append('action', 'import');
+                if (storeId) fd.append('store_id', storeId);
+                fd.append('data', JSON.stringify(this.parsedData));
+                if (this.currentPdfFile) fd.append('pdf_file', this.currentPdfFile);
+                const res = await App.apiForm('/api/barri-reports', fd);
+                const parts = [];
+                if (res.matched_count) parts.push(`${res.matched_count} clients matched`);
+                if (res.clients_created) parts.push(`${res.clients_created} new clients created`);
+                if (res.pushed_to_transfers) parts.push(`${res.pushed_to_transfers} transfers recorded`);
+                if (res.unmatched_count) parts.push(`${res.unmatched_count} need manual matching`);
+                const msg = `Report imported! ${parts.join(', ')}.`;
+                App.toast(msg, 'success');
+                this.currentReportId = res.report_id;
+                this.viewReport(res.report_id);
+            } catch (err) {
+                App.toast('Import failed: ' + err.message, 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Import Report`;
+            }
+        },
+
+        // ── Report Detail ──
+
+        async viewReport(id) {
+            this.currentReportId = id;
+            this.showView('detail');
+
+            const tbody = document.getElementById('detail-tbody');
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8"><div class="flex items-center justify-center gap-2 text-text-muted"><svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Loading...</div></td></tr>`;
+
+            try {
+                const data = await App.api('GET', `/api/barri-reports?id=${id}`);
+                const r = data.report;
+                const txs = data.transactions || [];
+                const stats = data.match_stats || { matched: 0, total: txs.length, pushed: 0 };
+
+                document.getElementById('detail-title').textContent = `Report: ${r.date_from} — ${r.date_to}`;
+                document.getElementById('detail-agency').textContent = `${r.agency_number || ''} ${r.agency_name} — ${r.agency_address || ''}`;
+                document.getElementById('detail-from').textContent = r.date_from;
+                document.getElementById('detail-to').textContent = r.date_to;
+
+                const dlBtn = document.getElementById('btn-download-pdf');
+                if (r.filename) {
+                    dlBtn.href = `/api/barri-reports?download=${id}`;
+                    dlBtn.classList.remove('hidden');
+                } else {
+                    dlBtn.classList.add('hidden');
+                }
+                document.getElementById('detail-begin-bal').textContent = App.money(r.beginning_balance);
+                document.getElementById('detail-end-bal').textContent = App.money(r.ending_balance);
+                document.getElementById('detail-principal').textContent = App.money(r.total_principal);
+                document.getElementById('detail-total-amount').textContent = App.money(r.total_amount);
+                document.getElementById('detail-commission').textContent = App.money(r.total_agcomm || r.total_commission);
+
+                this.updateMatchStats(stats.matched, stats.total, stats.pushed);
+                this.renderDetailTable(txs);
+            } catch (err) {
+                App.toast('Failed to load report: ' + err.message, 'danger');
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-danger">Failed to load report details</td></tr>`;
+            }
+        },
+
+        updateMatchStats(matched, total, pushed = 0) {
+            const pct = total > 0 ? Math.round((matched / total) * 100) : 0;
+            const unpushed = matched - pushed;
+            document.getElementById('match-label').textContent = `${matched}/${total} matched · ${pushed} synced to clients`;
+            document.getElementById('match-badge').textContent = `${pct}%`;
+
+            const badge = document.getElementById('match-badge');
+            badge.className = `badge badge-${pct === 100 ? 'success' : pct >= 50 ? 'warning' : 'danger'}`;
+
+            const bar = document.getElementById('match-progress');
+            bar.style.width = `${pct}%`;
+            bar.className = `progress-fill${pct === 100 ? '' : pct >= 50 ? ' progress-fill-warning' : ' progress-fill-danger'}`;
+
+            const pushBtn = document.getElementById('btn-push-transfers');
+            if (unpushed > 0) {
+                pushBtn.disabled = false;
+                pushBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Sync ${unpushed} to Clients`;
+            } else if (pushed === matched && matched > 0) {
+                pushBtn.disabled = true;
+                pushBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> All Synced to Clients`;
+            } else {
+                pushBtn.disabled = true;
+                pushBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Sync to Clients`;
+            }
+        },
+
+        renderDetailTable(txs) {
+            const tbody = document.getElementById('detail-tbody');
+            tbody.innerHTML = txs.map(tx => {
+                const isMatched = !!tx.client_id;
+                const matchIcon = isMatched
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-danger" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+
+                const clientCell = isMatched
+                    ? `<span class="text-sm text-text-primary">${this.esc(tx.client_name || '—')}</span>`
+                    : `<span class="text-sm text-text-muted">—</span>`;
+
+                const isPushed = !!tx.pushed_to_transfers;
+                let actionsCell;
+                if (isMatched && isPushed) {
+                    actionsCell = `<span class="text-xs text-success font-medium">Synced</span>`;
+                } else if (isMatched) {
+                    actionsCell = `<span class="text-xs text-warning font-medium">Matched (not synced)</span>`;
+                } else {
+                    actionsCell = `<div class="flex items-center gap-1">
+                        <button class="btn-secondary !py-1 !px-2 !text-xs" onclick="Reports.openMatchSearch(${tx.id}, this)">Match</button>
+                        <button class="btn-secondary !py-1 !px-2 !text-xs" onclick="Reports.createClientAndMatch(${tx.id})">Create</button>
+                    </div>`;
+                }
+
+                return `<tr data-tx-id="${tx.id}">
+                    <td class="font-mono text-sm text-text-primary">${this.esc(tx.time)}</td>
+                    <td>${this.typeBadge(tx.type)}</td>
+                    <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
+                    <td class="text-text-primary text-sm">${this.esc(tx.customer_name)}</td>
+                    <td class="text-right font-mono tabular-nums">${App.money(tx.principal)}</td>
+                    <td class="text-right font-mono tabular-nums">${App.money(tx.fee)}</td>
+                    <td class="text-right font-mono tabular-nums">${App.money(tx.tax)}</td>
+                    <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.total)}</td>
+                    <td class="text-center">${matchIcon}</td>
+                    <td>${clientCell}</td>
+                    <td>${actionsCell}</td>
+                </tr>`;
+            }).join('');
+        },
+
+        // ── Client Matching ──
+
+        openMatchSearch(txId, btn) {
+            const existingSearch = document.getElementById(`match-search-${txId}`);
+            if (existingSearch) {
+                existingSearch.remove();
+                return;
+            }
+
+            document.querySelectorAll('[id^="match-search-"]').forEach(el => el.remove());
+
+            const row = btn.closest('tr');
+            const searchRow = document.createElement('tr');
+            searchRow.id = `match-search-${txId}`;
+            searchRow.innerHTML = `<td colspan="11" class="!p-3 bg-bg-elevated/50">
+                <div class="flex items-center gap-3 max-w-xl">
+                    <div class="relative flex-1">
+                        <input type="text" class="input !py-2" placeholder="Search clients by name..." id="match-input-${txId}" autocomplete="off">
+                        <div class="absolute top-full left-0 right-0 mt-1 z-20 hidden" id="match-results-${txId}">
+                            <div class="card !p-0 max-h-48 overflow-y-auto !rounded-lg shadow-xl"></div>
+                        </div>
+                    </div>
+                    <button class="btn-secondary !py-2" onclick="document.getElementById('match-search-${txId}').remove()">Cancel</button>
+                </div>
+            </td>`;
+
+            row.after(searchRow);
+
+            const input = document.getElementById(`match-input-${txId}`);
+            input.focus();
+
+            input.addEventListener('input', App.debounce(async () => {
+                const query = input.value.trim();
+                const resultsWrap = document.getElementById(`match-results-${txId}`);
+                if (query.length < 2) {
+                    resultsWrap.classList.add('hidden');
+                    return;
+                }
+
+                try {
+                    const data = await App.api('POST', '/api/barri-reports', {
+                        action: 'search_clients',
+                        query
+                    });
+
+                    const results = data.clients || [];
+                    const container = resultsWrap.querySelector('.card');
+
+                    if (results.length === 0) {
+                        container.innerHTML = `<div class="p-3 text-sm text-text-muted">No clients found</div>`;
+                    } else {
+                        container.innerHTML = results.map(c => `
+                            <button class="w-full text-left px-3 py-2 hover:bg-bg-elevated transition-colors text-sm flex items-center justify-between border-b border-border last:border-0" onclick="Reports.matchClient(${txId}, ${c.id})">
+                                <span class="text-text-primary">${Reports.esc(c.name)}</span>
+                                <span class="text-xs text-text-muted">${Reports.esc(c.phone || '')}</span>
+                            </button>
+                        `).join('');
+                    }
+                    resultsWrap.classList.remove('hidden');
+                } catch (err) {
+                    App.toast('Search failed: ' + err.message, 'danger');
+                }
+            }, 300));
+        },
+
+        async matchClient(txId, clientId) {
+            try {
+                await App.api('POST', '/api/barri-reports', {
+                    action: 'match',
+                    transaction_id: txId,
+                    client_id: clientId
+                });
+                App.toast('Transaction matched!', 'success');
+                this.viewReport(this.currentReportId);
+            } catch (err) {
+                App.toast('Match failed: ' + err.message, 'danger');
+            }
+        },
+
+        async createClientAndMatch(txId) {
+            try {
+                await App.api('POST', '/api/barri-reports', {
+                    action: 'create_client_and_match',
+                    transaction_id: txId
+                });
+                App.toast('Client created and matched!', 'success');
+                this.viewReport(this.currentReportId);
+            } catch (err) {
+                App.toast('Failed: ' + err.message, 'danger');
+            }
+        },
+
+        // ── Push to Transfers ──
+
+        async pushToTransfers() {
+            App.closeModal('push-modal');
+            const btn = document.getElementById('btn-push-confirm');
+
+            try {
+                await App.api('POST', '/api/barri-reports', {
+                    action: 'push_to_transfers',
+                    report_id: this.currentReportId
+                });
+                App.toast('Transactions synced to client records!', 'success');
+                this.viewReport(this.currentReportId);
+            } catch (err) {
+                App.toast('Sync failed: ' + err.message, 'danger');
+            }
+        },
+
+        // ── Store Auto-Match ──
+
+        autoMatchStore(data) {
+            if (!App.stores?.length) return null;
+
+            const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            const agNum = (data.agency_number || '').trim();
+
+            // 1) Exact agency number match
+            if (agNum) {
+                const byAgency = App.stores.find(s =>
+                    s.barri_agency_number === agNum ||
+                    s.viamericas_agency_number === agNum ||
+                    s.intercambio_agency_number === agNum ||
+                    s.intermex_agency_number === agNum
+                );
+                if (byAgency) return byAgency;
+            }
+
+            // 2) Address match — compare report address against store addresses
+            const reportAddr = normalize(data.agency_address);
+            if (reportAddr && reportAddr.length > 5) {
+                const addrTokens = reportAddr.split(' ').filter(t => t.length > 1);
+                let bestMatch = null, bestScore = 0;
+                for (const s of App.stores) {
+                    const storeAddr = normalize(s.address);
+                    if (!storeAddr) continue;
+                    let hits = 0;
+                    for (const tok of addrTokens) {
+                        if (storeAddr.includes(tok)) hits++;
+                    }
+                    const score = addrTokens.length > 0 ? hits / addrTokens.length : 0;
+                    if (score > bestScore) { bestScore = score; bestMatch = s; }
+                }
+                if (bestScore >= 0.5 && bestMatch) return bestMatch;
+            }
+
+            // 3) Name match — compare report agency_name / store_name against store names
+            const reportNames = [
+                normalize(data.agency_name),
+                normalize(data.store_name),
+            ].filter(Boolean);
+
+            if (reportNames.length) {
+                for (const s of App.stores) {
+                    const storeName = normalize(s.name);
+                    if (!storeName) continue;
+                    for (const rn of reportNames) {
+                        if (rn.includes(storeName) || storeName.includes(rn)) return s;
+                        const storeWords = storeName.split(' ');
+                        const matchedWords = storeWords.filter(w => w.length > 2 && rn.includes(w));
+                        if (storeWords.length > 0 && matchedWords.length / storeWords.length >= 0.5) return s;
+                    }
+                }
+            }
+
+            return null;
+        },
+
+        // ── Helpers ──
+
+        typeBadge(type) {
+            const t = (type || '').toLowerCase();
+            if (t.includes('money_transfer') || t.includes('money transfer')) return `<span class="badge badge-info">Money Transfer</span>`;
+            if (t.includes('giro')) return `<span class="badge badge-info">Giros</span>`;
+            if (t.includes('money')) return `<span class="badge badge-success">Money Order</span>`;
+            if (t.includes('bill')) return `<span class="badge badge-warning">Bill Payment</span>`;
+            if (t.includes('nueva_orden')) return `<span class="badge badge-info">Nueva Orden</span>`;
+            if (t.includes('cheque_escaneado')) return `<span class="badge badge-success">Cheque Escaneado</span>`;
+            return `<span class="badge badge-info">${this.esc(type)}</span>`;
+        },
+
+        esc(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    };
+
+    // Expose globally for onclick handlers
+    window.Reports = Reports;
+
+    (async () => {
+        const ok = await App.init();
+        if (!ok) return;
+
+        App.initSidebar();
+        App.initUserMenu();
+
+        const avatar = document.getElementById('user-avatar');
+        if (avatar && App.user?.name) {
+            avatar.textContent = App.user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        document.getElementById('page-date').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+        });
+
+        // Populate store selector for report uploads
+        const storeSel = document.getElementById('report-store-selector');
+        if (storeSel && App.stores?.length) {
+            storeSel.innerHTML = App.stores.map(s =>
+                `<option value="${s.id}" ${s.id == App.currentStore?.id ? 'selected' : ''}>${s.name}</option>`
+            ).join('');
+        }
+
+        const bulkStoreSel = document.getElementById('bulk-store-selector');
+        if (bulkStoreSel && App.stores?.length) {
+            bulkStoreSel.innerHTML = '<option value="">Auto-match only</option>' + App.stores.map(s =>
+                `<option value="${s.id}" ${s.id == App.currentStore?.id ? 'selected' : ''}>${s.name}</option>`
+            ).join('');
+        }
+
+        if (App.user?.role === 'admin') {
+            document.getElementById('btn-bulk-upload')?.classList.remove('hidden');
+        }
+
+        Reports.init();
+    })();
+
+    </script>
+</body>
+</html>

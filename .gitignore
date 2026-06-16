@@ -1,0 +1,7 @@
+.env
+.DS_Store
+.cursor/
+assets/uploads/*
+!assets/uploads/.gitkeep
+node_modules/
+*.log
