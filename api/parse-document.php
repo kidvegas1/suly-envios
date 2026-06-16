@@ -70,7 +70,7 @@ if (empty($parsed['transactions'])) {
 json_response([
     'success' => true,
     'parser' => 'gemini',
-    'model' => defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.0-flash',
+    'model' => defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-3.5-flash',
     'transaction_count' => count($parsed['transactions']),
     'parsed' => $parsed,
 ]);

@@ -2120,7 +2120,154 @@
             return result;
         },
 
+        // ViaRemote "Creación de Envíos" / Detalle de Envíos PDF (2026+ layout)
+        parseViamericasCreacionEnviosRows(lines) {
+            const result = {
+                agency_number: '', agency_name: '', agency_address: '',
+                operator_number: '', date_from: '', date_to: '',
+                currency: 'USD', beginning_balance: 0, ending_balance: 0,
+                company: 'Viamericas',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const rowStartRe = /^(A\d{4,6})\s*-\s*(.+)$/;
+            const operatorRe = /(SULY\d+)\s+(Pagado|Cancelado|Anulado)\s+(\w)\s+/i;
+            const txnNumOnlyRe = /^-?(\d{4,6})$/;
+            const txnNumTailRe = /^(-?\d{4,6})\t(.+)$/;
+            const skipLineRe = /^(Inicio |Estado de|Detalle de|Historial de|Centro de|Desde$|Hasta$|Agencia$|Cajero$|Envios$|Modo|Generar|Creación|Nro\.|Transacción$|Cliente$|Beneficiario$|Cajero |Pago$|\$[\d,]+||%|\d+$)/i;
+
+            for (let i = 0; i < lines.length; i++) {
+                const t = lines[i].trim();
+                if (t === 'Desde' && i + 1 < lines.length) {
+                    result.date_from = this.parseBarriDate(lines[i + 1].trim());
+                }
+                if (t === 'Hasta' && i + 1 < lines.length) {
+                    result.date_to = this.parseBarriDate(lines[i + 1].trim());
+                }
+                if (t === 'Agencia' && i + 1 < lines.length) {
+                    const ag = lines[i + 1].trim().match(/^(A\d{4,6})$/);
+                    if (ag) result.agency_number = ag[1];
+                }
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || skipLineRe.test(line)) continue;
+
+                const startMatch = line.match(rowStartRe);
+                if (!startMatch) continue;
+
+                const agencyPrefix = startMatch[1];
+                const body = startMatch[2].trim();
+                const opMatch = body.match(operatorRe);
+                if (!opMatch) continue;
+
+                const beforeOp = body.substring(0, opMatch.index).trim();
+                const afterOp = body.substring(opMatch.index + opMatch[0].length).trim();
+                const operator = opMatch[1];
+                const txnStatus = opMatch[2];
+
+                const amounts = [];
+                const negRe = /\(\$?([\d,]+\.\d{2})\)/g;
+                let negM;
+                while ((negM = negRe.exec(afterOp)) !== null) {
+                    amounts.push(this.parseMoney(negM[1]));
+                }
+                if (amounts.length === 0) {
+                    const posRe = /\$([\d,]+\.\d{2})/g;
+                    let posM;
+                    while ((posM = posRe.exec(afterOp)) !== null) {
+                        amounts.push(this.parseMoney(posM[1]));
+                    }
+                }
+                const principal = amounts[0] || 0;
+                const fee = amounts[1] || 0;
+                const tax = amounts[2] || 0;
+                const total = amounts[3] || (principal + fee + tax);
+                if (principal === 0 && total === 0) continue;
+
+                const tabParts = beforeOp.split('\t').map(c => c.trim()).filter(Boolean);
+                const customerName = tabParts[0] || 'Unknown';
+                let beneficiary = tabParts[1] || '';
+
+                let reference = '';
+                let j = i + 1;
+                while (j < lines.length && j <= i + 2) {
+                    const next = lines[j].trim();
+                    if (!next) { j++; continue; }
+                    if (rowStartRe.test(next)) break;
+
+                    const tailMatch = next.match(txnNumTailRe);
+                    if (tailMatch) {
+                        reference = `${agencyPrefix}-${tailMatch[1].replace(/^-/, '')}`;
+                        const extra = tailMatch[2].replace(/\t/g, ' ').trim();
+                        if (extra) beneficiary = [beneficiary, extra].filter(Boolean).join(' ');
+                        j++;
+                        break;
+                    }
+                    if (txnNumOnlyRe.test(next)) {
+                        reference = `${agencyPrefix}-${next.replace(/^-/, '')}`;
+                        j++;
+                        break;
+                    }
+                    break;
+                }
+                if (!reference) continue;
+                i = j - 1;
+
+                if (!result.agency_number) result.agency_number = agencyPrefix;
+                const txnDate = result.date_from || result.date_to || '';
+
+                result.transactions.push({
+                    time: '00:00',
+                    type: txnStatus.toLowerCase() === 'cancelado' ? 'cancel' : 'money_transfer',
+                    reference,
+                    customer_name: customerName,
+                    beneficiary,
+                    operator,
+                    qty: 1,
+                    principal,
+                    fee,
+                    tax,
+                    total,
+                    balance: 0,
+                    agcomm: 0,
+                    var_fee: 0,
+                    var_fx: 0,
+                    transaction_date: txnDate,
+                    amount_received: 0,
+                    received_currency: '',
+                    paying_bank: '',
+                    destination_country: '',
+                    destination_state: '',
+                    destination_city: '',
+                    payment_date: txnDate,
+                    transaction_status: txnStatus,
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                if (!result.date_to) result.date_to = result.date_from;
+            }
+            if (!result.agency_name) {
+                result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
+            }
+            return result;
+        },
+
         parseViamericasFormat(lines) {
+            const creacion = this.parseViamericasCreacionEnviosRows(lines);
+            if (creacion.transactions.length > 0) {
+                console.log('[Report Parser] Viamericas Creación de Envíos result:', creacion.transactions.length, 'txns');
+                return creacion;
+            }
+
             const viaRemote = this.parseViamericasViaRemoteRows(lines);
             if (viaRemote.transactions.length > 0) {
                 console.log('[Report Parser] Viamericas ViaRemote UI result:', viaRemote.transactions.length, 'txns');

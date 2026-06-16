@@ -62,7 +62,7 @@ function gemini_parse_remittance_document(string $filePath, string $mimeType, st
         ],
     ];
 
-    $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.0-flash';
+    $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-3.5-flash';
     $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
         . rawurlencode($model)
         . ':generateContent?key=' . rawurlencode(GEMINI_API_KEY);

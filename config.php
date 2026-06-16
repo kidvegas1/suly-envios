@@ -32,7 +32,7 @@ define('SUPABASE_ANON_KEY', env('SUPABASE_ANON_KEY', ''));
 define('SUPABASE_SERVICE_ROLE_KEY', env('SUPABASE_SERVICE_ROLE_KEY', ''));
 
 define('GEMINI_API_KEY', env('GEMINI_API_KEY', ''));
-define('GEMINI_MODEL', env('GEMINI_MODEL', 'gemini-2.0-flash'));
+define('GEMINI_MODEL', env('GEMINI_MODEL', 'gemini-3.5-flash'));
 
 define('SESSION_SECRET', env('SESSION_SECRET', ''));
 
