@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja — Suly Envios</title>
+    <title>Cash Register — Suly Envios</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -40,30 +40,27 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
                 <div>
-                    <h1 class="text-sm font-bold text-text-primary">Suly Envios</h1>
-                    <p class="text-xs text-text-secondary">Cash Register</p>
+                    <h1 class="text-sm font-bold text-text-primary" data-i18n="app.name">Suly Envios</h1>
+                    <p class="text-xs text-text-secondary" data-i18n="nav.caja">Cash Register</p>
                 </div>
             </div>
         </div>
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            <a href="dashboard" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
-            <a href="caja" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Caja</a>
-            <a href="clients" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</a>
-            <a href="suly-ledger" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>Suly Ledger</a>
-            <a href="schedule" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horarios</a>
-            <a href="statistics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Estadisticas</a>
-            <a href="reports" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg>Reportes</a>
-            <a href="analytics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Analytics</a>
-            <a href="reports-center" class="sidebar-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
-                Reports Center
-            </a>
-            <a href="accounting" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M10 3v18"/></svg>Contabilidad</a>
-            <a href="inventory" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Inventario</a>
-            <a href="events" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Eventos</a>
-            <a href="plates" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>Placas</a>
-            <a href="import" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar Excel</a>
-            <a href="stores" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>Stores</a>
+            <a href="dashboard" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="nav-label" data-i18n="nav.dashboard">Dashboard</span></a>
+            <a href="caja" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="nav-label" data-i18n="nav.caja">Cash Register</span></a>
+            <a href="clients" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-label" data-i18n="nav.clients">Clients</span></a>
+            <a href="suly-ledger" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg><span class="nav-label" data-i18n="nav.suly_ledger">Suly Ledger</span></a>
+            <a href="schedule" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="nav-label" data-i18n="nav.schedule">Schedule & Clock-In</span></a>
+            <a href="statistics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="nav-label" data-i18n="nav.statistics">Statistics</span></a>
+            <a href="reports" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg><span class="nav-label" data-i18n="nav.reports">Reports</span></a>
+            <a href="analytics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="nav-label" data-i18n="nav.analytics">Analytics</span></a>
+            <a href="reports-center" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="nav-label" data-i18n="nav.reports_center">Reports Center</span></a>
+            <a href="accounting" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M10 3v18"/></svg><span class="nav-label" data-i18n="nav.accounting">Accounting</span></a>
+            <a href="inventory" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><span class="nav-label" data-i18n="nav.inventory">Inventory</span></a>
+            <a href="events" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg><span class="nav-label" data-i18n="nav.events">Events</span></a>
+            <a href="plates" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span class="nav-label" data-i18n="nav.plates">License Plates</span></a>
+            <a href="import" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span class="nav-label" data-i18n="nav.import">Import Excel</span></a>
+            <a href="stores" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg><span class="nav-label" data-i18n="nav.stores">Stores</span></a>
         </nav>
         <div class="p-4 border-t border-border">
             <div class="flex items-center gap-3">
@@ -72,7 +69,7 @@
                     <p class="text-sm font-medium text-text-primary truncate" id="user-name"></p>
                     <p class="text-xs text-text-muted capitalize" id="user-role"></p>
                 </div>
-                <button id="logout-btn" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-danger transition-colors" title="Sign out">
+                <button id="logout-btn" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-danger transition-colors" data-i18n-title="action.sign_out" title="Sign out">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
             </div>
@@ -86,13 +83,13 @@
                 <button id="sidebar-toggle" class="lg:hidden p-2 rounded-lg hover:bg-bg-elevated text-text-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
                 </button>
-                <h2 class="text-xl font-bold tracking-tight">Caja</h2>
+                <h2 class="text-xl font-bold tracking-tight" id="page-title" data-i18n="page.caja.heading">Cash Register</h2>
             </div>
             <div class="flex items-center gap-3">
                 <input type="date" id="filter-date" class="input py-2 px-3 text-sm w-44">
                 <button id="new-session-btn" class="btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    New Session
+                    <span data-i18n="caja.new_session">New Session</span>
                 </button>
             </div>
         </header>
@@ -104,16 +101,16 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Cashier</th>
-                                <th>Opening</th>
-                                <th>Entries Total</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th data-i18n="common.date">Date</th>
+                                <th data-i18n="caja.col.cashier">Cashier</th>
+                                <th data-i18n="caja.col.opening">Opening</th>
+                                <th data-i18n="caja.col.entries_total">Entries Total</th>
+                                <th data-i18n="common.status">Status</th>
+                                <th data-i18n="common.actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="sessions-tbody">
-                            <tr><td colspan="6" class="text-center text-text-muted py-8">Loading...</td></tr>
+                            <tr><td colspan="6" class="text-center text-text-muted py-8" data-i18n="common.loading">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -124,26 +121,26 @@
                 <div class="flex items-center justify-between">
                     <button id="back-to-list" class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                        Back to Sessions
+                        <span data-i18n="caja.back_to_sessions">Back to Sessions</span>
                     </button>
                     <div class="flex items-center gap-3">
                         <span class="badge" id="session-status-badge"></span>
-                        <button id="close-session-btn" class="btn-danger hidden">Close Session</button>
+                        <button id="close-session-btn" class="btn-danger hidden" data-i18n="caja.close_session">Close Session</button>
                     </div>
                 </div>
 
                 <!-- Session Info -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="card">
-                        <p class="text-xs text-text-muted uppercase tracking-wider">Date</p>
+                        <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="common.date">Date</p>
                         <p class="text-lg font-semibold mt-1" id="detail-date"></p>
                     </div>
                     <div class="card">
-                        <p class="text-xs text-text-muted uppercase tracking-wider">Cashier</p>
+                        <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="caja.col.cashier">Cashier</p>
                         <p class="text-lg font-semibold mt-1" id="detail-cashier"></p>
                     </div>
                     <div class="card">
-                        <p class="text-xs text-text-muted uppercase tracking-wider">Opening Balance</p>
+                        <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="caja.opening_balance">Opening Balance</p>
                         <p class="text-lg font-semibold font-mono tabular-nums mt-1 text-accent" id="detail-opening"></p>
                     </div>
                 </div>
@@ -151,26 +148,26 @@
                 <!-- Entries Table -->
                 <div class="card p-0 overflow-hidden">
                     <div class="px-6 py-4 border-b border-border flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider">Company Entries</h3>
+                        <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider" data-i18n="caja.company_entries">Company Entries</h3>
                         <button id="add-entry-btn" class="btn-secondary text-xs py-1.5 px-3">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            Add Row
+                            <span data-i18n="caja.add_row">Add Row</span>
                         </button>
                     </div>
                     <table class="w-full">
                         <thead class="bg-[oklch(0.18_0.015_260)]">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Company</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Cash In</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Checks/Debits</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Total</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="caja.col.company">Company</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="caja.col.cash_in">Cash In</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="caja.col.checks_debits">Checks/Debits</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="caja.col.total">Total</th>
                                 <th class="px-4 py-3 w-12"></th>
                             </tr>
                         </thead>
                         <tbody id="entries-tbody"></tbody>
                         <tfoot class="border-t-2 border-accent/30">
                             <tr class="bg-[oklch(0.72_0.15_195_/_0.05)]">
-                                <td class="px-4 py-3 font-bold text-sm text-accent">GRAND TOTAL</td>
+                                <td class="px-4 py-3 font-bold text-sm text-accent" data-i18n="caja.grand_total">GRAND TOTAL</td>
                                 <td class="px-4 py-3 text-right font-bold font-mono tabular-nums" id="total-cash-in"></td>
                                 <td class="px-4 py-3 text-right font-bold font-mono tabular-nums" id="total-checks"></td>
                                 <td class="px-4 py-3 text-right font-bold font-mono tabular-nums text-accent text-lg" id="grand-total"></td>
@@ -182,10 +179,10 @@
 
                 <!-- Denomination Counter -->
                 <div class="card">
-                    <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">Bill Count</h3>
+                    <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4" data-i18n="caja.bill_count">Bill Count</h3>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" id="denoms-grid"></div>
                     <div class="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                        <span class="text-sm text-text-secondary">Cash Total</span>
+                        <span class="text-sm text-text-secondary" data-i18n="caja.cash_total">Cash Total</span>
                         <span class="text-xl font-bold font-mono tabular-nums text-accent" id="denom-total">$0.00</span>
                     </div>
                 </div>
@@ -196,31 +193,32 @@
     <!-- New Session Modal -->
     <div class="modal-backdrop" id="new-session-modal-backdrop"></div>
     <div class="modal-content" id="new-session-modal">
-        <h3 class="text-lg font-bold mb-4">Open New Caja Session</h3>
+        <h3 class="text-lg font-bold mb-4" data-i18n="caja.open_session">Open New Caja Session</h3>
         <form id="new-session-form" class="space-y-4">
             <div>
-                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Date</label>
+                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2" data-i18n="common.date">Date</label>
                 <input type="date" name="session_date" class="input" required>
             </div>
             <div>
-                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Cashier Name</label>
-                <input type="text" name="cashier_name" class="input" placeholder="Cashier name">
+                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2" data-i18n="caja.cashier_name">Cashier Name</label>
+                <input type="text" name="cashier_name" class="input" data-i18n-placeholder="caja.cashier_name_placeholder" placeholder="Cashier name">
             </div>
             <div>
-                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Opening Balance ($)</label>
+                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2" data-i18n="caja.opening_balance">Opening Balance ($)</label>
                 <input type="number" name="opening_balance" class="input font-mono" step="0.01" value="0" required>
             </div>
             <div>
-                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Notes</label>
+                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2" data-i18n="common.notes">Notes</label>
                 <textarea name="notes" class="input" rows="2"></textarea>
             </div>
             <div class="flex gap-3 pt-2">
-                <button type="button" class="btn-secondary flex-1" onclick="App.closeModal('new-session-modal')">Cancel</button>
-                <button type="submit" class="btn-primary flex-1 justify-center">Open Session</button>
+                <button type="button" class="btn-secondary flex-1" onclick="App.closeModal('new-session-modal')" data-i18n="action.cancel">Cancel</button>
+                <button type="submit" class="btn-primary flex-1 justify-center" data-i18n="caja.open_session_btn">Open Session</button>
             </div>
         </form>
     </div>
 
+    <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
         let currentSessionId = null;
@@ -258,7 +256,7 @@
                         notes: fd.get('notes'),
                     });
                     App.closeModal('new-session-modal');
-                    App.toast('Session opened', 'success');
+                    App.toastKey('caja.toast.session_opened', 'success');
                     openSession(res.session_id);
                 } catch (err) {
                     App.toast(err.message, 'danger');
@@ -272,7 +270,7 @@
             });
 
             document.getElementById('add-entry-btn').addEventListener('click', async () => {
-                const name = prompt('Company / Entry name:');
+                const name = prompt(App.t('caja.prompt_entry_name'));
                 if (!name) return;
                 try {
                     await App.api('POST', '/api/caja', { action: 'add_entry', session_id: currentSessionId, company: name });
@@ -281,35 +279,45 @@
             });
 
             document.getElementById('close-session-btn').addEventListener('click', async () => {
-                if (!confirm('Close this session? This will lock all entries.')) return;
+                if (!App.confirmKey('caja.confirm_close')) return;
                 try {
                     const res = await App.api('POST', '/api/caja', { action: 'close_session', session_id: currentSessionId });
-                    App.toast(`Session closed. Balance: ${App.money(res.closing_balance)}`, 'success');
+                    App.toastKey('caja.toast.session_closed', 'success', { balance: App.money(res.closing_balance) });
                     loadSession(currentSessionId);
                 } catch (err) { App.toast(err.message, 'danger'); }
             });
 
             window.addEventListener('store-changed', loadSessions);
+            document.addEventListener('language-changed', () => {
+                loadSessions();
+                if (currentSessionId) loadSession(currentSessionId);
+            });
         })();
 
         async function loadSessions() {
+            const t = (k, v) => App.t(k, v);
+            const statusLabel = (status) => {
+                const key = 'status.' + status;
+                const translated = t(key);
+                return translated !== key ? translated : status;
+            };
             const date = document.getElementById('filter-date').value;
             try {
                 const res = await App.api('GET', `/api/caja?date=${date}`);
                 const tbody = document.getElementById('sessions-tbody');
                 if (!res.sessions.length) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-text-muted py-8">No sessions for this date</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-text-muted py-8">${t('caja.empty_sessions')}</td></tr>`;
                     return;
                 }
                 tbody.innerHTML = res.sessions.map(s => `
                     <tr class="cursor-pointer" onclick="openSession(${s.id})">
                         <td class="font-medium">${App.formatDate(s.session_date)}</td>
-                        <td>${s.cashier_name || s.user_name || '—'}</td>
+                        <td>${s.cashier_name || s.user_name || t('empty.none')}</td>
                         <td class="font-mono tabular-nums">${App.money(s.opening_balance)}</td>
                         <td class="font-mono tabular-nums font-semibold">${App.money(s.entries_total)}</td>
-                        <td><span class="badge ${s.status === 'open' ? 'badge-success' : 'badge-info'}">${s.status}</span></td>
+                        <td><span class="badge ${s.status === 'open' ? 'badge-success' : 'badge-info'}">${statusLabel(s.status)}</span></td>
                         <td>
-                            <button class="btn-secondary text-xs py-1 px-2.5">View</button>
+                            <button class="btn-secondary text-xs py-1 px-2.5">${t('caja.view')}</button>
                         </td>
                     </tr>
                 `).join('');
@@ -324,17 +332,23 @@
         }
 
         async function loadSession(id) {
+            const t = (k, v) => App.t(k, v);
+            const statusLabel = (status) => {
+                const key = 'status.' + status;
+                const translated = t(key);
+                return translated !== key ? translated : status;
+            };
             try {
                 const res = await App.api('GET', `/api/caja?action=session&id=${id}`);
                 const s = res.session;
                 const isOpen = s.status === 'open';
 
                 document.getElementById('detail-date').textContent = App.formatDate(s.session_date);
-                document.getElementById('detail-cashier').textContent = s.cashier_name || '—';
+                document.getElementById('detail-cashier').textContent = s.cashier_name || t('empty.none');
                 document.getElementById('detail-opening').textContent = App.money(s.opening_balance);
 
                 const badge = document.getElementById('session-status-badge');
-                badge.textContent = s.status;
+                badge.textContent = statusLabel(s.status);
                 badge.className = `badge ${isOpen ? 'badge-success' : 'badge-info'}`;
 
                 document.getElementById('close-session-btn').classList.toggle('hidden', !isOpen);
@@ -376,7 +390,7 @@
                     const label = parseFloat(d.denomination) >= 1 ? `$${parseInt(d.denomination)}` : `${parseInt(d.denomination * 100)}¢`;
                     return `
                     <div class="p-3 rounded-xl bg-bg-elevated border border-border">
-                        <p class="text-xs text-text-muted mb-1">${label} bills</p>
+                        <p class="text-xs text-text-muted mb-1">${t('caja.denom_bills', { label })}</p>
                         ${isOpen ? `<input type="number" value="${d.count}" min="0" class="input py-1.5 text-sm font-mono text-center" onchange="updateDenom(${d.id}, this.value)">` : `<p class="text-lg font-bold font-mono tabular-nums">${d.count}</p>`}
                         <p class="text-xs text-text-muted mt-1 font-mono">${App.money(d.subtotal)}</p>
                     </div>`;
@@ -402,7 +416,7 @@
         function updateEntry(id, field, value) { debouncedUpdate(id, field, value); }
 
         async function deleteEntry(id) {
-            if (!confirm('Delete this entry?')) return;
+            if (!App.confirmKey('caja.confirm_delete_entry')) return;
             try {
                 await App.api('POST', '/api/caja', { action: 'delete_entry', entry_id: id });
                 loadSession(currentSessionId);

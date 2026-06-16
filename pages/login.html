@@ -47,28 +47,28 @@
                 <div class="inline-flex items-center justify-center w-18 h-18 rounded-2xl bg-gradient-to-br from-accent to-[oklch(0.55_0.12_40)] mb-5 shadow-lg shadow-accent/20 ring-1 ring-white/20">
                     <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                <h1 class="text-3xl font-bold tracking-tight text-text-primary">Suly Envios</h1>
-                <p class="text-sm text-text-secondary mt-2">Business Management System</p>
+                <h1 class="text-3xl font-bold tracking-tight text-text-primary" data-i18n="app.name">Suly Envios</h1>
+                <p class="text-sm text-text-secondary mt-2" data-i18n="app.subtitle">Business Management System</p>
             </div>
 
             <!-- Form -->
             <form id="login-form" class="space-y-5">
                 <div>
-                    <label class="block text-[11px] font-semibold text-text-muted uppercase tracking-[0.1em] mb-2.5">Email Address</label>
+                    <label class="block text-[11px] font-semibold text-text-muted uppercase tracking-[0.1em] mb-2.5" data-i18n="login.email_label">Email Address</label>
                     <div class="relative">
                         <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                         </div>
-                        <input type="email" id="email" class="input pl-11" placeholder="admin@sulyenvios.com" required autocomplete="email">
+                        <input type="email" id="email" class="input pl-11" data-i18n-placeholder="login.email_placeholder" placeholder="admin@sulyenvios.com" required autocomplete="email">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[11px] font-semibold text-text-muted uppercase tracking-[0.1em] mb-2.5">Password</label>
+                    <label class="block text-[11px] font-semibold text-text-muted uppercase tracking-[0.1em] mb-2.5" data-i18n="login.password_label">Password</label>
                     <div class="relative">
                         <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                         </div>
-                        <input type="password" id="password" class="input pl-11" placeholder="Enter your password" required autocomplete="current-password">
+                        <input type="password" id="password" class="input pl-11" data-i18n-placeholder="login.password_placeholder" placeholder="Enter your password" required autocomplete="current-password">
                     </div>
                 </div>
 
@@ -76,14 +76,14 @@
 
                 <button type="submit" id="login-btn" class="btn-primary w-full justify-center py-3.5 text-base rounded-xl mt-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                    Sign In
+                    <span data-i18n="action.sign_in">Sign In</span>
                 </button>
             </form>
 
             <!-- Divider -->
             <div class="flex items-center gap-3 my-6">
                 <div class="flex-1 h-px bg-border"></div>
-                <span class="text-[11px] text-text-muted uppercase tracking-wider">Secure Access</span>
+                <span class="text-[11px] text-text-muted uppercase tracking-wider" data-i18n="login.secure_access">Secure Access</span>
                 <div class="flex-1 h-px bg-border"></div>
             </div>
 
@@ -92,15 +92,43 @@
                 <div class="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <p class="text-xs text-text-secondary leading-relaxed">Protected with session-based authentication and CSRF tokens.</p>
+                <p class="text-xs text-text-secondary leading-relaxed" data-i18n="login.secure_note">Protected with session-based authentication and CSRF tokens.</p>
             </div>
         </div>
 
-        <p class="text-center text-xs text-text-muted mt-6">Suly Envios &copy; 2026 — All rights reserved</p>
+        <p class="text-center text-xs text-text-muted mt-6" data-i18n="login.footer">Suly Envios © 2026 — All rights reserved</p>
     </main>
 
+    <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
+        const LOGIN_SIGN_IN_BTN = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> <span data-i18n="action.sign_in">Sign In</span>';
+
+        function loginErrorMessage(raw) {
+            if (!raw) return App.t('login.error.generic');
+            if (raw === 'Invalid email or password.') return App.t('login.error.invalid_credentials');
+            const match = raw.match(/^Field '(\w+)' is required\.$/);
+            if (match) {
+                const fieldKey = match[1] === 'email' ? 'login.email' : match[1] === 'password' ? 'login.password' : 'common.name';
+                return App.t('login.error.field_required', { field: App.t(fieldKey) });
+            }
+            return raw;
+        }
+
+        function showLoginError(raw) {
+            const errEl = document.getElementById('login-error');
+            errEl.dataset.errorRaw = raw || '';
+            errEl.textContent = loginErrorMessage(raw);
+            errEl.classList.remove('hidden');
+        }
+
+        function resetLoginButton() {
+            const btn = document.getElementById('login-btn');
+            btn.disabled = false;
+            btn.innerHTML = LOGIN_SIGN_IN_BTN;
+            App.applyI18n();
+        }
+
         (async () => {
             const ok = await App.init();
             if (ok) { location.href = 'dashboard'; return; }
@@ -109,9 +137,10 @@
                 e.preventDefault();
                 const errEl = document.getElementById('login-error');
                 errEl.classList.add('hidden');
+                errEl.dataset.errorRaw = '';
                 const btn = document.getElementById('login-btn');
                 btn.disabled = true;
-                btn.innerHTML = '<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Signing in...';
+                btn.innerHTML = '<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ' + App.t('action.signing_in');
                 try {
                     await App.api('POST', '/api/auth', {
                         action: 'login',
@@ -120,10 +149,21 @@
                     });
                     location.href = 'dashboard';
                 } catch (err) {
-                    errEl.textContent = err.message;
-                    errEl.classList.remove('hidden');
-                    btn.disabled = false;
-                    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
+                    showLoginError(err.message);
+                    resetLoginButton();
+                }
+            });
+
+            document.addEventListener('language-changed', () => {
+                const errEl = document.getElementById('login-error');
+                if (!errEl.classList.contains('hidden')) {
+                    errEl.textContent = loginErrorMessage(errEl.dataset.errorRaw);
+                }
+                const btn = document.getElementById('login-btn');
+                if (btn.disabled) {
+                    btn.innerHTML = '<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ' + App.t('action.signing_in');
+                } else {
+                    resetLoginButton();
                 }
             });
         })();
