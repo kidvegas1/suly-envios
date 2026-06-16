@@ -118,11 +118,12 @@ function auth_ensure_admin_store_context(): void {
     if (!auth_check() || !auth_is_admin()) {
         return;
     }
-    if ((int)($_SESSION['store_id'] ?? 0) > 0) {
+    $sessionStore = $_SESSION['store_id'] ?? null;
+    if ($sessionStore !== null && $sessionStore !== '' && (int)$sessionStore > 0) {
         return;
     }
     $row = db()->query('SELECT id FROM stores WHERE ' . sql_is_active() . ' ORDER BY name LIMIT 1')->fetch();
     if ($row) {
-        $_SESSION['store_id'] = (int)$row['id'];
+        auth_set_store((int)$row['id']);
     }
 }

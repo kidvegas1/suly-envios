@@ -15,17 +15,18 @@ const App = {
         this.user = res.user;
         this.csrf = res.csrf;
         this.stores = res.stores;
-        this.currentStore = res.stores.find(s => s.id == res.user.store_id) || res.stores[0];
+        const sessionStoreId = Number(res.user.store_id) || 0;
+        this.currentStore = res.stores.find(s => s.id == sessionStoreId) || res.stores[0];
         if (
             this.user?.role === 'admin'
             && this.currentStore
-            && !res.user.store_id
+            && sessionStoreId <= 0
         ) {
-            await this.api('POST', '/api/auth', {
+            const switched = await this.api('POST', '/api/auth', {
                 action: 'switch_store',
                 store_id: this.currentStore.id,
             });
-            this.user.store_id = this.currentStore.id;
+            this.user.store_id = switched.store_id ?? this.currentStore.id;
         }
         return true;
     },

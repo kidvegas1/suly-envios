@@ -30,6 +30,10 @@ function resolve_store_id(?int $requested = null): int {
             return $requested;
         }
         $session = (int)($_SESSION['store_id'] ?? 0);
+        if ($session <= 0) {
+            auth_ensure_admin_store_context();
+            $session = (int)($_SESSION['store_id'] ?? 0);
+        }
         if ($session > 0) {
             return $session;
         }
