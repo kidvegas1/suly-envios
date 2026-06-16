@@ -4,25 +4,29 @@ $method = get_method();
 $pdo = db();
 
 if ($method === 'GET') {
-    $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $category = $_GET['category'] ?? '';
-    $where = 'WHERE ae.store_id = ?';
-    $params = [$storeId];
+    $storeSql = store_filter_sql('ae.store_id', $storeId);
+    $where = 'WHERE 1=1' . $storeSql;
+    $params = [];
+    if ($storeId) $params[] = $storeId;
     if ($category) {
         $where .= ' AND ae.category = ?';
         $params[] = $category;
     }
 
-    $stmt = $pdo->prepare("SELECT ae.* FROM accounting_entries ae {$where} ORDER BY ae.entry_date DESC, ae.id DESC LIMIT 200");
+    $stmt = $pdo->prepare("SELECT ae.*, s.name as store_name FROM accounting_entries ae LEFT JOIN stores s ON s.id = ae.store_id {$where} ORDER BY ae.entry_date DESC, ae.id DESC LIMIT 200");
     $stmt->execute($params);
 
-    $totals = $pdo->prepare("SELECT entry_type, COALESCE(SUM(amount),0) as total FROM accounting_entries WHERE store_id = ? GROUP BY entry_type");
-    $totals->execute([$storeId]);
+    $totalsWhere = 'WHERE 1=1' . store_filter_sql('store_id', $storeId);
+    $totalsParams = $storeId ? [$storeId] : [];
+    $totals = $pdo->prepare("SELECT entry_type, COALESCE(SUM(amount),0) as total FROM accounting_entries {$totalsWhere} GROUP BY entry_type");
+    $totals->execute($totalsParams);
     $sums = ['receivable' => 0, 'payable' => 0];
     foreach ($totals->fetchAll() as $row) $sums[$row['entry_type']] = (float)$row['total'];
 
-    $categories = $pdo->prepare('SELECT DISTINCT category FROM accounting_entries WHERE store_id = ? ORDER BY category');
-    $categories->execute([$storeId]);
+    $categories = $pdo->prepare("SELECT DISTINCT category FROM accounting_entries {$totalsWhere} ORDER BY category");
+    $categories->execute($totalsParams);
 
     json_response([
         'entries'       => $stmt->fetchAll(),
@@ -30,6 +34,7 @@ if ($method === 'GET') {
         'total_payable'    => $sums['payable'],
         'net_balance'      => $sums['receivable'] - $sums['payable'],
         'categories'       => array_column($categories->fetchAll(), 'category'),
+        'scope'            => $storeId ? 'store' : 'all',
     ]);
 }
 

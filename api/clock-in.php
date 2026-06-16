@@ -4,28 +4,34 @@ $method = get_method();
 $pdo = db();
 
 if ($method === 'GET') {
-    $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $action = $_GET['action'] ?? 'today';
+    $storeSql = store_filter_sql('ci.store_id', $storeId);
 
     if ($action === 'employees') {
+        $empStoreId = $storeId ?? resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
         $current = auth_resolve_employee(auth_is_store_locked());
         $stmt = $pdo->prepare('SELECT id, name, phone FROM employees WHERE store_id = ? AND status = \'active\' ORDER BY name');
-        $stmt->execute([$storeId]);
+        $stmt->execute([$empStoreId]);
         json_response([
             'employees' => $stmt->fetchAll(),
             'current_employee' => $current,
+            'scope' => $storeId ? 'store' : 'all',
         ]);
     }
 
     if ($action === 'today') {
         $date = $_GET['date'] ?? date('Y-m-d');
-        $stmt = $pdo->prepare('SELECT ci.*, e.name as employee_name
+        $stmt = $pdo->prepare('SELECT ci.*, e.name as employee_name, s.name as store_name
             FROM clock_ins ci
             JOIN employees e ON e.id = ci.employee_id
-            WHERE ci.store_id = ? AND ' . sql_date('ci.clock_in_time') . ' = ?
+            LEFT JOIN stores s ON s.id = ci.store_id
+            WHERE ' . sql_date('ci.clock_in_time') . ' = ?' . $storeSql . '
             ORDER BY ci.clock_in_time DESC');
-        $stmt->execute([$storeId, $date]);
-        json_response(['clock_ins' => $stmt->fetchAll()]);
+        $params = [$date];
+        if ($storeId) $params[] = $storeId;
+        $stmt->execute($params);
+        json_response(['clock_ins' => $stmt->fetchAll(), 'scope' => $storeId ? 'store' : 'all']);
     }
 
     if ($action === 'history') {
@@ -36,29 +42,32 @@ if ($method === 'GET') {
         $startDate = $_GET['start'] ?? date('Y-m-d', strtotime('-7 days'));
         $endDate = $_GET['end'] ?? date('Y-m-d');
 
-        $where = 'WHERE ci.store_id = ? AND ' . sql_date('ci.clock_in_time') . ' BETWEEN ? AND ?';
-        $params = [$storeId, $startDate, $endDate];
+        $where = 'WHERE ' . sql_date('ci.clock_in_time') . ' BETWEEN ? AND ?' . $storeSql;
+        $params = [$startDate, $endDate];
+        if ($storeId) $params[] = $storeId;
 
         if ($employeeId) {
             $where .= ' AND ci.employee_id = ?';
             $params[] = (int)$employeeId;
         }
 
-        $stmt = $pdo->prepare("SELECT ci.*, e.name as employee_name
+        $stmt = $pdo->prepare("SELECT ci.*, e.name as employee_name, s.name as store_name
             FROM clock_ins ci JOIN employees e ON e.id = ci.employee_id
+            LEFT JOIN stores s ON s.id = ci.store_id
             {$where} ORDER BY ci.clock_in_time DESC LIMIT 200");
         $stmt->execute($params);
 
-        // Weekly hours summary
-        $hours = $pdo->prepare("SELECT e.name, COALESCE(SUM(ci.hours_worked),0) as total_hours, COUNT(ci.id) as days
+        $hours = $pdo->prepare("SELECT e.name, s.name as store_name, COALESCE(SUM(ci.hours_worked),0) as total_hours, COUNT(ci.id) as days
             FROM clock_ins ci JOIN employees e ON e.id = ci.employee_id
+            LEFT JOIN stores s ON s.id = ci.store_id
             {$where} AND ci.status = 'clocked_out'
-            GROUP BY e.id, e.name ORDER BY e.name");
+            GROUP BY e.id, e.name, s.name ORDER BY e.name");
         $hours->execute($params);
 
         json_response([
             'clock_ins' => $stmt->fetchAll(),
             'hours_summary' => $hours->fetchAll(),
+            'scope' => $storeId ? 'store' : 'all',
         ]);
     }
 

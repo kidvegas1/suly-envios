@@ -58,10 +58,15 @@ function resolve_store_filter(?int $requested = null): ?int {
         if ($requested !== null && $requested > 0) {
             return $requested;
         }
-        $session = (int)($_SESSION['store_id'] ?? 0);
-        return $session > 0 ? $session : null;
+        // Admin aggregate reads default to all stores unless ?store_id= is passed.
+        return null;
     }
     return resolve_store_id($requested);
+}
+
+/** Build optional store_id SQL fragment for admin all-store reads. */
+function store_filter_sql(string $column = 'store_id', ?int $storeId = null, string $prefix = ' AND '): string {
+    return $storeId ? $prefix . $column . ' = ' . (int)$storeId : '';
 }
 
 function paginate(int $total, int $perPage = 50): array {

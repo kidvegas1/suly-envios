@@ -25,10 +25,15 @@ function caja_assert_session(PDO $pdo, int $sessionId, int $storeId): void {
 
 // GET: List sessions or single session with entries
 if ($method === 'GET') {
-    $storeId = caja_store_id();
+    $storeFilter = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     if ($action === 'session' && isset($_GET['id'])) {
-        $stmt = $pdo->prepare('SELECT * FROM caja_sessions WHERE id = ? AND store_id = ?');
-        $stmt->execute([(int)$_GET['id'], $storeId]);
+        if ($storeFilter) {
+            $stmt = $pdo->prepare('SELECT * FROM caja_sessions WHERE id = ? AND store_id = ?');
+            $stmt->execute([(int)$_GET['id'], $storeFilter]);
+        } else {
+            $stmt = $pdo->prepare('SELECT * FROM caja_sessions WHERE id = ?');
+            $stmt->execute([(int)$_GET['id']]);
+        }
         $session = $stmt->fetch();
         if (!$session) json_error('Session not found', 404);
 
@@ -45,22 +50,25 @@ if ($method === 'GET') {
         ]);
     }
 
-    // List sessions
+  // List sessions
     $date = $_GET['date'] ?? null;
-    $where = 'WHERE cs.store_id = ?';
-    $params = [$storeId];
+    $storeSql = store_filter_sql('cs.store_id', $storeFilter);
+    $where = 'WHERE 1=1' . $storeSql;
+    $params = [];
+    if ($storeFilter) $params[] = $storeFilter;
     if ($date) {
         $where .= ' AND cs.session_date = ?';
         $params[] = $date;
     }
 
-    $stmt = $pdo->prepare("SELECT cs.*, u.name as user_name,
+    $stmt = $pdo->prepare("SELECT cs.*, u.name as user_name, s.name as store_name,
         (SELECT COALESCE(SUM(total),0) FROM caja_entries WHERE session_id = cs.id) as entries_total
         FROM caja_sessions cs LEFT JOIN users u ON u.id = cs.user_id
+        LEFT JOIN stores s ON s.id = cs.store_id
         {$where} ORDER BY cs.session_date DESC, cs.id DESC LIMIT 50");
     $stmt->execute($params);
 
-    json_response(['sessions' => $stmt->fetchAll()]);
+    json_response(['sessions' => $stmt->fetchAll(), 'scope' => $storeFilter ? 'store' : 'all']);
 }
 
 // POST: Create/update

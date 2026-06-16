@@ -4,16 +4,18 @@ $method = get_method();
 $pdo = db();
 
 if ($method === 'GET') {
-    $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $status = $_GET['status'] ?? '';
-    $where = 'WHERE p.store_id = ?';
-    $params = [$storeId];
+    $storeSql = store_filter_sql('p.store_id', $storeId);
+    $where = 'WHERE 1=1' . $storeSql;
+    $params = [];
+    if ($storeId) $params[] = $storeId;
     if ($status) { $where .= ' AND p.status = ?'; $params[] = $status; }
 
-    $stmt = $pdo->prepare("SELECT p.* FROM plates p {$where} ORDER BY p.created_at DESC LIMIT 200");
+    $stmt = $pdo->prepare("SELECT p.*, s.name as store_name FROM plates p LEFT JOIN stores s ON s.id = p.store_id {$where} ORDER BY p.created_at DESC LIMIT 200");
     $stmt->execute($params);
 
-    json_response(['plates' => $stmt->fetchAll()]);
+    json_response(['plates' => $stmt->fetchAll(), 'scope' => $storeId ? 'store' : 'all']);
 }
 
 if ($method === 'POST') {

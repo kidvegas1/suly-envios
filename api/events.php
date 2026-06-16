@@ -4,21 +4,26 @@ $method = get_method();
 $pdo = db();
 
 if ($method === 'GET') {
-    $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $status = $_GET['status'] ?? '';
-    $where = 'WHERE e.store_id = ?';
-    $params = [$storeId];
+    $storeSql = store_filter_sql('e.store_id', $storeId);
+    $where = 'WHERE 1=1' . $storeSql;
+    $params = [];
+    if ($storeId) $params[] = $storeId;
     if ($status) { $where .= ' AND e.status = ?'; $params[] = $status; }
 
-    $stmt = $pdo->prepare("SELECT e.* FROM events e {$where} ORDER BY e.event_date DESC LIMIT 200");
+    $stmt = $pdo->prepare("SELECT e.*, s.name as store_name FROM events e LEFT JOIN stores s ON s.id = e.store_id {$where} ORDER BY e.event_date DESC LIMIT 200");
     $stmt->execute($params);
 
-    $upcoming = $pdo->prepare('SELECT COUNT(*) as cnt FROM events WHERE store_id = ? AND event_date >= ' . sql_curdate() . " AND status IN ('booked','confirmed')");
-    $upcoming->execute([$storeId]);
+    $upWhere = 'WHERE 1=1' . store_filter_sql('store_id', $storeId) . ' AND event_date >= ' . sql_curdate() . " AND status IN ('booked','confirmed')";
+    $upParams = $storeId ? [$storeId] : [];
+    $upcoming = $pdo->prepare("SELECT COUNT(*) as cnt FROM events {$upWhere}");
+    $upcoming->execute($upParams);
 
     json_response([
         'events'   => $stmt->fetchAll(),
         'upcoming' => (int)$upcoming->fetch()['cnt'],
+        'scope'    => $storeId ? 'store' : 'all',
     ]);
 }
 

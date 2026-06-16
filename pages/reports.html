@@ -1976,7 +1976,157 @@
             return result;
         },
 
+        parseViamericasViaRemoteRows(lines) {
+            const result = {
+                agency_number: '', agency_name: '', agency_address: '',
+                operator_number: '', date_from: '', date_to: '',
+                currency: 'USD', beginning_balance: 0, ending_balance: 0,
+                company: 'Viamericas',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const rowStartRe = /^A\d{4,6}\s*-\s*(.+)$/;
+            const continuationRe = /^(\d{1,4})\s+(.*)$/;
+            const skipLineRe = /^(Inicio |Buscar |Producto:|Money Transfer|Nro\.|Transacci|Status|Procesar|Cheques|Reportes|Buscar nombre|\$[\d,]+||%)/i;
+            const uiNoiseRe = /(Imprimir|Modificar|Cancelar|Ver más|Ya Modificada|Modificación|no disponible||||)/gi;
+            const currRe = /\b(USD|MXN|GTQ|HNL|COP|NIO|BRL|PEN|DOP)\b/gi;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || skipLineRe.test(line)) continue;
+
+                const startMatch = line.match(rowStartRe);
+                if (!startMatch) continue;
+
+                const agencyPrefix = line.match(/^(A\d{4,6})/)[1];
+                let body = startMatch[1].trim();
+                if (!/\d{1,2}\/\d{1,2}\//.test(body) && !body.includes('\t') && !/[\d,]+\.\d{2}/.test(body)) {
+                    if (!result.agency_name) result.agency_name = body.replace(uiNoiseRe, '').trim();
+                    continue;
+                }
+
+                let continuation = '';
+                if (i + 1 < lines.length) {
+                    const next = lines[i + 1].trim();
+                    if (continuationRe.test(next)) {
+                        continuation = next;
+                        i++;
+                    }
+                }
+                if (!continuation) continue;
+
+                const contMatch = continuation.match(continuationRe);
+                const reference = `${agencyPrefix}-${contMatch[1]}`;
+                let contRest = contMatch[2].replace(uiNoiseRe, '').split('\t')[0].trim();
+
+                let namePart1 = body;
+                let dataPart = '';
+                if (body.includes('\t')) {
+                    const tabParts = body.split('\t');
+                    namePart1 = tabParts[0].trim();
+                    dataPart = tabParts.slice(1).join(' ').trim();
+                } else {
+                    const dateIdx = body.search(/\d{1,2}\/\d{1,2}\/\d{2,4}/);
+                    if (dateIdx > 0) {
+                        namePart1 = body.substring(0, dateIdx).trim();
+                        dataPart = body.substring(dateIdx).trim();
+                    } else {
+                        dataPart = body;
+                        namePart1 = '';
+                    }
+                }
+
+                dataPart = dataPart.replace(uiNoiseRe, '').trim();
+                const dates = dataPart.match(/\d{1,2}\/\d{1,2}\/\d{2,4}/g) || [];
+                const amounts = dataPart.match(/([\d,]+\.\d{2})/g) || [];
+                const txnDate = dates[0] ? this.parseBarriDate(dates[0]) : '';
+                const payDate = dates[1] ? this.parseBarriDate(dates[1]) : txnDate;
+
+                const principal = amounts[0] ? this.parseMoney(amounts[0]) : 0;
+                const receivedAmt = amounts[1] ? this.parseMoney(amounts[1]) : 0;
+                if (principal === 0 && receivedAmt === 0) continue;
+
+                let bankGeo = dataPart.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}/g, ' ')
+                    .replace(/[\d,]+\.\d{2}/g, ' ').replace(/\s+/g, ' ').trim();
+
+                const times = contRest.match(/\d{1,2}:\d{2}:\d{2}/g) || [];
+                const txnTime = times[0] ? times[0].substring(0, 5) : '00:00';
+                const currencies = contRest.match(currRe) || [];
+                const sentCurrency = (currencies[0] || 'USD').toUpperCase();
+                const receivedCurrency = (currencies[1] || currencies[0] || '').toUpperCase();
+
+                let nameTail = contRest.replace(/\d{1,2}:\d{2}:\d{2}/g, ' ')
+                    .replace(currRe, ' ').replace(/\s+/g, ' ').trim();
+                const geoSplit = nameTail.split(/\s+-\s+/);
+                const destState = (geoSplit[1] || '').trim();
+                const destCity = (geoSplit[2] || '').trim();
+                nameTail = (geoSplit[0] || nameTail).trim();
+
+                const customerName = [namePart1, nameTail].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || 'Unknown';
+
+                let payingBank = bankGeo;
+                let destCountry = '';
+                const countryRe = /\b(MEXICO|GUATEMALA|NICARAGUA|HONDURAS|EL SALVADOR|COLOMBIA|PERU|BRASIL|REP(?:UBLICA)?\s*DOMINICANA)\b/i;
+                const countryMatch = bankGeo.match(countryRe);
+                if (countryMatch) {
+                    destCountry = countryMatch[1].toUpperCase();
+                    payingBank = bankGeo.substring(0, countryMatch.index).replace(/[-\s]+$/, '').trim();
+                }
+
+                if (!result.agency_number) {
+                    result.agency_number = agencyPrefix;
+                }
+
+                result.transactions.push({
+                    time: txnTime,
+                    type: 'money_transfer',
+                    reference,
+                    customer_name: customerName,
+                    beneficiary: '',
+                    operator: '',
+                    qty: 1,
+                    principal,
+                    fee: 0,
+                    tax: 0,
+                    total: principal,
+                    balance: 0,
+                    agcomm: 0,
+                    var_fee: 0,
+                    var_fx: 0,
+                    transaction_date: txnDate,
+                    amount_received: receivedAmt,
+                    received_currency: receivedCurrency || sentCurrency,
+                    paying_bank: payingBank,
+                    destination_country: destCountry,
+                    destination_state: destState,
+                    destination_city: destCity,
+                    payment_date: payDate,
+                    transaction_status: '',
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                result.date_from = dates[0] || '';
+                result.date_to = dates[dates.length - 1] || result.date_from;
+            }
+            if (!result.agency_name) {
+                result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
+            }
+            return result;
+        },
+
         parseViamericasFormat(lines) {
+            const viaRemote = this.parseViamericasViaRemoteRows(lines);
+            if (viaRemote.transactions.length > 0) {
+                console.log('[Report Parser] Viamericas ViaRemote UI result:', viaRemote.transactions.length, 'txns');
+                return viaRemote;
+            }
+
             const tabular = this.parseViamericasTabularRows(lines);
             if (tabular.transactions.length > 0) {
                 console.log('[Report Parser] Viamericas tabular/inline result:', tabular.transactions.length, 'txns');

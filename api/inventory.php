@@ -4,21 +4,26 @@ $method = get_method();
 $pdo = db();
 
 if ($method === 'GET') {
-    $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $search = $_GET['search'] ?? '';
-    $where = 'WHERE i.store_id = ?';
-    $params = [$storeId];
+    $storeSql = store_filter_sql('i.store_id', $storeId);
+    $where = 'WHERE 1=1' . $storeSql;
+    $params = [];
+    if ($storeId) $params[] = $storeId;
     if ($search) { $where .= ' AND i.product_name LIKE ?'; $params[] = '%' . $search . '%'; }
 
-    $stmt = $pdo->prepare("SELECT i.* FROM inventory i {$where} ORDER BY i.product_name LIMIT 500");
+    $stmt = $pdo->prepare("SELECT i.*, s.name as store_name FROM inventory i LEFT JOIN stores s ON s.id = i.store_id {$where} ORDER BY i.product_name LIMIT 500");
     $stmt->execute($params);
 
-    $lowStock = $pdo->prepare('SELECT COUNT(*) as cnt FROM inventory WHERE store_id = ? AND quantity <= low_stock_threshold');
-    $lowStock->execute([$storeId]);
+    $lowWhere = 'WHERE 1=1' . store_filter_sql('store_id', $storeId) . ' AND quantity <= low_stock_threshold';
+    $lowParams = $storeId ? [$storeId] : [];
+    $lowStock = $pdo->prepare("SELECT COUNT(*) as cnt FROM inventory {$lowWhere}");
+    $lowStock->execute($lowParams);
 
     json_response([
         'products'  => $stmt->fetchAll(),
         'low_stock' => (int)$lowStock->fetch()['cnt'],
+        'scope'     => $storeId ? 'store' : 'all',
     ]);
 }
 

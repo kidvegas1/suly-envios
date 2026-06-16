@@ -36,7 +36,8 @@ function clients_list_store_where(int $storeId): string {
 }
 
 if ($method === 'GET') {
-    $storeId = resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeFilter = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = $storeFilter ?? resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $action = $_GET['action'] ?? 'list';
 
     if ($action === 'detail' && isset($_GET['id'])) {
@@ -120,7 +121,7 @@ if ($method === 'GET') {
     }
     $orderBy = $sortMap[$sort] ?? 'c.name ASC';
 
-    $storeSql = clients_store_transfer_sql($storeId);
+    $storeSql = $storeFilter ? clients_store_transfer_sql($storeId) : '';
 
     $baseSelect = "SELECT c.*,
         (SELECT COALESCE(SUM(amount_usd),0) FROM transfers WHERE client_id = c.id{$storeSql} AND {$periodSql}) as period_usage,
@@ -130,7 +131,11 @@ if ($method === 'GET') {
         (SELECT MAX(date_sent) FROM transfers WHERE client_id = c.id{$storeSql}) as last_transfer
         FROM clients c";
 
-    $where = [clients_list_store_where($storeId)];
+    if ($storeFilter) {
+        $where = [clients_list_store_where($storeId)];
+    } else {
+        $where = ['EXISTS (SELECT 1 FROM transfers t_scope WHERE t_scope.client_id = c.id)'];
+    }
     $params = [];
 
     if ($search) {
@@ -168,6 +173,7 @@ if ($method === 'GET') {
             fn(string $key) => ['value' => $key, 'label' => fincen_period_options()[$key]['label']],
             array_keys(fincen_period_options())
         ),
+        'scope' => $storeFilter ? 'store' : 'all',
     ]);
 }
 
