@@ -959,10 +959,14 @@
             const isAgencyActivity = parsed?.report_format === 'agency_activity'
                 || /DETAILED\s+AGENCY\s+ACTIVITY/i.test(allText);
             const isViamericas = parsed?.company === 'Viamericas'
-                || /Viamericas|ViaRemote|Creaci[oó]n de Env[ií]os/i.test(allText);
+                || /Viamericas|ViaRemote|Creaci[oó]n de Env[ií]os|Estado de Cuenta/i.test(allText);
             const isCreacion = /Creaci[oó]n de Env[ií]os/i.test(allText);
+            const isEstadoCuenta = /Estado de Cuenta/i.test(allText) && /Total\s+a\s+Depositar/i.test(allText);
             let needsAiEnhancement = txCount === 0;
             if (isAgencyActivity && txCount > 100) {
+                needsAiEnhancement = false;
+            }
+            if (isEstadoCuenta && txCount > 100) {
                 needsAiEnhancement = false;
             }
             if (!needsAiEnhancement && isViamericas && lineCount > 40) {
@@ -1715,8 +1719,8 @@
                 return finish(this.parseAgencyActivityFormat(lines));
             }
 
-            // Detect Viamericas / ViaRemote
-            const isViamericas = /ViaRemote/i.test(allText) || /Viamericas/i.test(allText) || /Nro\.\s*Transacci/i.test(allText) || /Nombre del\s+Cliente/i.test(allText) || /A\d{5}\s*-\s*[A-Z]/i.test(allText) || /Nombre\s+Beneficiario/i.test(allText);
+            // Detect Viamericas / ViaRemote / Estado de Cuenta
+            const isViamericas = /ViaRemote/i.test(allText) || /Viamericas/i.test(allText) || /Estado de Cuenta/i.test(allText) || /Nro\.\s*Transacci/i.test(allText) || /Nombre del\s+Cliente/i.test(allText) || /A\d{5}\s*-\s*[A-Z]/i.test(allText) || /Nombre\s+Beneficiario/i.test(allText) || /Total\s+a\s+Depositar/i.test(allText);
             if (isViamericas) {
                 console.log('[Report Parser] Detected VIAMERICAS format');
                 return finish(this.parseViamericasFormat(lines));
@@ -2023,6 +2027,242 @@
                 commission: totalCommission
             });
 
+            return result;
+        },
+
+        extractViamericasDollarAmounts(text) {
+            return [...String(text || '').matchAll(/\$-?[\d,]+\.\d{2}|-?\$[\d,]+\.\d{2}/g)]
+                .map((m) => {
+                    const s = m[0].replace(/\$/g, '').replace(/,/g, '');
+                    return parseFloat(s) || 0;
+                });
+        },
+
+        // Viamericas "Estado de Cuenta" PDF — 3-line Envíos layout + inline Money Orders / Biles
+        parseViamericasEstadoCuentaRows(lines) {
+            const result = {
+                agency_number: '', agency_name: '', agency_address: '',
+                operator_number: '', date_from: '', date_to: '',
+                currency: 'USD', beginning_balance: 0, ending_balance: 0,
+                company: 'Viamericas',
+                store_name: '',
+                report_format: 'viamericas_estado_cuenta',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const parseMoney = (s) => {
+                if (!s) return 0;
+                return parseFloat(String(s).replace(/[$,\s]/g, '')) || 0;
+            };
+
+            for (const line of lines) {
+                const rangeMatch = line.match(/Fecha\s+desde:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s*hasta\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (rangeMatch) {
+                    result.date_from = this.parseBarriDate(rangeMatch[1]);
+                    result.date_to = this.parseBarriDate(rangeMatch[2]);
+                }
+                const depMatch = line.match(/Total\s+a\s+Depositar:\s*\$?([\d,.-]+)/i);
+                if (depMatch) result.ending_balance = parseMoney(depMatch[1]);
+                const balMatch = line.match(/Balance\s+Inicial\s+\$?([\d,.-]+)/i);
+                if (balMatch) result.beginning_balance = parseMoney(balMatch[1]);
+                const storeMatch = line.match(/VIAMERICAS\s+CORPORATION\s+(.+)/i);
+                if (storeMatch) result.store_name = storeMatch[1].trim();
+                const addrMatch = line.match(/^\d+\s+.*(?:BLVD|RD|ST|AVE).*[\t\s]+[\d]+\s+.*,\s*[A-Z]{2}/i);
+                if (addrMatch && !result.agency_address) result.agency_address = line.replace(/\t/g, ' — ').trim();
+            }
+
+            let currentSection = '';
+            const sectionHeaderRe = /^(Transacci[oó]n|Referencia|N[uú]mero del Bill)\s/i;
+
+            for (let i = 0; i < lines.length; i++) {
+                const trimmed = lines[i].trim();
+                if (!trimmed) continue;
+
+                if (/^Env[ií]os\s+De\s+Dinero\s*-\s*Cancelados/i.test(trimmed)) {
+                    currentSection = 'cancelados'; continue;
+                }
+                if (/^Env[ií]os\s+De\s+Dinero\s*-\s*Anulados/i.test(trimmed)) {
+                    currentSection = 'anulados'; continue;
+                }
+                if (/^Env[ií]os\s+De\s+Dinero\s*$/i.test(trimmed)) {
+                    currentSection = 'envios'; continue;
+                }
+                if (/^Pago\s+de\s+Env[ií]os\s*$/i.test(trimmed)) {
+                    currentSection = 'pago_envios'; continue;
+                }
+                if (/^Pago\s+de\s+Biles\s*$/i.test(trimmed)) {
+                    currentSection = 'biles'; continue;
+                }
+                if (/^Money\s+Orders\s*$/i.test(trimmed)) {
+                    currentSection = 'money_orders'; continue;
+                }
+                if (/^Depositar$/i.test(trimmed) || /^Valor a$/i.test(trimmed) || /^Pagado$/i.test(trimmed) || /^Valor$/i.test(trimmed)) {
+                    continue;
+                }
+                if (/^(Balance|Comisiones|Cheques|Dep[oó]sitos|D[eé]bitos|Cr[eé]ditos|Otros\s+Servicios|Subtotal|Total\s+(Cheques|Otros|Env|Cr|D[eé]b|Dep)|[ÚU]ltimos\s+cuatro|Internacionales$|Cancelados$|Anulados$)/i.test(trimmed)) {
+                    if (!/^Total\s+\d/.test(trimmed)) currentSection = 'skip';
+                    continue;
+                }
+                if (sectionHeaderRe.test(trimmed) || /^Otros\s+Valor/i.test(trimmed) || /^Cargos Depositar$/i.test(trimmed)) {
+                    continue;
+                }
+                if (currentSection === 'skip' || currentSection === 'anulados') continue;
+
+                if (currentSection === 'envios' || currentSection === 'cancelados') {
+                    const prefixMatch = trimmed.match(/^(A\d{4,6})-\t(.+)$/);
+                    if (!prefixMatch) continue;
+                    const agency = prefixMatch[1].toUpperCase();
+                    const namePart1 = prefixMatch[2].trim();
+                    if (i + 2 >= lines.length) continue;
+                    const dateLine = lines[i + 1].trim();
+                    const dateMatch = dateLine.match(/^(\d{1,2}\/\d{1,2}\/\d{4})\s+([A-Z]{2,4})\s+(.+)$/);
+                    if (!dateMatch) continue;
+                    const txnLine = lines[i + 2].trim();
+                    const txnMatch = txnLine.match(/^(-?\d{4,6})\s*(.*)$/);
+                    if (!txnMatch) continue;
+
+                    const txnNum = Math.abs(parseInt(txnMatch[1], 10));
+                    const reference = `${agency}-${txnNum}`;
+                    const customer = [namePart1, (txnMatch[2] || '').replace(/\.{3}$/, '').trim()].filter(Boolean).join(' ').trim();
+                    const amounts = this.extractViamericasDollarAmounts(dateMatch[3]);
+                    const principal = amounts[0] || 0;
+                    const fee = amounts[1] || 0;
+                    const tax = amounts[2] || 0;
+                    const total = amounts[3] || principal;
+                    const commission = amounts[4] || 0;
+                    if (principal === 0 && total === 0) { i += 2; continue; }
+
+                    if (!result.agency_number) result.agency_number = agency;
+                    result.transactions.push({
+                        reference,
+                        transaction_date: this.parseBarriDate(dateMatch[1]),
+                        customer_name: customer,
+                        destination_country: dateMatch[2],
+                        type: 'money_transfer',
+                        principal, fee, tax, total,
+                        agcomm: commission,
+                        var_fee: amounts[5] || 0,
+                        var_fx: amounts[6] || 0,
+                        balance: 0, operator: '', qty: 1, time: '00:00',
+                        beneficiary: '',
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '',
+                        transaction_status: currentSection === 'cancelados' ? 'cancelled' : '',
+                    });
+                    i += 2;
+                    continue;
+                }
+
+                if (currentSection === 'pago_envios') {
+                    const peMatch = trimmed.match(/^(\d{4,6})\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+)$/);
+                    if (!peMatch) continue;
+                    const amounts = this.extractViamericasDollarAmounts(peMatch[3]);
+                    const beneficiary = peMatch[3].split('$')[0].trim();
+                    const amount = amounts[0] || 0;
+                    const commission = amounts[1] || 0;
+                    if (amount === 0) continue;
+                    result.transactions.push({
+                        reference: peMatch[1],
+                        transaction_date: this.parseBarriDate(peMatch[2]),
+                        customer_name: beneficiary,
+                        type: 'pago_envios',
+                        principal: amount, fee: 0, tax: 0, total: amount,
+                        agcomm: commission,
+                        var_fee: 0, var_fx: 0, balance: 0,
+                        operator: '', qty: 1, time: '00:00',
+                        beneficiary,
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                    continue;
+                }
+
+                if (currentSection === 'money_orders') {
+                    const moMatch = trimmed.match(/^(A\d{4,6}-\d+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+)$/);
+                    if (!moMatch) continue;
+                    const amounts = this.extractViamericasDollarAmounts(moMatch[3]);
+                    const amount = amounts[0] || 0;
+                    const fee = amounts[1] || 0;
+                    if (amount === 0) continue;
+                    if (!result.agency_number) {
+                        const ag = moMatch[1].match(/^(A\d{4,6})-/);
+                        if (ag) result.agency_number = ag[1];
+                    }
+                    result.transactions.push({
+                        reference: moMatch[1],
+                        transaction_date: this.parseBarriDate(moMatch[2]),
+                        customer_name: 'Money Order',
+                        type: 'money_order',
+                        principal: amount, fee, tax: 0, total: amount + fee,
+                        agcomm: 0,
+                        var_fee: 0, var_fx: 0, balance: 0,
+                        operator: '', qty: 1, time: '00:00',
+                        beneficiary: '',
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                    continue;
+                }
+
+                if (currentSection === 'biles') {
+                    const billMatch = trimmed.match(/^(A\d{4,6}-\d+)\s+(\d{1,2}\/\d{1,2}\/\d{4})[\t\s]+(.+)$/);
+                    if (!billMatch) continue;
+                    const amounts = this.extractViamericasDollarAmounts(billMatch[3]);
+                    const nameParts = billMatch[3].split('$')[0].trim().split(/\t+/);
+                    const customer = (nameParts[0] || '').trim();
+                    const company = (nameParts[1] || '').trim();
+                    const amount = amounts[0] || 0;
+                    const commission = amounts[1] || 0;
+                    const fee = amounts[2] || 0;
+                    if (amount === 0) continue;
+                    if (!result.agency_number) {
+                        const ag = billMatch[1].match(/^(A\d{4,6})-/);
+                        if (ag) result.agency_number = ag[1];
+                    }
+                    result.transactions.push({
+                        reference: billMatch[1],
+                        transaction_date: this.parseBarriDate(billMatch[2]),
+                        customer_name: customer,
+                        beneficiary: company,
+                        type: 'bill_payment',
+                        principal: amount, fee, tax: 0, total: amounts[3] || amount + fee,
+                        agcomm: commission,
+                        var_fee: 0, var_fx: 0, balance: 0,
+                        operator: '', qty: 1, time: '00:00',
+                        amount_received: 0, received_currency: '',
+                        paying_bank: '', destination_state: '', destination_city: '',
+                        payment_date: '', transaction_status: '',
+                    });
+                }
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+                if (!result.date_from) {
+                    const dates = result.transactions.map(t => t.transaction_date).filter(Boolean).sort();
+                    result.date_from = dates[0] || '';
+                    result.date_to = dates[dates.length - 1] || result.date_from;
+                }
+            }
+            if (!result.agency_name) {
+                result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
+            }
+
+            console.log('[Viamericas Estado de Cuenta Parser] Result:', {
+                agency: result.agency_number, store: result.store_name,
+                from: result.date_from, to: result.date_to,
+                txns: result.transactions.length,
+                beginBal: result.beginning_balance, endBal: result.ending_balance,
+            });
             return result;
         },
 
@@ -2554,6 +2794,15 @@
         },
 
         parseViamericasFormat(lines) {
+            const allText = lines.join(' ');
+            if (/Estado de Cuenta/i.test(allText) && /Total\s+a\s+Depositar/i.test(allText)) {
+                const estado = this.parseViamericasEstadoCuentaRows(lines);
+                if (estado.transactions.length > 0) {
+                    console.log('[Report Parser] Viamericas Estado de Cuenta result:', estado.transactions.length, 'txns');
+                    return estado;
+                }
+            }
+
             const creacion = this.parseViamericasCreacionEnviosRows(lines);
             if (creacion.transactions.length > 0) {
                 console.log('[Report Parser] Viamericas Creación de Envíos result:', creacion.transactions.length, 'txns');
