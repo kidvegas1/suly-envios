@@ -455,7 +455,7 @@ INSERT INTO users (name, email, password_hash, role)
 VALUES (
   'Suly Admin',
   'admin@sulyenvios.com',
-  '$2y$12$7n4JwYCG7fepzGNZ5l2INuz0hBpi6kGs5xLXWGhvzs48d0a.Lg2xy',
+  '$2y$12$LXs8Ed8v6ZKOInt08G5VdOTxexnpJfiy/G7/x4bGKiyWmZ4SBZzvW',
   'admin'
 );
 

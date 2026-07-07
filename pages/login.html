@@ -147,7 +147,7 @@
                         email: document.getElementById('email').value,
                         password: document.getElementById('password').value,
                     });
-                    location.href = 'dashboard';
+                    location.href = '/dashboard';
                 } catch (err) {
                     showLoginError(err.message);
                     resetLoginButton();

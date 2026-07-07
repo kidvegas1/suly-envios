@@ -36,7 +36,7 @@ CREATE TABLE users (
 
 -- Default admin (password: admin123 — CHANGE IN PRODUCTION)
 INSERT INTO users (name, email, password_hash, role)
-VALUES ('Suly Admin', 'admin@sulyenvios.com', '$2y$12$OGweCw.HKWQIXjc/1/sVM.Ci6PU/1qCw7Rbim1Y9y6LvxHLtAAATi', 'admin');
+VALUES ('Suly Admin', 'admin@sulyenvios.com', '$2y$12$LXs8Ed8v6ZKOInt08G5VdOTxexnpJfiy/G7/x4bGKiyWmZ4SBZzvW', 'admin');
 
 -- ── Caja Sessions ──
 CREATE TABLE caja_sessions (

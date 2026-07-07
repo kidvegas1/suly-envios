@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# API: never execute api/*.php directly (bootstrap lives in index.php)
+RewriteRule ^api/.+\.php$ index.php [QSA,L]
+
 # Admin-only HTML shells must go through index.php (auth + role guards)
 RewriteRule ^pages/(stores|analytics|import|reports-center)\.html$ index.php [QSA,L]
 
