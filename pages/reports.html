@@ -2095,7 +2095,60 @@
                 });
         },
 
-        // Viamericas "Estado de Cuenta" PDF — 3-line Envíos layout + inline Money Orders / Biles
+        /** ViaRemote Estado de Cuenta inline row: A22592-13275 06/01/2026 REMITENTE GUA $... */
+        parseViamericasInlineEnvioRow(trimmed, lines, i, sectionHeaderRe) {
+            const inlineRe = /^(A\d{4,6})-(\d{4,6})\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+)$/i;
+            const inlineMatch = trimmed.match(inlineRe);
+            if (!inlineMatch) return null;
+
+            const agency = inlineMatch[1].toUpperCase();
+            const reference = `${agency}-${inlineMatch[2]}`;
+            const amounts = this.extractViamericasDollarAmounts(inlineMatch[4]);
+            const principal = amounts[0] || 0;
+            const fee = amounts[1] || 0;
+            const tax = amounts[2] || 0;
+            const total = amounts[3] || principal;
+            const commission = amounts[4] || 0;
+            if (principal === 0 && total === 0) return null;
+
+            const beforeMoney = inlineMatch[4].split('$')[0].trim();
+            const countryMatch = beforeMoney.match(/\s([A-Z]{2,4})\s*$/);
+            let customer = beforeMoney.replace(/\s+[A-Z]{2,4}\s*$/i, '').trim();
+            const destination_country = countryMatch ? countryMatch[1] : '';
+            let skipLines = 0;
+            if (i + 1 < lines.length) {
+                const frag = lines[i + 1].trim();
+                if (frag && !inlineRe.test(frag) && !sectionHeaderRe.test(frag)
+                    && !/^Env[ií]os|^Money|^Pago|^Valor|^Transacci|^A\d{4,6}-/i.test(frag)
+                    && /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\s]{0,40}$/.test(frag)) {
+                    customer = [customer, frag.replace(/\.{3}$/, '').trim()].filter(Boolean).join(' ');
+                    skipLines = 1;
+                }
+            }
+
+            return {
+                skipLines,
+                txn: {
+                    reference,
+                    transaction_date: this.parseBarriDate(inlineMatch[3]),
+                    customer_name: customer,
+                    destination_country,
+                    type: 'money_transfer',
+                    principal, fee, tax, total,
+                    agcomm: commission,
+                    var_fee: amounts[5] || 0,
+                    var_fx: amounts[6] || 0,
+                    balance: 0, operator: '', qty: 1, time: '00:00',
+                    beneficiary: '',
+                    amount_received: 0, received_currency: '',
+                    paying_bank: '', destination_state: '', destination_city: '',
+                    payment_date: '',
+                },
+                agency,
+            };
+        },
+
+        // Viamericas "Estado de Cuenta" PDF — inline + 3-line Envíos layout + Money Orders / Biles
         parseViamericasEstadoCuentaRows(lines) {
             const result = {
                 agency_number: '', agency_name: '', agency_address: '',
@@ -2113,18 +2166,32 @@
                 return parseFloat(String(s).replace(/[$,\s]/g, '')) || 0;
             };
 
-            for (const line of lines) {
+            for (let hi = 0; hi < lines.length; hi++) {
+                const line = lines[hi];
                 const rangeMatch = line.match(/Fecha\s+desde:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s*hasta\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
                 if (rangeMatch) {
                     result.date_from = this.parseBarriDate(rangeMatch[1]);
                     result.date_to = this.parseBarriDate(rangeMatch[2]);
                 }
-                const depMatch = line.match(/Total\s+a\s+Depositar:\s*\$?([\d,.-]+)/i);
+                const dhOnly = line.match(/^(\d{1,2}\/\d{1,2}\/\d{4})[\t\s]+(\d{1,2}\/\d{1,2}\/\d{4})$/);
+                if (dhOnly && !result.date_from) {
+                    result.date_from = this.parseBarriDate(dhOnly[1]);
+                    result.date_to = this.parseBarriDate(dhOnly[2]);
+                }
+                const depMatch = line.match(/Total\s+a\s+Depositar\s*:\s*\$?([\d,.-]+)/i);
                 if (depMatch) result.ending_balance = parseMoney(depMatch[1]);
                 const balMatch = line.match(/Balance\s+Inicial\s+\$?([\d,.-]+)/i);
                 if (balMatch) result.beginning_balance = parseMoney(balMatch[1]);
                 const storeMatch = line.match(/VIAMERICAS\s+CORPORATION\s+(.+)/i);
                 if (storeMatch) result.store_name = storeMatch[1].trim();
+                if (line.trim() === 'Agencia' && lines[hi + 1]) {
+                    result.store_name = lines[hi + 1].trim();
+                }
+                const enviosSummary = line.match(/Env[ií]os\s+De\s+Dinero\s+(\d+)\s+\$?([\d,]+\.\d{2})/i);
+                if (enviosSummary && !result.document_txn_count) {
+                    result.document_txn_count = parseInt(enviosSummary[1], 10);
+                    result.document_principal = parseMoney(enviosSummary[2]);
+                }
                 const addrMatch = line.match(/^\d+\s+.*(?:BLVD|RD|ST|AVE).*[\t\s]+[\d]+\s+.*,\s*[A-Z]{2}/i);
                 if (addrMatch && !result.agency_address) result.agency_address = line.replace(/\t/g, ' — ').trim();
             }
@@ -2167,6 +2234,15 @@
                 if (currentSection === 'skip' || currentSection === 'anulados') continue;
 
                 if (currentSection === 'envios' || currentSection === 'cancelados') {
+                    const inlineParsed = this.parseViamericasInlineEnvioRow(trimmed, lines, i, sectionHeaderRe);
+                    if (inlineParsed) {
+                        if (!result.agency_number) result.agency_number = inlineParsed.agency;
+                        inlineParsed.txn.transaction_status = currentSection === 'cancelados' ? 'cancelled' : '';
+                        result.transactions.push(inlineParsed.txn);
+                        i += inlineParsed.skipLines;
+                        continue;
+                    }
+
                     const prefixMatch = trimmed.match(/^(A\d{4,6})-[\t\s]+(.+)$/);
                     if (!prefixMatch) continue;
                     const agency = prefixMatch[1].toUpperCase();
