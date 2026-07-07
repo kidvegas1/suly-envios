@@ -1,5 +1,8 @@
 <?php
-$user = auth_require_admin();
+$user = auth_require();
+if (!auth_can_import_excel()) {
+    json_error('Manager or admin access required', 403);
+}
 $method = get_method();
 $pdo = db();
 
@@ -203,6 +206,61 @@ if ($method === 'POST') {
                         $entryType = $amount >= 0 ? 'receivable' : 'payable';
                         $pdo->prepare('INSERT INTO accounting_entries (store_id, description, amount, entry_type, entry_date, notes) VALUES (?,?,?,?, ' . sql_curdate() . ',?)')
                             ->execute([$storeId, $desc, abs($amount), $entryType, 'Imported from Excel']);
+                        $rowsImported++;
+                    }
+                    if ($module === 'transfers') {
+                        $sender = sanitize(trim((string)($row['sender_name'] ?? $row['client_name'] ?? $row['CLIENTE'] ?? '')));
+                        $beneficiary = sanitize(trim((string)($row['beneficiary'] ?? $row['BENEFICIARIO'] ?? '')));
+                        $ref = sanitize(trim((string)($row['reference'] ?? $row['transaction_code'] ?? $row['REFERENCIA'] ?? '')));
+                        $amountUsd = (float)($row['amount_usd'] ?? $row['PRINCIPAL (USD)'] ?? 0);
+                        $amountLocal = (float)($row['amount_local'] ?? 0);
+                        $fee = (float)($row['fee'] ?? $row['FEE'] ?? 0);
+                        $tax = (float)($row['tax'] ?? $row['TAX'] ?? 0);
+                        if (!$sender && !$beneficiary) continue;
+                        if ($amountUsd == 0 && $amountLocal == 0) continue;
+
+                        $clientId = null;
+                        if ($sender) {
+                            $check = $pdo->prepare('SELECT id FROM clients WHERE name = ? LIMIT 1');
+                            $check->execute([$sender]);
+                            $clientRow = $check->fetch();
+                            if ($clientRow) {
+                                $clientId = (int)$clientRow['id'];
+                            } else {
+                                $pdo->prepare('INSERT INTO clients (client_code, name, phone, monthly_limit) VALUES (?,?,?,3000)')
+                                    ->execute(['', $sender, '']);
+                                $clientId = (int)sql_last_insert_id($pdo, 'clients');
+                            }
+                        }
+                        if (!$clientId) continue;
+
+                        if ($ref) {
+                            $dup = $pdo->prepare('SELECT id FROM transfers WHERE store_id = ? AND transaction_code = ? LIMIT 1');
+                            $dup->execute([$storeId, $ref]);
+                            if ($dup->fetch()) continue;
+                        }
+
+                        $dateSent = trim((string)($row['date_sent'] ?? $row['FECHA'] ?? ''));
+                        if (!$dateSent) $dateSent = date('Y-m-d H:i:s');
+                        $datePaid = trim((string)($row['date_paid'] ?? ''));
+                        if ($datePaid === '') $datePaid = null;
+
+                        $company = sanitize(trim((string)($row['company'] ?? $row['COMPANIA'] ?? 'Viamericas')));
+                        $txnType = sanitize(trim((string)($row['transaction_type'] ?? $row['TIPO'] ?? 'money_transfer')));
+                        $source = sanitize(trim((string)($row['source'] ?? 'excel_import')));
+                        $bank = sanitize(trim((string)($row['paying_bank'] ?? '')));
+                        $destCountry = sanitize(trim((string)($row['destination_country'] ?? '')));
+                        $destCity = sanitize(trim((string)($row['destination_city'] ?? '')));
+                        $currency = sanitize(trim((string)($row['currency'] ?? 'MXN')));
+
+                        $pdo->prepare('INSERT INTO transfers (client_id, store_id, transaction_code, beneficiary, date_sent, date_paid, amount_usd, fee, tax, amount_local, currency, paying_bank, destination_country, destination_city, company, transaction_type, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+                            ->execute([
+                                $clientId, $storeId, $ref ?: null, $beneficiary ?: $sender,
+                                $dateSent, $datePaid, $amountUsd, $fee ?: null, $tax ?: null,
+                                $amountLocal ?: null, $currency, $bank ?: null,
+                                $destCountry ?: null, $destCity ?: null,
+                                $company, $txnType, $source,
+                            ]);
                         $rowsImported++;
                     }
                     if ($module === 'plates') {

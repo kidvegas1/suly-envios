@@ -282,13 +282,21 @@
                     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-text-muted py-8">${App.t('accounting.no_entries')}</td></tr>`;
                     return;
                 }
-                tbody.innerHTML = entries.map(e => `
-                    <tr>
+                tbody.innerHTML = entries.map(e => {
+                    const side = e.finance_class === 'side_finances';
+                    const incomplete = e.data_completeness === 'incomplete_vital';
+                    const rowCls = side ? 'finance-side-row' : '';
+                    const catBadge = side
+                        ? `<span class="px-2 py-0.5 rounded-md text-xs font-medium badge-side-finances">${escapeHtml(e.category)}</span>`
+                        : `<span class="px-2 py-0.5 rounded-md bg-bg-elevated text-xs font-medium text-text-secondary">${escapeHtml(e.category)}</span>`;
+                    const vitalNote = incomplete ? `<span class="badge badge-side-finances text-[10px] ml-1">${App.t('reports.side_finances.incomplete_vital')}</span>` : '';
+                    return `
+                    <tr class="${rowCls}">
                         <td class="font-medium whitespace-nowrap">${App.formatDate(e.entry_date)}</td>
-                        <td><span class="px-2 py-0.5 rounded-md bg-bg-elevated text-xs font-medium text-text-secondary">${escapeHtml(e.category)}</span></td>
-                        <td>${escapeHtml(e.description)}</td>
+                        <td>${catBadge}</td>
+                        <td>${escapeHtml(e.description)}${vitalNote}</td>
                         <td><span class="badge ${e.type === 'receivable' ? 'badge-success' : 'badge-danger'}">${e.type === 'receivable' ? App.t('accounting.receivable') : App.t('accounting.payable')}</span></td>
-                        <td class="text-right font-mono tabular-nums font-semibold ${e.type === 'receivable' ? 'text-success' : 'text-danger'}">${App.money(e.amount)}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold ${side ? 'finance-side-text' : (e.type === 'receivable' ? 'text-success' : 'text-danger')}">${App.money(e.amount)}</td>
                         <td class="text-text-muted text-sm max-w-[200px] truncate">${escapeHtml(e.notes || App.t('empty.none'))}</td>
                         <td>
                             <div class="flex items-center gap-1">
@@ -301,8 +309,8 @@
                                 </button>
                             </div>
                         </td>
-                    </tr>
-                `).join('');
+                    </tr>`;
+                }).join('');
             }
 
             window.openEntryModal = function(entry = null) {

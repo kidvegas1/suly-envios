@@ -239,6 +239,10 @@
 
             <!-- Preview Section -->
             <div id="preview-section" class="hidden space-y-6">
+                <div id="preview-side-banner" class="finance-side-banner hidden">
+                    <p class="text-sm font-semibold finance-side-text" data-i18n="reports.side_finances.banner_title">Side Finances — incomplete but vital</p>
+                    <p class="text-xs mt-1 opacity-90" data-i18n="reports.side_finances.banner_hint">No client names in this report. Amounts will post to Accounting under Side Finances and appear in violet throughout the system.</p>
+                </div>
                 <div class="card">
                     <div class="flex items-start justify-between flex-wrap gap-4">
                         <div>
@@ -426,6 +430,10 @@
 
         <!-- VIEW 3: Report Detail -->
         <main class="p-6 lg:p-8 space-y-6 hidden" id="view-detail">
+            <div id="detail-side-banner" class="finance-side-banner hidden">
+                <p class="text-sm font-semibold finance-side-text" data-i18n="reports.side_finances.banner_title">Side Finances — incomplete but vital</p>
+                <p class="text-xs mt-1 opacity-90" data-i18n="reports.side_finances.banner_hint">No client names in this report. Amounts post to Accounting under Side Finances.</p>
+            </div>
             <div class="flex items-center gap-3 mb-2">
                 <button class="btn-secondary" id="btn-back-from-detail">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -791,9 +799,11 @@
                     const statusClass = r.status === 'processed' ? 'success' : r.status === 'error' ? 'danger' : 'warning';
                     const matchPct = r.total_transactions > 0 ? Math.round((r.matched_count / r.total_transactions) * 100) : 0;
                     const companyBadge = r.company ? `<span class="badge badge-info text-[10px] ml-1">${this.esc(r.company)}</span>` : '';
-                    return `<tr>
+                    const sideBadge = (r.finance_class === 'side_finances' || r.report_type === 'intermex_side')
+                        ? `<span class="badge badge-side-finances text-[10px] ml-1">${this.t('reports.side_finances.short')}</span>` : '';
+                    return `<tr class="${r.finance_class === 'side_finances' ? 'finance-side-row' : ''}">
                         <td class="text-text-primary font-mono text-sm whitespace-nowrap">${this.esc(r.date_from)} — ${this.esc(r.date_to)}</td>
-                        <td class="text-text-secondary text-sm">${this.esc(r.agency_name)}${companyBadge}</td>
+                        <td class="text-text-secondary text-sm">${this.esc(r.agency_name)}${companyBadge}${sideBadge}</td>
                         <td class="text-right font-mono tabular-nums">${r.total_transactions}</td>
                         <td class="text-right font-mono tabular-nums">${App.money(r.total_principal)}</td>
                         <td class="text-right font-mono tabular-nums">${App.money(r.total_fees)}</td>
@@ -973,6 +983,12 @@
             if (isEstadoCuenta && txCount > 0 && txCount < 100) {
                 needsAiEnhancement = false;
             }
+            if (parsed?.report_format === 'intermex_giros_enviados' && txCount > 0) {
+                needsAiEnhancement = false;
+            }
+            if (parsed?.report_format === 'viamericas_creacion' && txCount > 0) {
+                needsAiEnhancement = false;
+            }
             if (!needsAiEnhancement && isViamericas && lineCount > 40 && !isEstadoCuenta) {
                 const ratio = lineCount > 0 ? txCount / lineCount : 1;
                 if (ratio < 0.18 || (isCreacion && txCount < 40)) {
@@ -996,6 +1012,12 @@
                 return clientParsed;
             }
             if (clientParsed?.report_format === 'viamericas_estado_cuenta') {
+                return clientParsed;
+            }
+            if (clientParsed?.report_format === 'intermex_giros_enviados') {
+                return clientParsed;
+            }
+            if (clientParsed?.report_format === 'viamericas_creacion') {
                 return clientParsed;
             }
 
@@ -1045,6 +1067,12 @@
             const isEstadoCuenta = /Estado de Cuenta/i.test(allText) && /Total\s+a\s+Depositar/i.test(allText);
 
             if (clientParsed?.report_format === 'viamericas_estado_cuenta' && (clientParsed?.transactions?.length || 0) >= 50) {
+                return clientParsed;
+            }
+            if (clientParsed?.report_format === 'intermex_giros_enviados' && (clientParsed?.transactions?.length || 0) >= 5) {
+                return clientParsed;
+            }
+            if (clientParsed?.report_format === 'viamericas_creacion' && (clientParsed?.transactions?.length || 0) >= 5) {
                 return clientParsed;
             }
 
@@ -1754,6 +1782,13 @@
             if (isRiaTxnSearch) {
                 console.log('[Report Parser] Detected RIA TRANSACTION SEARCH format (text)');
                 return finish(this.parseRiaTransactionSearchLines(lines));
+            }
+
+            // Detect Intermex Giros Enviados (sequence-only, no client names — side finances)
+            const isIntermexGirosEnviados = /Reporte\s+de\s+Giros\s+Enviados/i.test(allText) && /Intermex/i.test(allText);
+            if (isIntermexGirosEnviados) {
+                console.log('[Report Parser] Detected INTERMEX GIROS ENVIADOS (side finances)');
+                return finish(this.parseIntermexGirosEnviados(lines));
             }
 
             // Detect Intermex (standalone — not as a paying bank inside Viamericas)
@@ -2545,7 +2580,7 @@
             };
 
             const refPrefixRe = /^(A\d{4,6})\s*-\s*$/i;
-            const txnNumRe = /^-?\d{4,8}$/;
+            const txnNumRe = /^-?(\d{4,8})(?:[\t\s].*)?$/;
             const skipLineRe = /^(Inicio |Estado de|Detalle de|Historial de|Centro de|Desde$|Hasta$|Agencia$|Cajero$|Envios$|Modo|Generar|Creación|Nro\.|Transacción$|Cliente$|Beneficiario$|Pago$|\d+$)/i;
 
             for (let i = 0; i < lines.length; i++) {
@@ -2591,8 +2626,9 @@
                 if (j >= lines.length) continue;
 
                 const txnLine = lines[j].trim();
-                if (!txnNumRe.test(txnLine)) continue;
-                const txnNum = txnLine.replace(/^-/, '');
+                const txnLineMatch = txnLine.match(txnNumRe);
+                if (!txnLineMatch) continue;
+                const txnNum = txnLineMatch[1].replace(/^-/, '');
                 j++;
 
                 while (j < lines.length && !lines[j].trim()) j++;
@@ -2677,6 +2713,7 @@
                 operator_number: '', date_from: '', date_to: '',
                 currency: 'USD', beginning_balance: 0, ending_balance: 0,
                 company: 'Viamericas',
+                report_format: 'viamericas_creacion',
                 transactions: [],
                 totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
             };
@@ -2684,7 +2721,7 @@
             const rowStartRe = /^(A\d{4,6})\s*-\s*(.+)$/;
             const operatorRe = /(SULY\d+)\s*(Pagado|Cancelado|Anulado)\s*/i;
             const txnNumOnlyRe = /^-?(\d{4,6})$/;
-            const txnNumTailRe = /^(-?\d{4,6})\t(.+)$/;
+            const txnNumTailRe = /^(-?\d{4,6})[\t\s]+(.+)$/;
             const skipLineRe = /^(Inicio |Estado de|Detalle de|Historial de|Centro de|Desde$|Hasta$|Agencia$|Cajero$|Envios$|Modo|Generar|Creación|Nro\.|Transacción$|Cliente$|Beneficiario$|Cajero |Pago$|\$[\d,]+||%|\d+$)/i;
 
             for (let i = 0; i < lines.length; i++) {
@@ -2698,6 +2735,16 @@
                 if (t === 'Agencia' && i + 1 < lines.length) {
                     const ag = lines[i + 1].trim().match(/^(A\d{4,6})$/);
                     if (ag) result.agency_number = ag[1];
+                }
+                const creacionTotal = t.match(/Creaci[oó]n de Env[ií]os\s+(\d+)\s+Transacciones\s+\$?([\d,]+\.\d{2})/i);
+                if (creacionTotal) {
+                    result.document_txn_count = parseInt(creacionTotal[1], 10);
+                    result.document_total = this.parseMoney(creacionTotal[2]);
+                }
+                const summaryTotal = t.match(/^Total\s+(\d+)\s+\$?([\d,]+\.\d{2})/i);
+                if (summaryTotal && !result.document_principal) {
+                    result.document_txn_count = result.document_txn_count || parseInt(summaryTotal[1], 10);
+                    result.document_principal = this.parseMoney(summaryTotal[2]);
                 }
             }
 
@@ -2808,6 +2855,9 @@
                 result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
                 result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
                 if (!result.date_to) result.date_to = result.date_from;
+            }
+            if (result.document_total && !result.ending_balance) {
+                result.ending_balance = result.document_total;
             }
             if (!result.agency_name) {
                 result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
@@ -3112,6 +3162,90 @@
                 agency: result.agency_name, num: result.agency_number,
                 from: result.date_from, to: result.date_to,
                 txns: result.transactions.length, totals: result.totals
+            });
+            return result;
+        },
+
+        // ── FORMAT 5b: Intermex Giros Enviados PDF (side finances, no client names) ──
+        parseIntermexGirosEnviados(lines) {
+            const result = {
+                agency_number: '', agency_name: 'Intermex',
+                agency_address: '', operator_number: '',
+                date_from: '', date_to: '', currency: 'USD',
+                beginning_balance: 0, ending_balance: 0,
+                company: 'Intermex',
+                report_format: 'intermex_giros_enviados',
+                finance_class: 'side_finances',
+                data_completeness: 'incomplete_vital',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 },
+            };
+
+            const rowRe = /^(\d{4,6})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+([A-Z]{2})\s+\$?([\d,]+\.\d{2})/;
+
+            for (const line of lines) {
+                const title = line.match(/Reporte de Giros Enviados\s*-\s*(TX-?\d+)/i);
+                if (title) result.agency_number = title[1].replace(/-/g, '').toUpperCase();
+
+                const store = line.match(/^(SULY[S']?\s+MULTISERVICES[^\n]*)/i);
+                if (store) {
+                    result.store_name = store[1].trim();
+                    result.agency_name = store[1].trim();
+                }
+
+                const dr = line.match(/Desde\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+a\s+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+                if (dr) {
+                    result.date_from = this.parseBarriDate(dr[1]);
+                    result.date_to = this.parseBarriDate(dr[2]);
+                }
+
+                const m = line.match(rowRe);
+                if (!m) continue;
+
+                const seq = m[1];
+                const principal = this.parseMoney(m[2]);
+                const impEst = this.parseMoney(m[3]);
+                const impFed = this.parseMoney(m[4]);
+                const total = this.parseMoney(m[5]);
+                const pais = m[7];
+                const agcomm = this.parseMoney(m[8]);
+                if (principal === 0 && total === 0) continue;
+
+                const tax = impEst + impFed;
+                const fee = Math.max(0, total - principal - tax);
+
+                result.transactions.push({
+                    time: '00:00',
+                    type: 'giros',
+                    transaction_type: 'giros',
+                    reference: `${result.agency_number || 'TX'}-${seq}`,
+                    customer_name: '',
+                    side_label: `Seq ${seq}`,
+                    beneficiary: '',
+                    operator: pais,
+                    qty: 1,
+                    principal, fee, tax, total,
+                    balance: 0, agcomm,
+                    var_fee: 0, var_fx: 0,
+                    transaction_date: result.date_from,
+                    destination_country: pais,
+                    finance_class: 'side_finances',
+                    data_completeness: 'incomplete_vital',
+                });
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
+            }
+
+            console.log('[Report Parser] Intermex Giros Enviados:', {
+                agency: result.agency_number, txns: result.transactions.length,
+                agcomm: result.totals.agcomm, principal: result.totals.principal,
             });
             return result;
         },
@@ -3984,14 +4118,29 @@
 
         showPreview(data, opts = {}) {
             data = this.enrichParsedReport(data);
+            const side = this.isSideFinances(data);
+            document.getElementById('preview-side-banner')?.classList.toggle('hidden', !side);
+
             const companyLabel = data.company ? ` [${data.company}]` : '';
-            document.getElementById('preview-agency').textContent = `${data.agency_number || ''} ${data.store_name || data.agency_name || ''}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`.replace(/\s+/g, ' ').trim();
+            const sideBadge = side ? ` ${this.sideFinanceBadge()}` : '';
+            document.getElementById('preview-agency').innerHTML = `${this.esc(`${data.agency_number || ''} ${data.store_name || data.agency_name || ''}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`.replace(/\s+/g, ' ').trim())}${sideBadge}`;
             document.getElementById('preview-from').textContent = data.date_from;
             document.getElementById('preview-to').textContent = data.date_to;
             document.getElementById('preview-begin-bal').textContent = App.money(data.beginning_balance);
             document.getElementById('preview-end-bal').textContent = App.money(data.ending_balance);
             this.applyReportSummaryStats(data, 'preview');
             document.getElementById('preview-tx-count').textContent = data.transactions.length;
+
+            const parsedPrincipal = data.totals?.principal ?? data.transactions.reduce((s, t) => s + (parseFloat(t.principal) || 0), 0);
+            const docPrincipal = parseFloat(data.document_principal) || 0;
+            const docCount = parseInt(data.document_txn_count, 10) || 0;
+            if ((docPrincipal > 5000 && parsedPrincipal < docPrincipal * 0.75)
+                || (docCount > 10 && data.transactions.length < docCount * 0.75)) {
+                App.toast(
+                    `PDF reports ${docCount || '?'} transactions (~${App.money(docPrincipal || data.document_total || 0)}) but only ${data.transactions.length} parsed (${App.money(parsedPrincipal)}). Re-upload after refresh.`,
+                    'warning'
+                );
+            }
 
             if (App.stores) {
                 const matched = this.autoMatchStore(data);
@@ -4001,11 +4150,14 @@
                 }
             }
 
-            const hasViaFields = data.company === 'Viamericas' || data.company === 'Ria' || data.report_format === 'viamericas_estado_cuenta';
+            const hasSideFields = side;
+            const hasViaFields = !hasSideFields && (data.company === 'Viamericas' || data.company === 'Ria' || data.report_format === 'viamericas_estado_cuenta');
             const previewHead = document.querySelector('#preview-section thead tr');
             if (previewHead) {
                 const t = (k) => this.t(k);
-                if (hasViaFields) {
+                if (hasSideFields) {
+                    previewHead.innerHTML = `<th>${t('reports.side_finances.col.seq')}</th><th>${t('reports.col.reference')}</th><th class="text-right">${t('reports.col.principal')}</th><th class="text-right">${t('reports.col.tax')}</th><th class="text-right">${t('common.total')}</th><th>${t('reports.side_finances.col.country')}</th><th class="text-right">${t('reports.col.agcomm')}</th>`;
+                } else if (hasViaFields) {
                     previewHead.innerHTML = `<th>${t('common.date')}</th><th>${t('reports.col.reference')}</th><th>${t('reports.col.sender')}</th><th>${t('reports.col.beneficiary')}</th><th class="text-right">${t('reports.col.sent_usd')}</th><th class="text-right">${t('reports.col.received')}</th><th>${t('reports.col.pagador')}</th><th>${t('reports.col.destination')}</th>`;
                 } else {
                     const hasPerTxnDates = data.transactions.some(tx => tx.transaction_date);
@@ -4016,6 +4168,7 @@
 
             const dupRefs = this.duplicateRefSet;
             const dupRowClass = (ref) => dupRefs.has((ref || '').trim()) ? 'bg-warning/10' : '';
+            const sideRowClass = side ? 'finance-side-row' : '';
 
             const tbody = document.getElementById('preview-tbody');
             const company = data.company || '';
@@ -4025,6 +4178,17 @@
                 const dupBadge = isDup ? '<span class="badge badge-warning text-[10px] ml-1">dup</span>' : '';
                 const flow = tx.money_flow || this.txnMoneyFlow(tx, company);
                 const amtCls = this.txnMoneyClass(flow);
+                if (hasSideFields) {
+                    return `<tr class="${sideRowClass} ${dupRowClass(ref)}">
+                        <td class="font-mono text-sm finance-side-text">${this.esc(tx.side_label || tx.reference || '')}</td>
+                        <td class="font-mono text-sm text-text-secondary">${this.esc(ref)}${dupBadge}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold ${amtCls}">${App.money(tx.principal)}</td>
+                        <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.tax)}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold ${amtCls}">${App.money(tx.total)}</td>
+                        <td class="text-sm finance-side-text">${this.esc(tx.destination_country || tx.operator || '')}</td>
+                        <td class="text-right font-mono tabular-nums text-success">${App.money(tx.agcomm)}</td>
+                    </tr>`;
+                }
                 if (hasViaFields) {
                     const dest = [tx.destination_city, tx.destination_state, tx.destination_country].filter(Boolean).join(', ');
                     const recvAmt = tx.amount_received ? `${App.money(tx.amount_received).replace('$','')} ${tx.received_currency || ''}` : '—';
@@ -4316,10 +4480,12 @@
                 const parts = [];
                 if (res.appended_to_existing) parts.push('Added new transactions to existing report');
                 if (res.skipped_transaction_duplicates) parts.push(`${res.skipped_transaction_duplicates} duplicate txns skipped`);
+                if (res.skipped_missing_customer) parts.push(`${res.skipped_missing_customer} rows skipped (no client name — use Side Finances parser)`);
                 if (res.matched_count) parts.push(`${res.matched_count} clients matched`);
                 if (res.clients_created) parts.push(`${res.clients_created} new clients created`);
                 if (res.pushed_to_transfers) parts.push(`${res.pushed_to_transfers} transfers recorded`);
                 if (res.unmatched_count) parts.push(`${res.unmatched_count} need manual matching`);
+                if (res.accounting_posted) parts.push(this.t('reports.side_finances.accounting_posted'));
                 App.toastKey('toast.report_imported', 'success', { details: parts.join(', ') });
                 this.currentReportId = res.report_id;
                 this.viewReport(res.report_id);
@@ -4347,9 +4513,11 @@
                 const txs = data.transactions || [];
                 const stats = data.match_stats || { matched: 0, total: txs.length, pushed: 0 };
                 this.currentReportCompany = r.company || 'Barri';
+                this.currentReportSideFinance = r.finance_class === 'side_finances' || r.report_type === 'intermex_side';
+                document.getElementById('detail-side-banner')?.classList.toggle('hidden', !this.currentReportSideFinance);
 
                 document.getElementById('detail-title').textContent = this.t('reports.detail_title', { from: r.date_from, to: r.date_to });
-                document.getElementById('detail-agency').textContent = `${r.agency_number || ''} ${r.agency_name} — ${r.agency_address || ''}`;
+                document.getElementById('detail-agency').innerHTML = `${this.esc(`${r.agency_number || ''} ${r.agency_name} — ${r.agency_address || ''}`.trim())}${this.currentReportSideFinance ? ` ${this.sideFinanceBadge()}` : ''}`;
                 document.getElementById('detail-from').textContent = r.date_from;
                 document.getElementById('detail-to').textContent = r.date_to;
 
@@ -4373,6 +4541,15 @@
                 this.lastMatchStats = stats;
                 this.lastDetailTxs = txs;
                 this.updateMatchStats(stats.matched, stats.total, stats.pushed);
+                if (this.currentReportSideFinance) {
+                    document.getElementById('match-label').textContent = this.t('reports.side_finances.match_na');
+                    document.getElementById('match-badge').textContent = '—';
+                    document.getElementById('match-badge').className = 'badge badge-side-finances';
+                    document.getElementById('match-progress').style.width = '0%';
+                    const pushBtn = document.getElementById('btn-push-transfers');
+                    pushBtn.disabled = true;
+                    pushBtn.innerHTML = this.t('reports.side_finances.no_client_sync');
+                }
                 this.renderDetailTable(txs.map(tx => ({
                     ...tx,
                     money_flow: this.txnMoneyFlow(tx, this.currentReportCompany),
@@ -4413,10 +4590,27 @@
         renderDetailTable(txs) {
             const tbody = document.getElementById('detail-tbody');
             const company = this.currentReportCompany || 'Barri';
+            const side = !!this.currentReportSideFinance;
             tbody.innerHTML = txs.map(tx => {
                 const isMatched = !!tx.client_id;
                 const flow = tx.money_flow || this.txnMoneyFlow(tx, company);
                 const amtCls = this.txnMoneyClass(flow);
+
+                if (side) {
+                    return `<tr class="finance-side-row" data-tx-id="${tx.id}">
+                        <td class="font-mono text-sm finance-side-text">${this.esc(tx.customer_name || '')}</td>
+                        <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
+                        <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.principal)}</td>
+                        <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.fee)}</td>
+                        <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.tax)}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold ${amtCls}">${App.money(tx.total)}</td>
+                        <td class="text-right font-mono tabular-nums text-success">${App.money(tx.ag_commission || tx.agcomm)}</td>
+                        <td class="text-center"><span class="badge badge-side-finances text-[10px]">${this.t('reports.side_finances.short')}</span></td>
+                        <td class="text-sm text-text-muted">—</td>
+                        <td class="text-xs finance-side-text">${this.t('reports.side_finances.accounting_only')}</td>
+                    </tr>`;
+                }
+
                 const matchIcon = isMatched
                     ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
                     : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-danger" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -4795,6 +4989,14 @@
             }
 
             return 'in';
+        },
+
+        isSideFinances(data) {
+            return data?.finance_class === 'side_finances' || data?.report_format === 'intermex_giros_enviados';
+        },
+
+        sideFinanceBadge() {
+            return `<span class="badge badge-side-finances">${this.t('reports.side_finances.short')}</span>`;
         },
 
         enrichParsedReport(data) {

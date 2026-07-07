@@ -296,19 +296,23 @@ const App = {
         this.applyRoleNav();
     },
 
-    /** Hide admin-only nav entries and redirect if a non-admin opens a restricted URL. */
+    /** Hide admin-only nav entries and redirect if role cannot open the page. */
     applyRoleNav() {
         const role = this.user?.role;
         const page = location.pathname.split('/').pop() || 'dashboard';
         if (role === 'admin') return;
-        const adminOnly = ['stores', 'reports-center', 'analytics', 'import'];
+        const adminOnly = ['stores', 'reports-center', 'analytics'];
+        const managerPlus = ['import'];
         document.querySelectorAll('.sidebar-link').forEach(link => {
             const href = link.getAttribute('href');
             if (adminOnly.includes(href)) {
                 link.style.display = 'none';
             }
+            if (managerPlus.includes(href) && role !== 'manager') {
+                link.style.display = 'none';
+            }
         });
-        if (adminOnly.includes(page)) {
+        if (adminOnly.includes(page) || (managerPlus.includes(page) && role !== 'manager')) {
             location.href = 'dashboard';
         }
     },

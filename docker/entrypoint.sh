@@ -30,6 +30,12 @@ if [ -n "${DATABASE_URL:-}" ] && [ -f /var/www/html/supabase/migrations/001_init
         echo "[entrypoint] Applying suly_ledger status migration..."
         psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /var/www/html/migrate-suly-ledger-status.sql
       fi
+      finance_col="$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'barri_reports' AND column_name = 'finance_class'" 2>/dev/null || echo 0)"
+      finance_col="$(echo "$finance_col" | tr -d '[:space:]')"
+      if [ "${finance_col:-0}" = "0" ] && [ -f /var/www/html/migrate-side-finances.sql ]; then
+        echo "[entrypoint] Applying side finances migration..."
+        psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /var/www/html/migrate-side-finances.sql
+      fi
     fi
   else
     echo "[entrypoint] WARNING: psql not found; skipping Postgres schema bootstrap."

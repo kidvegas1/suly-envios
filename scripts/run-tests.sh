@@ -15,6 +15,12 @@ php scripts/test-gemini-sanitize.php
 echo "== gemini api live (optional) =="
 php scripts/test-gemini-api.php || true
 
+echo "== intermex giros enviados pdf =="
+node scripts/test-intermex-giros-enviados-pdf.mjs
+
+echo "== personal transfer xlsx =="
+node scripts/test-personal-transfer-xlsx.mjs
+
 echo "== viamericas pdf parse =="
 node scripts/test-viamericas-pdf-parse.mjs
 

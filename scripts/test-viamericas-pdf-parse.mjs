@@ -74,7 +74,7 @@ function parseViamericasCreacionEnviosRows(lines) {
     const rowStartRe = /^(A\d{4,6})\s*-\s*(.+)$/;
     const operatorRe = /(SULY\d+)\s*(Pagado|Cancelado|Anulado)\s*/i;
     const txnNumOnlyRe = /^-?(\d{4,6})$/;
-    const txnNumTailRe = /^(-?\d{4,6})\t(.+)$/;
+    const txnNumTailRe = /^(-?\d{4,6})[\t\s]+(.+)$/;
     const skipLineRe = /^(Inicio |Estado de|Detalle de|Historial de|Centro de|Desde$|Hasta$|Agencia$|Cajero$|Envios$|Modo|Generar|Creación|Nro\.|Transacción$|Cliente$|Beneficiario$|Cajero |Pago$|\$[\d,]+||%|\d+$)/i;
 
     for (let i = 0; i < lines.length; i++) {
@@ -203,5 +203,33 @@ assert(refs.has('A22592-12866'), 'missing sample ref A22592-12866');
 
 const cancel = parsed.transactions.find((t) => t.reference === 'A22592-12892');
 assert(cancel && cancel.transaction_status === 'Cancelado', 'expected cancelled txn A22592-12892');
+
+// Browser PDF.js often joins ref tail with spaces instead of tabs
+function extractLinesSpaceOnly(items) {
+    const yThreshold = 3;
+    const lineMap = new Map();
+    for (const item of items) {
+        const y = Math.round(item.transform[5]);
+        let matched = false;
+        for (const [key] of lineMap) {
+            if (Math.abs(key - y) <= yThreshold) { lineMap.get(key).push(item); matched = true; break; }
+        }
+        if (!matched) lineMap.set(y, [item]);
+    }
+    return [...lineMap.keys()].sort((a, b) => b - a).map((key) => {
+        return lineMap.get(key).sort((a, b) => a.transform[4] - b.transform[4]).map((i) => i.str).join(' ').trim();
+    }).filter((l) => l.length > 0);
+}
+
+let spaceLines = [];
+for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    spaceLines = spaceLines.concat(extractLinesSpaceOnly(content.items));
+}
+const spaceParsed = parseViamericasCreacionEnviosRows(spaceLines);
+assert(spaceParsed.transactions.length >= 85, `space-only lines: expected >= 85 txns, got ${spaceParsed.transactions.length}`);
+const spacePrincipal = spaceParsed.transactions.reduce((s, t) => s + t.principal, 0);
+assert(spacePrincipal >= 60000, `space-only lines: expected >= 60k principal, got ${spacePrincipal}`);
 
 console.log('OK: Viamericas ABR2026.pdf parse regression passed');

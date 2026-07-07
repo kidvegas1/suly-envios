@@ -165,9 +165,18 @@ function auth_is_manager(): bool {
     return auth_check() && ($_SESSION['user_role'] ?? '') === 'manager';
 }
 
+function auth_can_import_excel(): bool {
+    return auth_is_admin() || auth_is_manager();
+}
+
 /** Paths that only admins may open (HTML routes without leading slash). */
 function auth_admin_only_paths(): array {
-    return ['stores', 'reports-center', 'analytics', 'import'];
+    return ['stores', 'reports-center', 'analytics'];
+}
+
+/** Paths open to store managers and admins. */
+function auth_manager_plus_paths(): array {
+    return ['import'];
 }
 
 /** Retired modules — blocked for all roles (including admin). */
@@ -190,6 +199,9 @@ function auth_page_allowed(string $pageKey): bool {
     }
     if (auth_is_admin()) {
         return true;
+    }
+    if (in_array($pageKey, auth_manager_plus_paths(), true)) {
+        return auth_is_manager();
     }
     return !in_array($pageKey, auth_admin_only_paths(), true);
 }

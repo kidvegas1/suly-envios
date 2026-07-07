@@ -173,15 +173,18 @@
 
     <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/personal-transfer-xlsx.js"></script>
     <script>
         let parsedWorkbook = null;
         let selectedFile = null;
         let sheetMappings = {};
+        let personalTransferParse = null;
 
         const MODULE_RULES = [
             { module: 'caja',       keywords: ['COMPANIA', 'ENTRADA', 'CHEQUES Y DEBITOS', 'CAJERA'] },
+            { module: 'transfers',  keywords: ['REFERENCIA', 'BENEFICIARIO', 'PRINCIPAL', 'FECHA', 'TIENDA'] },
             { module: 'inventory',  keywords: ['PRODUCTO', 'QTY', 'CANTIDAD', 'SKU', 'PRECIO', 'STOCK'] },
-            { module: 'clients',    keywords: ['CLIENTE', 'BENEFICIARIO', 'TELEFONO', 'PHONE', 'CLIENT_CODE'] },
+            { module: 'clients',    keywords: ['CLIENTE', 'TELEFONO', 'PHONE', 'CLIENT_CODE', 'LIMITE MENSUAL'] },
             { module: 'statistics', keywords: ['BARRI', 'VIA', 'INTER', 'DINEX', 'LAKE JUNE', 'GIROS', 'TOTAL'] },
             { module: 'suly_ledger', keywords: ['DEBO A SULY', 'SULY ME DEBE', 'DIFERENCIA', 'SULY DEBE'] },
             { module: 'accounting', keywords: ['FALTANTE', 'CASH', 'DEBE', 'A FAVOR'] },
@@ -189,6 +192,7 @@
 
         const SHEET_NAME_MAP = {
             'caja': 'caja',
+            'transferencias': 'transfers',
             'estadisticas giros': 'statistics',
             'estadisticas': 'statistics',
             'suly': 'suly_ledger',
@@ -249,9 +253,99 @@
             });
         }
 
+        function fmtMoney(n) {
+            return (parseFloat(n) || 0).toLocaleString(App.lang === 'es' ? 'es-US' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function renderPersonalTransferPreview(parsed) {
+            const container = document.getElementById('sheets-section');
+            container.innerHTML = '';
+            const preview = parsed.transactions.slice(0, 8);
+            const fmtLabel = parsed.format === 'personal_viamericas'
+                ? App.t('import.personal_viamericas')
+                : App.t('import.option.transfers');
+
+            sheetMappings = { [parsed.sheetName]: 'transfers' };
+
+            const card = document.createElement('div');
+            card.className = 'card space-y-4';
+            card.innerHTML = `
+                <div class="flex items-start justify-between flex-wrap gap-3">
+                    <div>
+                        <p class="text-sm font-semibold text-text-primary">${escapeHtml(fmtLabel)}</p>
+                        <p class="text-xs text-text-muted mt-1">${escapeHtml(parsed.sheetName)} · ${App.t('import.personal_meta', { count: parsed.transactions.length })}</p>
+                    </div>
+                    <span class="badge badge-info">${App.t('import.auto_detected')}</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="rounded-xl bg-bg-elevated p-3">
+                        <p class="text-xs text-text-muted uppercase tracking-wider">${App.t('import.personal.agency')}</p>
+                        <p class="text-sm font-semibold font-mono mt-1">${escapeHtml(parsed.agency_number || App.t('empty.none'))}</p>
+                    </div>
+                    <div class="rounded-xl bg-bg-elevated p-3">
+                        <p class="text-xs text-text-muted uppercase tracking-wider">${App.t('import.personal.date_range')}</p>
+                        <p class="text-sm font-semibold mt-1">${escapeHtml(parsed.date_from || '—')} → ${escapeHtml(parsed.date_to || '—')}</p>
+                    </div>
+                    <div class="rounded-xl bg-bg-elevated p-3">
+                        <p class="text-xs text-text-muted uppercase tracking-wider">${App.t('import.personal.total_usd')}</p>
+                        <p class="text-sm font-semibold font-mono mt-1">$${fmtMoney(parsed.totals.principal)}</p>
+                    </div>
+                    <div class="rounded-xl bg-bg-elevated p-3">
+                        <p class="text-xs text-text-muted uppercase tracking-wider">${App.t('import.personal.company')}</p>
+                        <p class="text-sm font-semibold mt-1">${escapeHtml(parsed.company || 'Viamericas')}</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-xl border border-border">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.reference')}</th>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.sender')}</th>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.beneficiary')}</th>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.created')}</th>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.paid')}</th>
+                                <th class="px-3 py-2 text-right text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.usd')}</th>
+                                <th class="px-3 py-2 text-right text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.mxn')}</th>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.bank')}</th>
+                                <th class="px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider whitespace-nowrap bg-bg-elevated">${App.t('import.personal.col.destination')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${preview.map(tx => `<tr>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border font-mono">${escapeHtml(tx.reference)}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border">${escapeHtml(tx.sender_name)}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border">${escapeHtml(tx.beneficiary)}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border">${escapeHtml((tx.date_sent || '').slice(0, 19))}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border">${escapeHtml((tx.date_paid || '').slice(0, 19))}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border text-right font-mono">$${fmtMoney(tx.amount_usd)}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border text-right font-mono">${fmtMoney(tx.amount_local)}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border">${escapeHtml(tx.paying_bank || '')}</td>
+                                <td class="px-3 py-1.5 whitespace-nowrap border-t border-border">${escapeHtml(tx.destination_city || tx.destination_country || '')}</td>
+                            </tr>`).join('')}
+                            ${parsed.transactions.length > 8 ? `<tr><td colspan="9" class="px-3 py-2 text-center text-text-muted border-t border-border">${App.t('import.more_rows', { count: parsed.transactions.length - 8 })}</td></tr>` : ''}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            container.appendChild(card);
+            container.classList.remove('hidden');
+
+            const btn = document.getElementById('import-btn');
+            btn.querySelector('span').textContent = App.t('import.import_transfers', { count: parsed.transactions.length });
+            document.getElementById('import-summary').textContent = App.t('import.personal.summary', {
+                count: parsed.transactions.length,
+                agency: parsed.agency_number || parsed.company,
+            });
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('import-actions').classList.remove('hidden');
+        }
+
         function renderSheets() {
             const container = document.getElementById('sheets-section');
             container.innerHTML = '';
+            const btn = document.getElementById('import-btn');
+            btn.querySelector('span').textContent = App.t('import.import_sheets');
             const sheetNames = parsedWorkbook.SheetNames;
 
             sheetNames.forEach((name, idx) => {
@@ -286,8 +380,9 @@
                                 <option value="statistics" ${detected === 'statistics' ? 'selected' : ''}>${App.t('import.option.statistics')}</option>
                                 <option value="suly_ledger" ${detected === 'suly_ledger' ? 'selected' : ''}>${App.t('import.option.suly_ledger')}</option>
                                 <option value="accounting" ${detected === 'accounting' ? 'selected' : ''}>${App.t('import.option.accounting')}</option>
+                                <option value="transfers" ${detected === 'transfers' ? 'selected' : ''}>${App.t('import.option.transfers')}</option>
                             </select>
-                            ${detected !== 'skip' ? `<span class="badge badge-${({caja:'accent',clients:'info',inventory:'success',statistics:'info',suly_ledger:'danger',accounting:'warning'})[detected] || 'info'}">${App.t('import.auto_detected')}</span>` : ''}
+                            ${detected !== 'skip' ? `<span class="badge badge-${({caja:'accent',clients:'info',inventory:'success',statistics:'info',suly_ledger:'danger',accounting:'warning',transfers:'info'})[detected] || 'info'}">${App.t('import.auto_detected')}</span>` : ''}
                         </div>
                     </div>
                     <div class="overflow-x-auto rounded-xl border border-border">
@@ -352,7 +447,13 @@
                 try {
                     parsedWorkbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                     sheetMappings = {};
-                    renderSheets();
+                    personalTransferParse = PersonalTransferXlsx.detectWorkbookPersonalTransfer(parsedWorkbook, XLSX);
+                    if (personalTransferParse?.transactions?.length) {
+                        renderPersonalTransferPreview(personalTransferParse);
+                    } else {
+                        personalTransferParse = null;
+                        renderSheets();
+                    }
                 } catch (err) {
                     App.toastKey('toast.parse_excel_failed', 'danger', err.message);
                     resetUpload();
@@ -365,6 +466,7 @@
             selectedFile = null;
             parsedWorkbook = null;
             sheetMappings = {};
+            personalTransferParse = null;
             document.getElementById('file-input').value = '';
             document.getElementById('file-info').classList.add('hidden');
             document.getElementById('sheets-section').classList.add('hidden');
@@ -396,12 +498,19 @@
                 progressText.textContent = App.t('import.progress.processing');
 
                 const sheetsData = {};
-                for (const [sheetName, module] of activeSheets) {
-                    const ws = parsedWorkbook.Sheets[sheetName];
-                    sheetsData[sheetName] = {
-                        module,
-                        rows: XLSX.utils.sheet_to_json(ws, { defval: '' }),
+                if (personalTransferParse?.transactions?.length) {
+                    sheetsData[personalTransferParse.sheetName] = {
+                        module: 'transfers',
+                        rows: personalTransferParse.transactions,
                     };
+                } else {
+                    for (const [sheetName, module] of activeSheets) {
+                        const ws = parsedWorkbook.Sheets[sheetName];
+                        sheetsData[sheetName] = {
+                            module,
+                            rows: XLSX.utils.sheet_to_json(ws, { defval: '' }),
+                        };
+                    }
                 }
 
                 progressBar.style.width = '60%';
@@ -503,8 +612,12 @@
                 updatePageDate();
                 loadImports();
                 if (parsedWorkbook) {
-                    renderSheets();
-                    updateImportSummary();
+                    if (personalTransferParse?.transactions?.length) {
+                        renderPersonalTransferPreview(personalTransferParse);
+                    } else {
+                        renderSheets();
+                        updateImportSummary();
+                    }
                 }
             });
         })();

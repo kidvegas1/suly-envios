@@ -26,6 +26,38 @@ function barri_report_label(array $data): string {
     return $agency . ' (' . ($data['report_date_from'] ?? '?') . ' — ' . ($data['report_date_to'] ?? '?') . ')';
 }
 
+/** Post side-finance summary lines to accounting (incomplete but vital). */
+function barri_create_side_finance_accounting(PDO $pdo, int $storeId, int $reportId, array $data): void {
+    $dup = $pdo->prepare('SELECT id FROM accounting_entries WHERE source_report_id = ? LIMIT 1');
+    $dup->execute([$reportId]);
+    if ($dup->fetch()) return;
+
+    $agency = trim($data['agency_number'] ?? '') ?: 'Intermex';
+    $from = $data['report_date_from'] ?? $data['date_from'] ?? date('Y-m-d');
+    $to = $data['report_date_to'] ?? $data['date_to'] ?? $from;
+    $txnCount = (int)($data['total_transactions'] ?? 0);
+    $totalPrincipal = (float)($data['total_principal'] ?? 0);
+    $totalAgcomm = (float)($data['total_agcomm'] ?? 0);
+    $totalTax = (float)($data['total_tax'] ?? 0);
+    $company = sanitize($data['company'] ?? 'Intermex');
+
+    $notes = "Incomplete but vital — {$txnCount} transfers without client names. Principal volume \${$totalPrincipal}. Tax \${$totalTax}. Source report #{$reportId}.";
+
+    $ins = $pdo->prepare('INSERT INTO accounting_entries (store_id, category, description, amount, entry_type, entry_date, notes, finance_class, data_completeness, source_report_id) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    $ins->execute([
+        $storeId,
+        'Side Finances',
+        "{$company} Giros Enviados {$agency} ({$from} — {$to})",
+        $totalAgcomm > 0 ? $totalAgcomm : $totalPrincipal,
+        'receivable',
+        $to,
+        $notes,
+        'side_finances',
+        'incomplete_vital',
+        $reportId,
+    ]);
+}
+
 /** @return array<int, string> reference numbers already stored for this store */
 function barri_find_existing_transaction_refs(PDO $pdo, int $storeId, array $refs): array {
     $refs = array_values(array_unique(array_filter(array_map(static function ($r) {
@@ -289,8 +321,18 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
 
         $reportType = 'barri';
         $companyLower = strtolower($company);
+        $financeClass = sanitize($data['finance_class'] ?? 'standard');
+        $dataCompleteness = sanitize($data['data_completeness'] ?? 'complete');
+        $isSideFinance = $financeClass === 'side_finances'
+            || ($data['report_format'] ?? '') === 'intermex_giros_enviados';
+        if ($isSideFinance) {
+            $financeClass = 'side_finances';
+            $dataCompleteness = 'incomplete_vital';
+        }
         if (($data['report_format'] ?? '') === 'agency_activity' || ($data['report_type'] ?? '') === 'agency_activity') {
             $reportType = 'agency_activity';
+        } elseif ($isSideFinance) {
+            $reportType = 'intermex_side';
         } elseif (str_contains($companyLower, 'viamerica')) $reportType = 'viamericas';
         elseif (str_contains($companyLower, 'intermex')) $reportType = 'intermex';
         elseif (str_contains($companyLower, 'intercambio')) $reportType = 'intercambio';
@@ -301,7 +343,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         if ($appendToExisting) {
             $reportId = $existingReportId;
         } else {
-            $ins = $pdo->prepare('INSERT INTO barri_reports (store_id, user_id, agency_number, agency_name, agency_address, company, store_name, ar_executive, phone, report_date_from, report_date_to, beginning_balance, ending_balance, total_transactions, total_principal, total_fees, total_tax, total_amount, total_agcomm, filename, original_name, status, report_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $ins = $pdo->prepare('INSERT INTO barri_reports (store_id, user_id, agency_number, agency_name, agency_address, company, store_name, ar_executive, phone, report_date_from, report_date_to, beginning_balance, ending_balance, total_transactions, total_principal, total_fees, total_tax, total_amount, total_agcomm, filename, original_name, status, report_type, finance_class, data_completeness) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
             $ins->execute([
                 $storeId, $user['id'], $agencyNum, sanitize($data['agency_name']),
                 sanitize($data['agency_address'] ?? ''), $company, $storeName, $arExec, $reportPhone,
@@ -311,7 +353,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
                 (float)($data['total_fees'] ?? 0), (float)($data['total_tax'] ?? 0),
                 (float)($data['total_amount'] ?? 0), (float)($data['total_agcomm'] ?? 0),
                 $pdfPath, sanitize($originalName),
-                'pending', $reportType
+                'pending', $reportType, $financeClass, $dataCompleteness
             ]);
             $reportId = sql_last_insert_id($pdo, 'barri_reports');
         }
@@ -325,29 +367,40 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         $unmatchedCount = 0;
         $createdCount = 0;
         $pushedCount = 0;
+        $sideFinanceCount = 0;
+        $skippedMissingCustomer = 0;
         foreach ($data['transactions'] as $txn) {
             $custName = trim($txn['customer_name'] ?? '');
-            if (!$custName) continue;
+            $isSideTxn = $isSideFinance || (($txn['finance_class'] ?? '') === 'side_finances');
+            if (!$isSideTxn && !$custName) {
+                $skippedMissingCustomer++;
+                continue;
+            }
 
             $txnDate = !empty($txn['transaction_date']) ? sanitize($txn['transaction_date']) : $dateFrom;
 
             $clientId = null;
             $isMatched = 0;
-            $clientLookup->execute([$custName]);
-            $matches = $clientLookup->fetchAll();
-            if (count($matches) === 1) {
-                $clientId = (int)$matches[0]['id'];
-                $isMatched = 1;
-                $matchedCount++;
-            } elseif (count($matches) === 0) {
-                $pdo->prepare('INSERT INTO clients (name, phone, monthly_limit, notes) VALUES (?,?,3000,?)')
-                    ->execute([sanitize($custName), '', 'Auto-created from ' . $company . ' report']);
-                $clientId = sql_last_insert_id($pdo, 'clients');
-                $isMatched = 1;
-                $matchedCount++;
-                $createdCount++;
+            if ($isSideTxn) {
+                $custName = trim($txn['side_label'] ?? $txn['reference'] ?? $txn['reference_number'] ?? 'Side Finances');
+                $sideFinanceCount++;
             } else {
-                $unmatchedCount++;
+                $clientLookup->execute([$custName]);
+                $matches = $clientLookup->fetchAll();
+                if (count($matches) === 1) {
+                    $clientId = (int)$matches[0]['id'];
+                    $isMatched = 1;
+                    $matchedCount++;
+                } elseif (count($matches) === 0) {
+                    $pdo->prepare('INSERT INTO clients (name, phone, monthly_limit, notes) VALUES (?,?,3000,?)')
+                        ->execute([sanitize($custName), '', 'Auto-created from ' . $company . ' report']);
+                    $clientId = sql_last_insert_id($pdo, 'clients');
+                    $isMatched = 1;
+                    $matchedCount++;
+                    $createdCount++;
+                } else {
+                    $unmatchedCount++;
+                }
             }
 
             $typeMap = ['giros' => 'giros', 'money order' => 'money_order', 'bill payment' => 'bill_payment', 'nueva_orden' => 'nueva_orden', 'cheque_escaneado' => 'cheque_escaneado'];
@@ -393,7 +446,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             ]);
             $barriTxnId = sql_last_insert_id($pdo, 'barri_transactions');
 
-            if ($isMatched && $clientId) {
+            if (!$isSideTxn && $isMatched && $clientId) {
                 $typeLabel = str_replace('_', ' ', $txnType);
                 $dateSent = $txnDate . ' ' . $txnTime;
                 $transferBeneficiary = $beneficiaryName ?: sanitize($custName);
@@ -411,6 +464,9 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
 
         $pdo->prepare('UPDATE barri_reports SET status = ? WHERE id = ?')->execute(['processed', $reportId]);
         barri_refresh_report_totals($pdo, $reportId);
+        if ($isSideFinance) {
+            barri_create_side_finance_accounting($pdo, $storeId, $reportId, $data);
+        }
         $pdo->commit();
 
         return [
@@ -421,12 +477,17 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             'unassigned' => $unassigned,
             'auto_matched' => !$unassigned,
             'appended_to_existing' => $appendToExisting,
-            'total_transactions' => $matchedCount + $unmatchedCount,
+            'total_transactions' => $matchedCount + $unmatchedCount + $sideFinanceCount,
             'matched_count' => $matchedCount,
             'unmatched_count' => $unmatchedCount,
+            'side_finance_count' => $sideFinanceCount,
+            'finance_class' => $financeClass,
+            'data_completeness' => $dataCompleteness,
+            'accounting_posted' => $isSideFinance,
             'clients_created' => $createdCount,
             'pushed_to_transfers' => $pushedCount,
             'skipped_transaction_duplicates' => $skippedTxnDuplicates,
+            'skipped_missing_customer' => $skippedMissingCustomer,
         ];
     } catch (\Throwable $e) {
         if ($pdo->inTransaction()) {

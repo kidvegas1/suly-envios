@@ -410,3 +410,8 @@ CREATE TABLE receivers (
 -- ALTER TABLE barri_transactions ADD COLUMN destination_city VARCHAR(200) DEFAULT NULL AFTER destination_state;
 -- ALTER TABLE barri_transactions ADD COLUMN payment_date DATETIME DEFAULT NULL AFTER destination_city;
 -- ALTER TABLE barri_transactions ADD COLUMN transaction_status VARCHAR(50) DEFAULT NULL AFTER payment_date;
+-- ALTER TABLE barri_reports ADD COLUMN finance_class VARCHAR(30) NOT NULL DEFAULT 'standard';
+-- ALTER TABLE barri_reports ADD COLUMN data_completeness VARCHAR(30) NOT NULL DEFAULT 'complete';
+-- ALTER TABLE accounting_entries ADD COLUMN finance_class VARCHAR(30) NOT NULL DEFAULT 'standard';
+-- ALTER TABLE accounting_entries ADD COLUMN data_completeness VARCHAR(30) NOT NULL DEFAULT 'complete';
+-- ALTER TABLE accounting_entries ADD COLUMN source_report_id INT UNSIGNED DEFAULT NULL;
