@@ -19,11 +19,13 @@ if ($method === 'POST') {
     }
 
     if ($action === 'logout') {
+        csrf_verify();
         auth_logout();
         json_response(['success' => true]);
     }
 
     if ($action === 'switch_store') {
+        csrf_verify();
         auth_require_admin();
         validate_required($data, ['store_id']);
         $storeId = (int)$data['store_id'];

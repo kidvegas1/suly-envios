@@ -76,6 +76,11 @@
                 <select id="employee-filter" class="input py-2 px-3 text-sm w-44">
                     <option value="" data-i18n="ledger.all_employees">All Employees</option>
                 </select>
+                <select id="status-filter" class="input py-2 px-3 text-sm w-32" title="Status">
+                    <option value="open" selected data-i18n="ledger.filter_open">Open</option>
+                    <option value="paid" data-i18n="ledger.filter_paid">Paid</option>
+                    <option value="all" data-i18n="ledger.filter_all">All</option>
+                </select>
                 <button id="add-entry-btn" class="btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span data-i18n="ledger.add_entry">Add Entry</span>
@@ -132,11 +137,12 @@
                             <th class="text-right" data-i18n="col.owed_to_suly">Owed to Suly</th>
                             <th class="text-right" data-i18n="col.suly_owes">Suly Owes</th>
                             <th data-i18n="col.notes">Notes</th>
+                            <th data-i18n="col.status">Status</th>
                             <th data-i18n="col.actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="ledger-tbody">
-                        <tr><td colspan="7" class="text-center text-text-muted py-8" data-i18n="common.loading">Loading...</td></tr>
+                        <tr><td colspan="8" class="text-center text-text-muted py-8" data-i18n="common.loading">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -176,7 +182,11 @@
     <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
+        let canSettleLedger = false;
+
         function applyLedgerPageI18n() {
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) statusFilter.title = App.t('ledger.filter_status');
             const filter = document.getElementById('employee-filter');
             if (filter?.disabled) {
                 filter.title = App.t('ledger.employee_filter_locked');
@@ -197,6 +207,8 @@
             const avatar = document.getElementById('user-avatar');
             if (avatar && App.user?.name) avatar.textContent = App.user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
+            canSettleLedger = App.user.role === 'admin' || App.user.role === 'manager';
+
             const lockedEmployee = App.user?.employee;
             const personalScope = ['employee', 'cashier'].includes(App.user?.role);
             if (lockedEmployee && personalScope) {
@@ -211,6 +223,7 @@
             loadLedger();
 
             document.getElementById('employee-filter').addEventListener('change', loadLedger);
+            document.getElementById('status-filter').addEventListener('change', loadLedger);
 
             document.getElementById('add-entry-btn').addEventListener('click', () => {
                 document.getElementById('ledger-modal-title').textContent = App.t('ledger.add_title');
@@ -260,8 +273,9 @@
 
         async function loadLedger() {
             const employee = document.getElementById('employee-filter').value;
+            const status = document.getElementById('status-filter').value;
             try {
-                const res = await App.api('GET', `/api/suly-ledger?employee=${encodeURIComponent(employee)}`);
+                const res = await App.api('GET', `/api/suly-ledger?employee=${encodeURIComponent(employee)}&status=${encodeURIComponent(status)}`);
 
                 document.getElementById('total-owed').textContent = App.money(res.total_owed_to_suly);
                 document.getElementById('total-suly-owes').textContent = App.money(res.total_suly_owes);
@@ -280,38 +294,51 @@
 
                 const tbody = document.getElementById('ledger-tbody');
                 if (!res.entries.length) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-text-muted py-8">${App.t('ledger.no_entries')}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-text-muted py-8">${App.t('ledger.no_entries')}</td></tr>`;
                     return;
                 }
                 const empty = App.t('empty.none');
-                tbody.innerHTML = res.entries.map(e => `
-                    <tr>
+                tbody.innerHTML = res.entries.map(e => {
+                    const isPaid = e.status === 'paid';
+                    const owedAmt = parseFloat(e.owed_to_suly);
+                    const owesAmt = parseFloat(e.suly_owes);
+                    const paidClass = isPaid ? 'opacity-60 line-through' : '';
+                    const statusBadge = isPaid
+                        ? `<span class="badge badge-success">${App.t('ledger.status_paid')}</span>`
+                        : `<span class="badge badge-info">${App.t('ledger.status_open')}</span>`;
+                    const showMarkPaid = canSettleLedger && !isPaid && (owedAmt > 0 || owesAmt > 0);
+                    const showReopen = canSettleLedger && isPaid;
+                    return `
+                    <tr class="${isPaid ? 'opacity-90' : ''}">
                         <td class="text-sm">${App.formatDate(e.entry_date)}</td>
                         <td class="font-medium text-sm">${e.employee_name || empty}</td>
                         <td class="text-sm">${e.description}</td>
-                        <td class="text-right font-mono tabular-nums ${parseFloat(e.owed_to_suly) > 0 ? 'text-danger font-semibold' : 'text-text-muted'}">${parseFloat(e.owed_to_suly) > 0 ? App.money(e.owed_to_suly) : empty}</td>
-                        <td class="text-right font-mono tabular-nums ${parseFloat(e.suly_owes) > 0 ? 'text-success font-semibold' : 'text-text-muted'}">${parseFloat(e.suly_owes) > 0 ? App.money(e.suly_owes) : empty}</td>
+                        <td class="text-right font-mono tabular-nums ${paidClass} ${owedAmt > 0 ? 'text-danger font-semibold' : 'text-text-muted'}">${owedAmt > 0 ? App.money(e.owed_to_suly) : empty}</td>
+                        <td class="text-right font-mono tabular-nums ${paidClass} ${owesAmt > 0 ? 'text-success font-semibold' : 'text-text-muted'}">${owesAmt > 0 ? App.money(e.suly_owes) : empty}</td>
                         <td class="text-xs text-text-muted max-w-[200px] truncate">${e.notes || ''}</td>
+                        <td>${statusBadge}</td>
                         <td>
-                            <div class="flex gap-1">
-                                <button onclick="editEntry(${e.id})" class="btn-secondary text-xs py-1 px-2">${App.t('action.edit')}</button>
+                            <div class="flex flex-wrap gap-1">
+                                ${showMarkPaid ? `<button onclick="markPaid(${e.id})" class="btn-secondary text-xs py-1 px-2">${App.t('ledger.mark_paid')}</button>` : ''}
+                                ${showReopen ? `<button onclick="reopenEntry(${e.id})" class="btn-secondary text-xs py-1 px-2">${App.t('ledger.reopen')}</button>` : ''}
+                                ${!isPaid ? `<button onclick="editEntry(${e.id})" class="btn-secondary text-xs py-1 px-2">${App.t('action.edit')}</button>` : ''}
                                 <button onclick="deleteEntry(${e.id})" class="p-1 rounded hover:bg-[oklch(0.65_0.2_25_/_0.15)] text-text-muted hover:text-danger transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                 </button>
                             </div>
                         </td>
-                    </tr>
-                `).join('');
+                    </tr>`;
+                }).join('');
             } catch (err) {
                 App.toast(err.message, 'danger');
                 document.getElementById('ledger-tbody').innerHTML =
-                    `<tr><td colspan="7" class="text-center text-danger py-8">${App.t('ledger.load_failed')}</td></tr>`;
+                    `<tr><td colspan="8" class="text-center text-danger py-8">${App.t('ledger.load_failed')}</td></tr>`;
             }
         }
 
         async function editEntry(id) {
             try {
-                const res = await App.api('GET', '/api/suly-ledger');
+                const res = await App.api('GET', '/api/suly-ledger?status=all');
                 const entry = res.entries.find(e => e.id == id);
                 if (!entry) return;
                 const form = document.getElementById('ledger-form');
@@ -338,6 +365,23 @@
             try {
                 await App.api('POST', '/api/suly-ledger', { action: 'delete', id });
                 App.toast(App.t('ledger.entry_deleted'), 'success');
+                loadLedger();
+            } catch (err) { App.toast(err.message, 'danger'); }
+        }
+
+        async function markPaid(id) {
+            if (!confirm(App.t('ledger.confirm_mark_paid'))) return;
+            try {
+                await App.api('POST', '/api/suly-ledger', { action: 'mark_paid', id });
+                App.toast(App.t('ledger.marked_paid'), 'success');
+                loadLedger();
+            } catch (err) { App.toast(err.message, 'danger'); }
+        }
+
+        async function reopenEntry(id) {
+            try {
+                await App.api('POST', '/api/suly-ledger', { action: 'reopen', id });
+                App.toast(App.t('ledger.reopened'), 'success');
                 loadLedger();
             } catch (err) { App.toast(err.message, 'danger'); }
         }

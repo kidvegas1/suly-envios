@@ -16,6 +16,25 @@ $year = 2026;
 
 $failures = 0;
 
+function suly_ledger_has_status_column(PDO $pdo): bool {
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    if ($driver === 'pgsql') {
+        $stmt = $pdo->prepare(
+            "SELECT 1 FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'suly_ledger' AND column_name = 'status'"
+        );
+        $stmt->execute();
+        return (bool)$stmt->fetchColumn();
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = 'suly_ledger' AND column_name = 'status'"
+    );
+    $stmt->execute();
+    return (bool)$stmt->fetchColumn();
+}
+
 function assert_ok(PDO $pdo, string $label, string $sql, array $params): void {
     global $failures;
     try {
@@ -34,6 +53,13 @@ assert_ok($pdo, 'clock-in today', $sql, [$date, $storeId]);
 $storeSql = store_filter_sql('sl.store_id', $storeId);
 $sql = "SELECT 1 FROM suly_ledger sl WHERE 1=1{$storeSql} LIMIT 1";
 assert_ok($pdo, 'suly-ledger list', $sql, [$storeId]);
+
+if (suly_ledger_has_status_column($pdo)) {
+    $sql = "SELECT 1 FROM suly_ledger sl WHERE sl.status = 'open'{$storeSql} LIMIT 1";
+    assert_ok($pdo, 'suly-ledger open store filter', $sql, [$storeId]);
+} else {
+    echo "SKIP: suly-ledger status filter (column missing — run migrate-suly-ledger-status.sql)\n";
+}
 
 $storeSql = store_filter_sql('store_id', $storeId);
 $sql = 'SELECT 1 FROM transfer_statistics WHERE 1=1' . $storeSql . ' AND year = ? LIMIT 1';

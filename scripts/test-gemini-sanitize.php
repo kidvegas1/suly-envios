@@ -68,10 +68,17 @@ assert_same([], $empty['transactions'], 'no transactions');
 $badTx = gemini_sanitize_parsed_report(['transactions' => 'not-array']);
 assert_same([], $badTx['transactions'], 'non-array transactions coerced');
 
+assert_true($failures === 0, 'sanitizer assertions');
+
+assert_same('text/csv', gemini_mime_for_filename('report.csv'), 'csv mime mapping');
+assert_same('application/pdf', gemini_mime_for_filename('scan.PDF'), 'pdf mime mapping');
+assert_true(gemini_is_text_document('text/csv', 'report.csv'), 'csv treated as text document');
+assert_true(!gemini_is_text_document('application/pdf', 'report.pdf'), 'pdf not text document');
+
 if ($failures > 0) {
     fwrite(STDERR, "\n{$failures} test(s) failed.\n");
     exit(1);
 }
 
-echo "OK: gemini_sanitize_parsed_report (" . (8) . " assertions)\n";
+echo "OK: gemini_sanitize_parsed_report (12 assertions)\n";
 exit(0);

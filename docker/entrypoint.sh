@@ -24,6 +24,12 @@ if [ -n "${DATABASE_URL:-}" ] && [ -f /var/www/html/supabase/migrations/001_init
       echo "[entrypoint] Schema seed complete."
     else
       echo "[entrypoint] Postgres schema already present (users table found)."
+      status_col="$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'suly_ledger' AND column_name = 'status'" 2>/dev/null || echo 0)"
+      status_col="$(echo "$status_col" | tr -d '[:space:]')"
+      if [ "${status_col:-0}" = "0" ] && [ -f /var/www/html/migrate-suly-ledger-status.sql ]; then
+        echo "[entrypoint] Applying suly_ledger status migration..."
+        psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /var/www/html/migrate-suly-ledger-status.sql
+      fi
     fi
   else
     echo "[entrypoint] WARNING: psql not found; skipping Postgres schema bootstrap."

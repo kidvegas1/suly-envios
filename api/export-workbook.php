@@ -43,7 +43,7 @@ $stmt->execute(array_merge([$dateFrom, $dateTo], $storeParam));
 $statistics = $stmt->fetchAll();
 
 // SULY LEDGER
-$sulyQ = "SELECT employee_name, description, owed_to_suly, suly_owes, entry_date, notes
+$sulyQ = "SELECT employee_name, description, owed_to_suly, suly_owes, entry_date, notes, status, paid_at
     FROM suly_ledger
     WHERE entry_date BETWEEN ? AND ?{$storeWhere}
     ORDER BY entry_date";

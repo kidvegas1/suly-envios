@@ -1,68 +1,9 @@
 <?php
+require_once __DIR__ . '/../includes/report-metadata.php';
+
 $user = auth_require();
 $method = get_method();
 $pdo = db();
-
-function barri_auto_match_store(PDO $pdo, array $data): ?int {
-    $parsedAgency = trim($data['agency_number'] ?? '');
-    if ($parsedAgency) {
-        $storeMatch = $pdo->prepare('SELECT id FROM stores WHERE (barri_agency_number = ? OR viamericas_agency_number = ? OR intercambio_agency_number = ? OR intermex_agency_number = ?) AND ' . sql_is_active() . ' LIMIT 1');
-        $storeMatch->execute([$parsedAgency, $parsedAgency, $parsedAgency, $parsedAgency]);
-        $autoStore = $storeMatch->fetch();
-        if ($autoStore) {
-            return (int)$autoStore['id'];
-        }
-    }
-
-    $reportAddr = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', trim($data['agency_address'] ?? '')));
-    $reportName = strtolower(trim($data['agency_name'] ?? ''));
-    $reportStoreName = strtolower(trim($data['store_name'] ?? ''));
-
-    if (!$reportAddr && !$reportName && !$reportStoreName) {
-        return null;
-    }
-
-    $allStores = $pdo->query('SELECT id, name, address FROM stores WHERE ' . sql_is_active())->fetchAll();
-    $bestId = null;
-    $bestScore = 0;
-
-    foreach ($allStores as $s) {
-        $score = 0;
-        $sAddr = strtolower(preg_replace('/[^a-z0-9]+/', ' ', trim($s['address'] ?? '')));
-        $sName = strtolower(trim($s['name'] ?? ''));
-
-        if ($reportAddr && $sAddr && strlen($reportAddr) > 5 && strlen($sAddr) > 5) {
-            $rTokens = array_filter(explode(' ', $reportAddr), fn($t) => strlen($t) > 1);
-            $hits = 0;
-            foreach ($rTokens as $tok) {
-                if (str_contains($sAddr, $tok)) $hits++;
-            }
-            if (count($rTokens) > 0) {
-                $addrScore = $hits / count($rTokens);
-                if ($addrScore >= 0.5) $score = max($score, $addrScore * 10);
-            }
-        }
-
-        $namesToCheck = array_filter([$reportName, $reportStoreName]);
-        foreach ($namesToCheck as $rn) {
-            if (!$rn || !$sName) continue;
-            if (str_contains($rn, $sName) || str_contains($sName, $rn)) {
-                $score = max($score, 8);
-            } else {
-                $sWords = array_filter(explode(' ', $sName), fn($w) => strlen($w) > 2);
-                $matched = 0;
-                foreach ($sWords as $w) { if (str_contains($rn, $w)) $matched++; }
-                if (count($sWords) > 0 && $matched / count($sWords) >= 0.5) {
-                    $score = max($score, 5 * ($matched / count($sWords)));
-                }
-            }
-        }
-
-        if ($score > $bestScore) { $bestScore = $score; $bestId = (int)$s['id']; }
-    }
-
-    return ($bestId && $bestScore >= 3) ? $bestId : null;
-}
 
 function barri_normalize_report_data(array $data): array {
     $data['report_date_from'] = $data['report_date_from'] ?? $data['date_from'] ?? null;

@@ -115,10 +115,11 @@ if ($method === 'GET') {
     $stmt->execute($params);
     $topSenders = $stmt->fetchAll();
 
-    // FinCEN flagged (>= $3000 in period)
+    // FinCEN flagged (>= configured global limit in period)
+    $fincenLimit = app_setting_float('fincen_global_limit', 3000.0);
     $fincenCount = 0;
     foreach ($topSenders as $s) {
-        if ((float)$s['total_sent'] >= 3000) $fincenCount++;
+        if ((float)$s['total_sent'] >= $fincenLimit) $fincenCount++;
     }
 
     // Daily breakdown for charts
@@ -195,6 +196,7 @@ if ($method === 'GET') {
         'companies' => $companies,
         'top_senders' => $topSenders,
         'fincen_flagged' => $fincenCount,
+        'fincen_limit' => $fincenLimit,
         'daily_breakdown' => $dailyBreakdown,
         'store_breakdown' => $storeBreakdown,
         'transactions' => $transactions,

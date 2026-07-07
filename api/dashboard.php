@@ -34,7 +34,7 @@ if ($employee && auth_is_personal_employee_scope()) {
     $ledgerParams[] = $employee['name'];
 }
 
-$ledgerBalance = $pdo->prepare('SELECT COALESCE(SUM(owed_to_suly),0) as owed_to_suly, COALESCE(SUM(suly_owes),0) as suly_owes FROM suly_ledger WHERE 1=1' . $ledgerSql);
+$ledgerBalance = $pdo->prepare("SELECT COALESCE(SUM(owed_to_suly),0) as owed_to_suly, COALESCE(SUM(suly_owes),0) as suly_owes FROM suly_ledger WHERE status = 'open'" . $ledgerSql);
 $ledgerBalance->execute($ledgerParams);
 $ledger = $ledgerBalance->fetch();
 

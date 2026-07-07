@@ -177,10 +177,14 @@ CREATE TABLE suly_ledger (
   suly_owes NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
   entry_date DATE NOT NULL,
   notes TEXT DEFAULT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  paid_at TIMESTAMPTZ DEFAULT NULL,
+  paid_by_user_id INTEGER DEFAULT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_suly_ledger_store_date ON suly_ledger (store_id, entry_date);
+CREATE INDEX idx_suly_ledger_status ON suly_ledger (status);
 
 -- ── Employees ──
 

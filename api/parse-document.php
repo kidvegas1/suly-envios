@@ -34,7 +34,7 @@ if (($file['size'] ?? 0) > MAX_UPLOAD_SIZE) {
 $filename = basename($file['name'] ?? 'document.pdf');
 $mime = gemini_mime_for_filename($filename);
 if ($mime === null) {
-    json_error('Unsupported file type. Allowed: PDF, PNG, JPG, WEBP, XLS, XLSX', 400);
+    json_error('Unsupported file type. Allowed: PDF, PNG, JPG, WEBP, XLS, XLSX, CSV', 400);
 }
 
 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -50,6 +50,8 @@ if ($detected && is_string($detected)) {
         'image/webp',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'application/vnd.ms-excel',
+        'text/csv',
+        'text/plain',
         'application/octet-stream',
     ];
     if (in_array($detected, $allowed, true) && $detected !== 'application/octet-stream') {
@@ -60,7 +62,8 @@ if ($detected && is_string($detected)) {
 try {
     $parsed = gemini_parse_remittance_document($file['tmp_name'], $mime, $filename);
 } catch (Throwable $e) {
-    json_error('Document parsing failed: ' . $e->getMessage(), 502);
+    error_log('parse-document: ' . $e->getMessage());
+    json_error('Document parsing failed. Try a different file or paste text manually.', 502);
 }
 
 if (empty($parsed['transactions'])) {

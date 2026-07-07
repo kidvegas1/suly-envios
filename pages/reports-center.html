@@ -376,11 +376,13 @@
         data: null,
         currentPeriod: 'daily',
         currentPage: 1,
+        fincenLimit: 3000,
 
         async init() {
             const ok = await App.init();
             if (!ok) return;
             document.getElementById('user-avatar').textContent = (App.user.name || 'A')[0].toUpperCase();
+            App.initSidebar();
             App.initUserMenu();
             this.bindEvents();
             this.loadData();
@@ -455,6 +457,7 @@
             try {
                 const data = await App.api('GET', '/api/reports-center?' + this.buildQuery());
                 this.data = data;
+                this.fincenLimit = parseFloat(data.fincen_limit) || 3000;
                 this.populateFilters(data);
                 this.renderSummary(data.summary, data.fincen_flagged);
                 this.renderDailyChart(data.daily_breakdown);
@@ -563,7 +566,7 @@
             }
             tbody.innerHTML = senders.map((s, i) => {
                 const totalSent = parseFloat(s.total_sent) || 0;
-                const isFincen = totalSent >= 3000;
+                const isFincen = totalSent >= this.fincenLimit;
                 const hasId = !!s.sender_id_path;
                 return `<tr>
                     <td class="text-text-muted font-mono text-sm">${i + 1}</td>
@@ -803,19 +806,24 @@
                 const rows = [
                     [`SULY LEDGER — ${storeName}`, '', '', '', `Period: ${range}`],
                     [],
-                    ['EMPLEADO', 'DESCRIPCION', 'DEBO A SULY', 'SULY ME DEBE', 'FECHA', 'NOTAS'],
+                    ['EMPLEADO', 'DESCRIPCION', 'DEBO A SULY', 'SULY ME DEBE', 'FECHA', 'ESTADO', 'NOTAS'],
                 ];
                 let totalOwed = 0, totalSulyOwes = 0;
                 for (const r of (data.suly_ledger || [])) {
                     const owed = m(r.owed_to_suly);
                     const sulyOwes = m(r.suly_owes);
-                    rows.push([r.employee_name || '', r.description, owed, sulyOwes, r.entry_date || '', r.notes || '']);
-                    totalOwed += owed; totalSulyOwes += sulyOwes;
+                    const isOpen = !r.status || r.status === 'open';
+                    const statusLabel = r.status === 'paid' ? this.t('ledger.status_paid') : this.t('ledger.status_open');
+                    rows.push([r.employee_name || '', r.description, owed, sulyOwes, r.entry_date || '', statusLabel, r.notes || '']);
+                    if (isOpen) {
+                        totalOwed += owed;
+                        totalSulyOwes += sulyOwes;
+                    }
                 }
                 rows.push([]);
-                rows.push(['TOTAL', '', totalOwed, totalSulyOwes, '', `DIFERENCIA: ${(totalOwed - totalSulyOwes).toFixed(2)}`]);
+                rows.push(['TOTAL (abierto)', '', totalOwed, totalSulyOwes, '', '', `DIFERENCIA: ${(totalOwed - totalSulyOwes).toFixed(2)}`]);
                 const ws = XLSX.utils.aoa_to_sheet(rows);
-                ws['!cols'] = [{wch:16},{wch:30},{wch:14},{wch:14},{wch:12},{wch:20}];
+                ws['!cols'] = [{wch:16},{wch:30},{wch:14},{wch:14},{wch:12},{wch:10},{wch:20}];
                 XLSX.utils.book_append_sheet(wb, ws, 'SULY');
             }
 

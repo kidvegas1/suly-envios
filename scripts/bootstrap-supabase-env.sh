@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Pull Supabase API keys into .env (Suly Multiservicios project).
 # Option A: export SUPABASE_ACCESS_TOKEN=sbp_... (Dashboard → Account → Access Tokens)
-# Option B: supabase login  (must list project ccmkdeizjdshdlpbotpt)
+# Option B: supabase login  (must list project anylxnmqcuggylugkipn)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.env"
-REF="ccmkdeizjdshdlpbotpt"
+REF="anylxnmqcuggylugkipn"
 
 cd "$ROOT"
 

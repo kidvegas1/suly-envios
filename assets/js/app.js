@@ -300,10 +300,6 @@ const App = {
     applyRoleNav() {
         const role = this.user?.role;
         const page = location.pathname.split('/').pop() || 'dashboard';
-        if (['events', 'plates'].includes(page)) {
-            location.href = 'dashboard';
-            return;
-        }
         if (role === 'admin') return;
         const adminOnly = ['stores', 'reports-center', 'analytics', 'import'];
         document.querySelectorAll('.sidebar-link').forEach(link => {

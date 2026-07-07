@@ -18,8 +18,14 @@ function gemini_mime_for_filename(string $filename): ?string {
         'webp' => 'image/webp',
         'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'xls' => 'application/vnd.ms-excel',
+        'csv' => 'text/csv',
         default => null,
     };
+}
+
+function gemini_is_text_document(string $mimeType, string $filename): bool {
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    return $mimeType === 'text/csv' || $ext === 'csv';
 }
 
 function gemini_parse_remittance_document(string $filePath, string $mimeType, string $filename): array {
@@ -44,23 +50,44 @@ function gemini_parse_remittance_document(string $filePath, string $mimeType, st
     }
 
     $prompt = gemini_remittance_prompt($filename);
-    $payload = [
-        'contents' => [[
-            'parts' => [
-                ['text' => $prompt],
-                [
-                    'inline_data' => [
-                        'mime_type' => $mimeType,
-                        'data' => base64_encode($binary),
+    if (gemini_is_text_document($mimeType, $filename)) {
+        $textBody = file_get_contents($filePath);
+        if ($textBody === false || trim($textBody) === '') {
+            throw new RuntimeException('CSV/text document is empty');
+        }
+        if (strlen($textBody) > MAX_UPLOAD_SIZE) {
+            throw new RuntimeException('Document exceeds maximum upload size');
+        }
+        $payload = [
+            'contents' => [[
+                'parts' => [
+                    ['text' => $prompt . "\n\nDocument text:\n" . $textBody],
+                ],
+            ]],
+            'generationConfig' => [
+                'temperature' => 0.1,
+                'responseMimeType' => 'application/json',
+            ],
+        ];
+    } else {
+        $payload = [
+            'contents' => [[
+                'parts' => [
+                    ['text' => $prompt],
+                    [
+                        'inline_data' => [
+                            'mime_type' => $mimeType,
+                            'data' => base64_encode($binary),
+                        ],
                     ],
                 ],
+            ]],
+            'generationConfig' => [
+                'temperature' => 0.1,
+                'responseMimeType' => 'application/json',
             ],
-        ]],
-        'generationConfig' => [
-            'temperature' => 0.1,
-            'responseMimeType' => 'application/json',
-        ],
-    ];
+        ];
+    }
 
     $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-3.5-flash';
     $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
@@ -169,9 +196,11 @@ Rules:
 - Extract every transaction row you can find. Use 0 for missing numeric fields.
 - Dates must be ISO YYYY-MM-DD. If only one report date range exists, set date_from and date_to accordingly.
 - company must reflect the report vendor (Barri, Viamericas, Intercambio, Intermex, or Ria).
+- agency_number is REQUIRED when present in the document: Viamericas A-prefix (e.g. A22592), Intermex TX-prefix (e.g. TX3499), Barri numeric agency (e.g. 240247), Intercambio store codes. Check headers labeled Agencia, Agency, Sucursal, and transaction refs like A22592-12866.
+- operator_number when present: Barri Operador (a12345) or Viamericas Cajero/SULY codes (SULY2022). Also set store_name when the document names the branch.
 - totals should match document summary when present; otherwise sum transactions.
 - Do not invent transactions that are not in the document.
-- Viamericas ViaRemote "Creación de Envíos" PDFs: each row has customer, beneficiary, status (Pagado/Cancelado), amounts; transaction ID often on the line after the tab-separated row. Agency ref format A22592-12345678.
+- Viamericas ViaRemote "Creación de Envíos" PDFs: rows may span multiple lines — agency ref (A22592 -), transaction number, customer/beneficiary names, SULY#### + Pagado/Cancelado, then C$ amounts or C($...) for cancelled.
 - Viamericas email/table reports: refs like A10556-75771 with date, sender, beneficiary, principal, fee.
 - If the document is not a remittance report, return {"agency_name":"Unknown","date_from":"","date_to":"","transactions":[],"totals":{"qty":0,"principal":0,"fee":0,"tax":0,"total":0,"agcomm":0,"var_fee":0,"var_fx":0}}
 PROMPT;
@@ -295,5 +324,42 @@ function gemini_sanitize_parsed_report(array $data): array {
         $out['date_to'] = $out['date_from'] ?: date('Y-m-d');
     }
 
-    return $out;
+    return gemini_enrich_agency_metadata($out);
+}
+
+function gemini_enrich_agency_metadata(array $parsed): array {
+    if (!$parsed['agency_number'] && !empty($parsed['transactions']) && is_array($parsed['transactions'])) {
+        foreach ($parsed['transactions'] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $ref = (string)($row['reference'] ?? '');
+            if (preg_match('/^(A\d{4,6})-\d+/i', $ref, $m)) {
+                $parsed['agency_number'] = strtoupper($m[1]);
+                break;
+            }
+        }
+    }
+
+    if (!$parsed['operator_number'] && !empty($parsed['transactions']) && is_array($parsed['transactions'])) {
+        foreach ($parsed['transactions'] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $op = strtoupper(trim((string)($row['operator'] ?? '')));
+            if ($op !== '' && preg_match('/^(SULY|A)\d+$/i', $op)) {
+                $parsed['operator_number'] = $op;
+                break;
+            }
+        }
+    }
+
+    if (!empty($parsed['agency_number'])) {
+        $parsed['agency_number'] = strtoupper(trim(str_replace(' ', '', (string)$parsed['agency_number'])));
+    }
+    if (!empty($parsed['operator_number'])) {
+        $parsed['operator_number'] = strtoupper(trim(str_replace(' ', '', (string)$parsed['operator_number'])));
+    }
+
+    return $parsed;
 }

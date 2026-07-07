@@ -142,6 +142,10 @@ body {
 }
 .input::placeholder { color: oklch(0.65 0.02 55); }
 .input:focus { border-color: oklch(0.75 0.16 55); box-shadow: 0 0 0 3px oklch(0.75 0.16 55 / 0.12); }
+/* Leading icon: .input padding shorthand overrides Tailwind pl-* — set left inset explicitly */
+.input-with-leading-icon {
+  padding-left: 2.75rem;
+}
 
 /* ── Tables ── */
 .table-container {

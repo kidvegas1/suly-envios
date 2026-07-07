@@ -136,9 +136,14 @@ CREATE TABLE suly_ledger (
     suly_owes DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     entry_date DATE NOT NULL,
     notes TEXT DEFAULT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    paid_at TIMESTAMP NULL DEFAULT NULL,
+    paid_by_user_id INT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (store_id) REFERENCES stores(id),
-    INDEX idx_store_date (store_id, entry_date)
+    FOREIGN KEY (paid_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_store_date (store_id, entry_date),
+    INDEX idx_status (status)
 ) ENGINE=InnoDB;
 
 -- ── Employees ──

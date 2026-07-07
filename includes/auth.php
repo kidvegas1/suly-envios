@@ -172,7 +172,7 @@ function auth_admin_only_paths(): array {
 
 /** Retired modules — blocked for all roles (including admin). */
 function auth_retired_paths(): array {
-    return ['events', 'plates'];
+    return [];
 }
 
 /**

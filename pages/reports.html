@@ -201,7 +201,7 @@
                     <p class="text-sm text-text-muted mt-1" data-i18n="reports.drop_browse">or click to browse files</p>
                     <p class="text-xs text-text-muted mt-3" data-i18n="reports.drop_formats">Accepts PDF, XLS, and XLSX files — Barri, Viamericas, Intercambio, Intermex, Ria</p>
                 </div>
-                <input type="file" id="file-input" accept=".pdf,.xls,.xlsx" class="hidden">
+                <input type="file" id="file-input" accept=".pdf,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp" class="hidden">
             </div>
 
             <!-- Paste Zone (Tab: Paste) -->
@@ -363,7 +363,7 @@
                     <p class="text-text-primary font-semibold" data-i18n="reports.bulk.select_files_title">Select multiple report files</p>
                     <p class="text-sm text-text-muted mt-1" data-i18n="reports.bulk.select_files_hint">PDF, XLS, or XLSX — each file is parsed and imported with agency auto-match</p>
                     <button class="btn-primary mt-4" id="btn-bulk-select-files"><span data-i18n="reports.bulk.choose_files">Choose Files</span></button>
-                    <input type="file" id="bulk-file-input" accept=".pdf,.xls,.xlsx" multiple class="hidden">
+                    <input type="file" id="bulk-file-input" accept=".pdf,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp" multiple class="hidden">
                     <p class="text-xs text-text-muted mt-3" id="bulk-file-count"></p>
                 </div>
             </div>
@@ -674,7 +674,8 @@
                 const file = e.dataTransfer.files[0];
                 if (file) {
                     const ext = file.name.split('.').pop().toLowerCase();
-                    if (['pdf', 'xls', 'xlsx'].includes(ext) || file.type === 'application/pdf') {
+                    const allowed = ['pdf', 'xls', 'xlsx', 'csv', 'png', 'jpg', 'jpeg', 'webp'];
+                    if (allowed.includes(ext)) {
                         this.handleFile(file);
                     } else {
                         App.toastKey('toast.invalid_report_file', 'danger');
@@ -846,12 +847,19 @@
                 if (ext === 'xls' || ext === 'xlsx') {
                     document.getElementById('parse-status').textContent = this.t('reports.parse_status.reading_excel');
                     parsed = await this.handleExcelFile(file);
+                } else if (ext === 'csv') {
+                    document.getElementById('parse-status').textContent = this.t('reports.parse_status.ai_parser');
+                    parsed = await this.parseDocumentWithGemini(file);
+                } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+                    document.getElementById('parse-status').textContent = this.t('reports.parse_status.ai_parser');
+                    parsed = await this.parseDocumentWithGemini(file);
                 } else {
                     parsed = await this.handlePdfFile(file);
                 }
 
                 if (!parsed || parsed.transactions.length === 0) {
-                    if (ext === 'pdf' || ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'webp') {
+                    const aiFallbackExts = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'xls', 'xlsx', 'csv'];
+                    if (aiFallbackExts.includes(ext)) {
                         parsed = await this.parseDocumentWithGemini(file);
                     }
                 }
@@ -1080,7 +1088,7 @@
                 }
                 throw new Error('No transactions found in this document.');
             }
-            return parsed;
+            return this.enrichParsedAgencyMetadata(parsed, allLines);
         },
 
         async handleExcelFile(file) {
@@ -1681,19 +1689,20 @@
             console.log('[Report Parser] Lines extracted:', lines.length, lines.slice(0, 25));
 
             const allText = lines.join(' ');
+            const finish = (result) => (result ? this.enrichParsedAgencyMetadata(result, lines) : result);
 
             // Detect Barri Agency Activity (English) — must come BEFORE remittance check
             const isAgencyActivity = /DETAILED\s+AGENCY\s+ACTIVITY/i.test(allText) || /Agency\s+Activity/i.test(allText) || (/Agency:\s*\n?\s*\d{4,}/i.test(allText) && /Beginning\s+Balance/i.test(allText) && /Ending\s+Balance/i.test(allText));
             if (isAgencyActivity) {
                 console.log('[Report Parser] Detected BARRI AGENCY ACTIVITY format (English)');
-                return this.parseAgencyActivityFormat(lines);
+                return finish(this.parseAgencyActivityFormat(lines));
             }
 
             // Detect Viamericas / ViaRemote
             const isViamericas = /ViaRemote/i.test(allText) || /Viamericas/i.test(allText) || /Nro\.\s*Transacci/i.test(allText) || /Nombre del\s+Cliente/i.test(allText) || /A\d{5}\s*-\s*[A-Z]/i.test(allText) || /Nombre\s+Beneficiario/i.test(allText);
             if (isViamericas) {
                 console.log('[Report Parser] Detected VIAMERICAS format');
-                return this.parseViamericasFormat(lines);
+                return finish(this.parseViamericasFormat(lines));
             }
 
             // Detect Ria Transaction Search export (Búsqueda de Transacciones)
@@ -1701,32 +1710,32 @@
                 || ((/Ria Money Transfer|Dandelion Payments/i.test(allText)) && /Env[ií]os de Dinero/i.test(allText) && /US\d{9,10}/.test(allText));
             if (isRiaTxnSearch) {
                 console.log('[Report Parser] Detected RIA TRANSACTION SEARCH format (text)');
-                return this.parseRiaTransactionSearchLines(lines);
+                return finish(this.parseRiaTransactionSearchLines(lines));
             }
 
             // Detect Intermex (standalone — not as a paying bank inside Viamericas)
             const isIntermex = /Agent_Statement/i.test(allText) || /Estado\s+de\s+Cuenta.*Intermex/i.test(allText) || (/Intermex/i.test(allText) && !isViamericas && /comisi[oó]n|agent|statement|estado/i.test(allText));
             if (isIntermex) {
                 console.log('[Report Parser] Detected INTERMEX format');
-                return this.parseIntermexFormat(lines);
+                return finish(this.parseIntermexFormat(lines));
             }
 
             // Detect Intercambio Express
             const isIntercambio = /InterCambio/i.test(allText) || /INTERCAMBIO\s+EXPRESS/i.test(allText) || /Nueva\s+Orden/i.test(allText) || /Cheque\s+Escaneado/i.test(allText) || /Resumen\s+de\s+Transacciones/i.test(allText);
             if (isIntercambio) {
                 console.log('[Report Parser] Detected INTERCAMBIO EXPRESS format');
-                return this.parseIntercambioFormat(lines);
+                return finish(this.parseIntercambioFormat(lines));
             }
 
             // Detect Barri Remittance (Spanish/Cyber portal)
             const isRemittance = /Fecha\s+Desde/i.test(allText) || /Operador:\s*a\d+/i.test(allText);
             if (isRemittance) {
                 console.log('[Report Parser] Detected BARRI REMITTANCE format (Spanish/Cyber)');
-                return this.parseRemittanceFormat(lines);
+                return finish(this.parseRemittanceFormat(lines));
             }
 
             console.log('[Report Parser] No specific format detected, trying Agency Activity fallback');
-            return this.parseAgencyActivityFormat(lines);
+            return finish(this.parseAgencyActivityFormat(lines));
         },
 
         // ── FORMAT: Viamericas Email (Pasted Text) ──
@@ -2245,6 +2254,143 @@
             return result;
         },
 
+        // ViaRemote "Creación de Envíos" PDF — split-line layout (agency ref, txn #, names, amounts on separate lines)
+        parseViamericasDetalleEnviosMultiline(lines) {
+            const result = {
+                agency_number: '', agency_name: '', agency_address: '',
+                operator_number: '', date_from: '', date_to: '',
+                currency: 'USD', beginning_balance: 0, ending_balance: 0,
+                company: 'Viamericas',
+                transactions: [],
+                totals: { qty: 0, principal: 0, fee: 0, tax: 0, total: 0, agcomm: 0, var_fee: 0, var_fx: 0 }
+            };
+
+            const refPrefixRe = /^(A\d{4,6})\s*-\s*$/i;
+            const txnNumRe = /^-?\d{4,8}$/;
+            const skipLineRe = /^(Inicio |Estado de|Detalle de|Historial de|Centro de|Desde$|Hasta$|Agencia$|Cajero$|Envios$|Modo|Generar|Creación|Nro\.|Transacción$|Cliente$|Beneficiario$|Pago$|\d+$)/i;
+
+            for (let i = 0; i < lines.length; i++) {
+                const t = lines[i].trim();
+                if (t === 'Desde' && i + 1 < lines.length) {
+                    result.date_from = this.parseBarriDate(lines[i + 1].trim());
+                }
+                if (t === 'Hasta' && i + 1 < lines.length) {
+                    result.date_to = this.parseBarriDate(lines[i + 1].trim());
+                }
+                if (t === 'Agencia' && i + 1 < lines.length) {
+                    const ag = lines[i + 1].trim().match(/^(A\d{4,6})$/i);
+                    if (ag) result.agency_number = ag[1].toUpperCase();
+                }
+                const cajeroOp = t.match(/Cajero\s+(SULY\d+)/i);
+                if (cajeroOp && !result.operator_number) {
+                    result.operator_number = cajeroOp[1].toUpperCase();
+                }
+            }
+
+            const parseCAmounts = (line) => {
+                const amounts = [];
+                const negRe = /\(\$?([\d,]+\.\d{2})\)/g;
+                let m;
+                while ((m = negRe.exec(line)) !== null) amounts.push(this.parseMoney(m[1]));
+                if (amounts.length === 0) {
+                    const posRe = /\$([\d,]+\.\d{2})/g;
+                    while ((m = posRe.exec(line)) !== null) amounts.push(this.parseMoney(m[1]));
+                }
+                return amounts;
+            };
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || skipLineRe.test(line)) continue;
+
+                const prefixMatch = line.match(refPrefixRe);
+                if (!prefixMatch) continue;
+
+                const agencyPrefix = prefixMatch[1].toUpperCase();
+                let j = i + 1;
+                while (j < lines.length && !lines[j].trim()) j++;
+                if (j >= lines.length) continue;
+
+                const txnLine = lines[j].trim();
+                if (!txnNumRe.test(txnLine)) continue;
+                const txnNum = txnLine.replace(/^-/, '');
+                j++;
+
+                while (j < lines.length && !lines[j].trim()) j++;
+                if (j >= lines.length) continue;
+
+                const nameLine = lines[j].trim();
+                const opMatch = nameLine.match(/(.+?)(SULY\d+)(Pagado|Cancelado|Anulado)\s*$/i);
+                if (!opMatch) continue;
+
+                const namesRaw = opMatch[1].trim();
+                const operator = opMatch[2].toUpperCase();
+                const txnStatus = opMatch[3];
+                j++;
+
+                while (j < lines.length && !lines[j].trim()) j++;
+                if (j >= lines.length) continue;
+
+                const amountLine = lines[j].trim();
+                if (!/^C(\(|$)/i.test(amountLine)) continue;
+
+                const amounts = parseCAmounts(amountLine);
+                const principal = amounts[0] || 0;
+                const fee = amounts[1] || 0;
+                const tax = amounts[2] || 0;
+                const total = amounts[3] || (principal + fee + tax);
+                if (principal === 0 && total === 0) continue;
+
+                if (!result.agency_number) result.agency_number = agencyPrefix;
+                if (!result.operator_number) result.operator_number = operator;
+
+                const txnDate = result.date_from || result.date_to || '';
+                const reference = `${agencyPrefix}-${txnNum}`;
+
+                result.transactions.push({
+                    time: '00:00',
+                    type: txnStatus.toLowerCase() === 'cancelado' ? 'cancel' : 'money_transfer',
+                    reference,
+                    customer_name: namesRaw || 'Unknown',
+                    beneficiary: '',
+                    operator,
+                    qty: 1,
+                    principal,
+                    fee,
+                    tax,
+                    total,
+                    balance: 0,
+                    agcomm: 0,
+                    var_fee: 0,
+                    var_fx: 0,
+                    transaction_date: txnDate,
+                    amount_received: 0,
+                    received_currency: '',
+                    paying_bank: '',
+                    destination_country: '',
+                    destination_state: '',
+                    destination_city: '',
+                    payment_date: txnDate,
+                    transaction_status: txnStatus,
+                });
+
+                i = j;
+            }
+
+            if (result.transactions.length > 0) {
+                result.totals.qty = result.transactions.length;
+                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
+                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
+                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
+                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
+                if (!result.date_to) result.date_to = result.date_from;
+            }
+            if (!result.agency_name) {
+                result.agency_name = result.agency_number ? `Viamericas ${result.agency_number}` : 'Viamericas Agency';
+            }
+            return result;
+        },
+
         // ViaRemote "Creación de Envíos" / Detalle de Envíos PDF (2026+ layout)
         parseViamericasCreacionEnviosRows(lines) {
             const result = {
@@ -2257,7 +2403,7 @@
             };
 
             const rowStartRe = /^(A\d{4,6})\s*-\s*(.+)$/;
-            const operatorRe = /(SULY\d+)\s+(Pagado|Cancelado|Anulado)\s+(\w)\s+/i;
+            const operatorRe = /(SULY\d+)\s*(Pagado|Cancelado|Anulado)\s*/i;
             const txnNumOnlyRe = /^-?(\d{4,6})$/;
             const txnNumTailRe = /^(-?\d{4,6})\t(.+)$/;
             const skipLineRe = /^(Inicio |Estado de|Detalle de|Historial de|Centro de|Desde$|Hasta$|Agencia$|Cajero$|Envios$|Modo|Generar|Creación|Nro\.|Transacción$|Cliente$|Beneficiario$|Cajero |Pago$|\$[\d,]+||%|\d+$)/i;
@@ -2285,12 +2431,14 @@
 
                 const agencyPrefix = startMatch[1];
                 const body = startMatch[2].trim();
+                if (!body) continue;
                 const opMatch = body.match(operatorRe);
                 if (!opMatch) continue;
 
                 const beforeOp = body.substring(0, opMatch.index).trim();
-                const afterOp = body.substring(opMatch.index + opMatch[0].length).trim();
-                const operator = opMatch[1];
+                let afterOp = body.substring(opMatch.index + opMatch[0].length).trim();
+                afterOp = afterOp.replace(/^[A-Z]\s+/i, '').trim();
+                const operator = opMatch[1].toUpperCase();
                 const txnStatus = opMatch[2];
 
                 const amounts = [];
@@ -2313,8 +2461,9 @@
                 if (principal === 0 && total === 0) continue;
 
                 const tabParts = beforeOp.split('\t').map(c => c.trim()).filter(Boolean);
-                const customerName = tabParts[0] || 'Unknown';
-                let beneficiary = tabParts[1] || '';
+                const nameParts = beforeOp.split(/\s{2,}/).map(c => c.trim()).filter(Boolean);
+                const customerName = tabParts[0] || nameParts[0] || 'Unknown';
+                let beneficiary = tabParts[1] || nameParts[1] || '';
 
                 let reference = '';
                 let j = i + 1;
@@ -2342,6 +2491,7 @@
                 i = j - 1;
 
                 if (!result.agency_number) result.agency_number = agencyPrefix;
+                if (!result.operator_number) result.operator_number = operator;
                 const txnDate = result.date_from || result.date_to || '';
 
                 result.transactions.push({
@@ -2391,6 +2541,12 @@
             if (creacion.transactions.length > 0) {
                 console.log('[Report Parser] Viamericas Creación de Envíos result:', creacion.transactions.length, 'txns');
                 return creacion;
+            }
+
+            const multiline = this.parseViamericasDetalleEnviosMultiline(lines);
+            if (multiline.transactions.length > 0) {
+                console.log('[Report Parser] Viamericas multiline Detalle result:', multiline.transactions.length, 'txns');
+                return multiline;
             }
 
             const viaRemote = this.parseViamericasViaRemoteRows(lines);
@@ -3550,6 +3706,9 @@
             if (ext === 'xls' || ext === 'xlsx') {
                 return this.handleExcelFile(file);
             }
+            if (ext === 'csv' || ['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+                return this.parseDocumentWithGemini(file);
+            }
             return this.handlePdfFile(file);
         },
 
@@ -3611,7 +3770,8 @@
                         let parsed = await this.parseReportFile(file);
                         if (!parsed?.transactions?.length) {
                             const ext = file.name.split('.').pop().toLowerCase();
-                            if (['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+                            const aiFallbackExts = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'xls', 'xlsx', 'csv'];
+                            if (aiFallbackExts.includes(ext)) {
                                 parsed = await this.parseDocumentWithGemini(file);
                             }
                         }
@@ -3937,21 +4097,109 @@
 
         // ── Store Auto-Match ──
 
+        normalizeAgencyNumber(value) {
+            const s = (value || '').trim().toUpperCase().replace(/\s+/g, '');
+            if (!s) return '';
+            return s;
+        },
+
+        agencyNumberVariants(value) {
+            const norm = this.normalizeAgencyNumber(value);
+            if (!norm) return [];
+            const variants = new Set([norm]);
+            const aMatch = norm.match(/^A(\d{4,8})$/);
+            if (aMatch) variants.add(aMatch[1]);
+            if (/^\d{4,8}$/.test(norm)) variants.add('A' + norm);
+            return [...variants];
+        },
+
+        enrichParsedAgencyMetadata(parsed, lines) {
+            if (!parsed || !lines?.length) return parsed;
+
+            const allText = lines.join(' ');
+            const normAg = (v) => this.normalizeAgencyNumber(v);
+
+            for (let i = 0; i < lines.length - 1; i++) {
+                const t = lines[i].trim();
+                const next = (lines[i + 1] || '').trim();
+
+                if (/^Agencia$/i.test(t)) {
+                    const m = next.match(/^(A\d{4,6}|TX\d{3,6}|\d{5,8})$/i);
+                    if (m && !parsed.agency_number) parsed.agency_number = normAg(m[1]);
+                }
+                if (/^Agency:?$/i.test(t)) {
+                    const m = next.match(/^(\d{4,8})$/);
+                    if (m && !parsed.agency_number) parsed.agency_number = normAg(m[1]);
+                }
+                const opInline = t.match(/Operador:?\s*(a\d+)/i);
+                if (opInline && !parsed.operator_number) {
+                    parsed.operator_number = normAg(opInline[1]);
+                }
+                const cajeroOp = t.match(/Cajero\s+(SULY\d+)/i);
+                if (cajeroOp && !parsed.operator_number) {
+                    parsed.operator_number = normAg(cajeroOp[1]);
+                }
+            }
+
+            if (!parsed.agency_number) {
+                const inlineAgency = allText.match(/\bAgency:?\s*(\d{5,8})\b/i);
+                if (inlineAgency) parsed.agency_number = normAg(inlineAgency[1]);
+            }
+            if (!parsed.agency_number) {
+                const refAgency = allText.match(/\b(A\d{4,6})-\d{4,8}\b/i);
+                if (refAgency) parsed.agency_number = normAg(refAgency[1]);
+            }
+            if (!parsed.agency_number) {
+                const intermexAgency = allText.match(/\((TX\d{3,6})\)/i);
+                if (intermexAgency) parsed.agency_number = normAg(intermexAgency[1]);
+            }
+            if (!parsed.agency_number) {
+                const sucursal = allText.match(/Sucursal:?\s*(TX\d{3,6}|\d{4,8})/i);
+                if (sucursal) parsed.agency_number = normAg(sucursal[1]);
+            }
+
+            if (!parsed.operator_number && parsed.transactions?.length) {
+                for (const tx of parsed.transactions) {
+                    const op = (tx.operator || '').trim();
+                    if (/^(SULY|a)\d+$/i.test(op)) {
+                        parsed.operator_number = normAg(op);
+                        break;
+                    }
+                }
+            }
+
+            if (parsed.agency_number) parsed.agency_number = normAg(parsed.agency_number);
+            if (parsed.operator_number) parsed.operator_number = normAg(parsed.operator_number);
+
+            return parsed;
+        },
+
         autoMatchStore(data) {
             if (!App.stores?.length) return null;
 
             const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-            const agNum = (data.agency_number || '').trim();
+            const normField = (v) => this.normalizeAgencyNumber(v);
+            const agVariants = this.agencyNumberVariants(data.agency_number);
+            const opNum = normField(data.operator_number);
 
-            // 1) Exact agency number match
-            if (agNum) {
-                const byAgency = App.stores.find(s =>
-                    s.barri_agency_number === agNum ||
-                    s.viamericas_agency_number === agNum ||
-                    s.intercambio_agency_number === agNum ||
-                    s.intermex_agency_number === agNum
-                );
+            // 1) Exact agency number match (all vendor columns + A-prefix variants)
+            if (agVariants.length) {
+                const byAgency = App.stores.find(s => {
+                    const storeFields = [
+                        s.barri_agency_number,
+                        s.viamericas_agency_number,
+                        s.intercambio_agency_number,
+                        s.intermex_agency_number,
+                    ].map(normField).filter(Boolean);
+                    return agVariants.some(v => storeFields.includes(v));
+                });
                 if (byAgency) return byAgency;
+            }
+
+            // 1b) Barri operator number (SULY2022, a12345, etc.)
+            if (opNum) {
+                const byOperator = App.stores.find(s => normField(s.barri_operator_number) === opNum);
+                if (byOperator) return byOperator;
             }
 
             // 2) Address match — compare report address against store addresses
