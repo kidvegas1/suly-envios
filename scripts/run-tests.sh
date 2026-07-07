@@ -24,6 +24,9 @@ node scripts/test-barri-agency-pdf.mjs
 echo "== txn money flow colors =="
 node scripts/test-txn-money-flow.mjs
 
+echo "== barri agency activity totals =="
+php scripts/test-barri-agency-totals.php
+
 echo "== barri auto-match helpers =="
 php scripts/test-barri-auto-match.php
 

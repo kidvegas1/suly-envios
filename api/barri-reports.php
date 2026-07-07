@@ -82,6 +82,10 @@ function barri_resolve_import_store_id(PDO $pdo, array $user, array $data, ?int 
 }
 
 function barri_recompute_payload_totals(array $data): array {
+    $format = $data['report_format'] ?? $data['report_type'] ?? '';
+    if ($format === 'agency_activity') {
+        return barri_finalize_agency_activity_totals($data);
+    }
     $txns = $data['transactions'] ?? [];
     $totals = [
         'qty' => count($txns),
@@ -112,7 +116,69 @@ function barri_recompute_payload_totals(array $data): array {
     return $data;
 }
 
+function barri_finalize_agency_activity_totals(array $data): array {
+    $txns = $data['transactions'] ?? [];
+    $agcomm = 0.0;
+    foreach ($txns as $txn) {
+        $agcomm += (float)($txn['agcomm'] ?? $txn['ag_commission'] ?? 0);
+    }
+    $agcomm = round($agcomm, 2);
+    $begin = (float)($data['beginning_balance'] ?? 0);
+    $end = (float)($data['ending_balance'] ?? 0);
+    $balanceChange = round($end - $begin, 2);
+
+    $data['report_format'] = 'agency_activity';
+    $data['report_type'] = 'agency_activity';
+    $data['balance_change'] = $balanceChange;
+    $data['totals'] = [
+        'qty' => count($txns),
+        'principal' => $balanceChange,
+        'fee' => 0.0,
+        'tax' => 0.0,
+        'total' => $agcomm,
+        'agcomm' => $agcomm,
+    ];
+    $data['total_transactions'] = count($txns);
+    $data['total_principal'] = $balanceChange;
+    $data['total_fees'] = 0.0;
+    $data['total_tax'] = 0.0;
+    $data['total_amount'] = $agcomm;
+    $data['total_agcomm'] = $agcomm;
+    return $data;
+}
+
 function barri_refresh_report_totals(PDO $pdo, int $reportId): void {
+    $metaStmt = $pdo->prepare('SELECT beginning_balance, ending_balance, report_type FROM barri_reports WHERE id = ?');
+    $metaStmt->execute([$reportId]);
+    $meta = $metaStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$meta) {
+        return;
+    }
+
+    if (($meta['report_type'] ?? '') === 'agency_activity') {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) AS cnt, COALESCE(SUM(ag_commission), 0) AS agcomm
+             FROM barri_transactions WHERE report_id = ?'
+        );
+        $stmt->execute([$reportId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return;
+        }
+        $balanceChange = round((float)$meta['ending_balance'] - (float)$meta['beginning_balance'], 2);
+        $agcomm = round((float)($row['agcomm'] ?? 0), 2);
+        $pdo->prepare(
+            'UPDATE barri_reports SET total_transactions = ?, total_principal = ?, total_fees = 0, total_tax = 0, total_amount = ?, total_agcomm = ? WHERE id = ?'
+        )->execute([
+            (int)$row['cnt'],
+            $balanceChange,
+            $agcomm,
+            $agcomm,
+            $reportId,
+        ]);
+        return;
+    }
+
     $stmt = $pdo->prepare(
         'SELECT COUNT(*) AS cnt, COALESCE(SUM(principal), 0) AS principal, COALESCE(SUM(fee), 0) AS fee,
                 COALESCE(SUM(tax), 0) AS tax, COALESCE(SUM(total), 0) AS total,
@@ -223,7 +289,9 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
 
         $reportType = 'barri';
         $companyLower = strtolower($company);
-        if (str_contains($companyLower, 'viamerica')) $reportType = 'viamericas';
+        if (($data['report_format'] ?? '') === 'agency_activity' || ($data['report_type'] ?? '') === 'agency_activity') {
+            $reportType = 'agency_activity';
+        } elseif (str_contains($companyLower, 'viamerica')) $reportType = 'viamericas';
         elseif (str_contains($companyLower, 'intermex')) $reportType = 'intermex';
         elseif (str_contains($companyLower, 'intercambio')) $reportType = 'intercambio';
         elseif (str_contains($companyLower, 'ria')) $reportType = 'ria';

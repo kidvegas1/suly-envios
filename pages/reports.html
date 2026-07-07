@@ -266,11 +266,11 @@
                             <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="preview-end-bal"></p>
                         </div>
                         <div class="p-3 rounded-xl bg-bg-elevated">
-                            <p class="text-xs text-text-muted" data-i18n="reports.stat.total_principal">Total Principal</p>
+                            <p class="text-xs text-text-muted" id="preview-principal-label" data-i18n="reports.stat.total_principal">Total Principal</p>
                             <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="preview-principal"></p>
                         </div>
                         <div class="p-3 rounded-xl bg-bg-elevated">
-                            <p class="text-xs text-text-muted" data-i18n="reports.stat.total_amount">Total Amount</p>
+                            <p class="text-xs text-text-muted" id="preview-total-label" data-i18n="reports.stat.total_amount">Total Amount</p>
                             <p class="text-lg font-bold font-mono tabular-nums text-accent" id="preview-total-amount"></p>
                         </div>
                         <div class="p-3 rounded-xl bg-bg-elevated">
@@ -465,11 +465,11 @@
                         <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="detail-end-bal"></p>
                     </div>
                     <div class="p-3 rounded-xl bg-bg-elevated">
-                        <p class="text-xs text-text-muted" data-i18n="reports.stat.total_principal">Total Principal</p>
+                        <p class="text-xs text-text-muted" id="detail-principal-label" data-i18n="reports.stat.total_principal">Total Principal</p>
                         <p class="text-lg font-bold font-mono tabular-nums text-text-primary" id="detail-principal"></p>
                     </div>
                     <div class="p-3 rounded-xl bg-bg-elevated">
-                        <p class="text-xs text-text-muted" data-i18n="reports.stat.total_amount">Total Amount</p>
+                        <p class="text-xs text-text-muted" id="detail-total-label" data-i18n="reports.stat.total_amount">Total Amount</p>
                         <p class="text-lg font-bold font-mono tabular-nums text-accent" id="detail-total-amount"></p>
                     </div>
                     <div class="p-3 rounded-xl bg-bg-elevated">
@@ -956,10 +956,15 @@
         evaluateParseQuality(parsed, allLines, allText) {
             const txCount = parsed?.transactions?.length || 0;
             const lineCount = allLines?.length || 0;
+            const isAgencyActivity = parsed?.report_format === 'agency_activity'
+                || /DETAILED\s+AGENCY\s+ACTIVITY/i.test(allText);
             const isViamericas = parsed?.company === 'Viamericas'
                 || /Viamericas|ViaRemote|Creaci[oó]n de Env[ií]os/i.test(allText);
             const isCreacion = /Creaci[oó]n de Env[ií]os/i.test(allText);
             let needsAiEnhancement = txCount === 0;
+            if (isAgencyActivity && txCount > 100) {
+                needsAiEnhancement = false;
+            }
             if (!needsAiEnhancement && isViamericas && lineCount > 40) {
                 const ratio = lineCount > 0 ? txCount / lineCount : 1;
                 if (ratio < 0.18 || (isCreacion && txCount < 40)) {
@@ -979,6 +984,9 @@
             if (!client.transactions.length && !ai.transactions.length) return null;
             if (!ai.transactions.length) return clientParsed;
             if (!client.transactions.length) return aiParsed;
+            if (clientParsed?.report_format === 'agency_activity') {
+                return clientParsed;
+            }
 
             const meta = ai.transactions.length >= client.transactions.length ? { ...aiParsed } : { ...clientParsed };
             const byRef = new Map();
@@ -3345,24 +3353,55 @@
                 }
             }
 
-            // Compute totals from parsed transactions
-            if (result.transactions.length > 0) {
-                result.totals.qty = result.transactions.length;
-                result.totals.principal = result.transactions.reduce((s, t) => s + t.principal, 0);
-                result.totals.fee = result.transactions.reduce((s, t) => s + t.fee, 0);
-                result.totals.tax = result.transactions.reduce((s, t) => s + t.tax, 0);
-                result.totals.total = result.transactions.reduce((s, t) => s + t.total, 0);
-                result.totals.agcomm = result.transactions.reduce((s, t) => s + t.agcomm, 0);
-                result.totals.var_fee = result.transactions.reduce((s, t) => s + t.var_fee, 0);
-                result.totals.var_fx = result.transactions.reduce((s, t) => s + t.var_fx, 0);
-            }
+            // Document-reported summary — do NOT sum line-item principals/totals (misleading for activity reports)
+            return this.finalizeAgencyActivityTotals(result);
+        },
 
+        finalizeAgencyActivityTotals(result) {
+            result.report_format = 'agency_activity';
+            result.report_type = 'agency_activity';
+            const txns = result.transactions || [];
+            let agcomm = 0;
+            for (const t of txns) agcomm += parseFloat(t.agcomm) || 0;
+            agcomm = Math.round(agcomm * 100) / 100;
+            const balanceChange = Math.round(((result.ending_balance || 0) - (result.beginning_balance || 0)) * 100) / 100;
+            result.balance_change = balanceChange;
+            result.totals = {
+                qty: txns.length,
+                principal: balanceChange,
+                fee: 0,
+                tax: 0,
+                total: agcomm,
+                agcomm,
+                var_fee: 0,
+                var_fx: 0,
+            };
+            result.totals_source = 'document';
             console.log('[Barri Parser] Agency Activity result:', {
                 agency: result.agency_name, num: result.agency_number,
                 from: result.date_from, to: result.date_to,
-                txns: result.transactions.length, totals: result.totals
+                txns: txns.length, balance_change: balanceChange, agcomm,
             });
             return result;
+        },
+
+        applyReportSummaryStats(data, prefix) {
+            const isAgency = data.report_format === 'agency_activity' || data.report_type === 'agency_activity';
+            const principalLbl = document.getElementById(`${prefix}-principal-label`);
+            const totalLbl = document.getElementById(`${prefix}-total-label`);
+            const balanceChange = data.balance_change ?? ((parseFloat(data.ending_balance) || 0) - (parseFloat(data.beginning_balance) || 0));
+
+            if (isAgency) {
+                if (principalLbl) principalLbl.textContent = this.t('reports.stat.balance_change');
+                if (totalLbl) totalLbl.textContent = this.t('reports.stat.total_agcomm');
+                document.getElementById(`${prefix}-principal`).textContent = App.money(balanceChange);
+                document.getElementById(`${prefix}-total-amount`).textContent = App.money(data.totals?.agcomm ?? data.total_agcomm ?? 0);
+            } else {
+                if (principalLbl) principalLbl.textContent = this.t('reports.stat.total_principal');
+                if (totalLbl) totalLbl.textContent = this.t('reports.stat.total_amount');
+                document.getElementById(`${prefix}-principal`).textContent = App.money(data.totals?.principal ?? data.total_principal ?? 0);
+                document.getElementById(`${prefix}-total-amount`).textContent = App.money(data.totals?.total ?? data.total_amount ?? 0);
+            }
         },
 
         normalizeAgencyActivityLines(lines) {
@@ -3672,8 +3711,7 @@
             document.getElementById('preview-to').textContent = data.date_to;
             document.getElementById('preview-begin-bal').textContent = App.money(data.beginning_balance);
             document.getElementById('preview-end-bal').textContent = App.money(data.ending_balance);
-            document.getElementById('preview-principal').textContent = App.money(data.totals.principal);
-            document.getElementById('preview-total-amount').textContent = App.money(data.totals.total);
+            this.applyReportSummaryStats(data, 'preview');
             document.getElementById('preview-tx-count').textContent = data.transactions.length;
 
             if (App.stores) {
@@ -4045,8 +4083,12 @@
                 }
                 document.getElementById('detail-begin-bal').textContent = App.money(r.beginning_balance);
                 document.getElementById('detail-end-bal').textContent = App.money(r.ending_balance);
-                document.getElementById('detail-principal').textContent = App.money(r.total_principal);
-                document.getElementById('detail-total-amount').textContent = App.money(r.total_amount);
+                this.applyReportSummaryStats({
+                    ...r,
+                    report_format: r.report_type === 'agency_activity' ? 'agency_activity' : r.report_format,
+                    balance_change: r.report_type === 'agency_activity' ? r.total_principal : undefined,
+                    totals: { agcomm: r.total_agcomm || r.total_commission, total: r.total_amount, principal: r.total_principal },
+                }, 'detail');
                 document.getElementById('detail-commission').textContent = App.money(r.total_agcomm || r.total_commission);
 
                 this.lastMatchStats = stats;

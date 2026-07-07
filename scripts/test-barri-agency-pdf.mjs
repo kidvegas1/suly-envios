@@ -188,4 +188,9 @@ if (parsed.date_to !== '2026-06-30') fail(`date_to ${parsed.date_to}`);
 if (Math.abs(parsed.beginning_balance - 44241.96) > 0.01) fail(`beginning ${parsed.beginning_balance}`);
 if (Math.abs(parsed.ending_balance + 53083.57) > 0.01) fail(`ending ${parsed.ending_balance} expected -53083.57`);
 if (parsed.transactions.length < 5800) fail(`txns ${parsed.transactions.length} expected >= 5800`);
+
+// Agency activity must NOT use summed line principals as period totals
+const balanceChange = Math.round((parsed.ending_balance - parsed.beginning_balance) * 100) / 100;
+if (Math.abs(balanceChange + 97265.53) > 150) fail(`balance_change ${balanceChange} expected ~-97265.53`);
+
 console.log('OK: Barri Agency Activity PDF regression passed');
