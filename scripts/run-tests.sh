@@ -18,6 +18,9 @@ php scripts/test-gemini-api.php || true
 echo "== viamericas pdf parse =="
 node scripts/test-viamericas-pdf-parse.mjs
 
+echo "== barri agency activity pdf =="
+node scripts/test-barri-agency-pdf.mjs
+
 echo "== barri auto-match helpers =="
 php scripts/test-barri-auto-match.php
 

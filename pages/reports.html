@@ -3287,9 +3287,15 @@
             }
             if (!result.agency_name) result.agency_name = 'Unknown Agency';
 
-            // Find dates: "From" on one line, date on next; "To" on one line, date on next
-            for (let j = 0; j < Math.min(lines.length, 20); j++) {
+            // Find dates: header line "USD 4/1/26 6/30/26", or From/To labels, or inline
+            for (let j = 0; j < Math.min(lines.length, 25); j++) {
                 const line = lines[j].trim();
+                const headerRange = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                if (headerRange && (/USD/i.test(line) || /MULTISERVICES|SULY/i.test(line) || /^\d{5,6}\s/.test(line))) {
+                    result.date_from = this.parseBarriDate(headerRange[1]);
+                    result.date_to = this.parseBarriDate(headerRange[2]);
+                    break;
+                }
                 if (/^From\s*$/i.test(line) && j + 1 < lines.length) {
                     const d = lines[j + 1].trim().match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
                     if (d) result.date_from = this.parseBarriDate(d[1]);
@@ -3302,19 +3308,16 @@
                 if (inlineFrom) result.date_from = this.parseBarriDate(inlineFrom[1]);
                 const inlineTo = line.match(/To\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
                 if (inlineTo) result.date_to = this.parseBarriDate(inlineTo[1]);
-                if (result.date_from && result.date_to) break;
-            }
-            if (!result.date_from) {
-                for (let j = 0; j < Math.min(lines.length, 15); j++) {
-                    const d = lines[j].match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-                    if (d) { result.date_from = this.parseBarriDate(d[1]); result.date_to = result.date_from; break; }
-                }
             }
 
-            // Find first beginning balance
+            // Find first beginning balance (positive USD opening)
             for (const line of lines) {
-                const bbMatch = line.match(/Beginning\s+Balance.*?\$?([\d,]+\.\d{2})/i);
-                if (bbMatch) { result.beginning_balance = this.parseMoney(bbMatch[1]); break; }
+                if (!/Beginning\s+Balance/i.test(line)) continue;
+                const amt = this.extractAccountingAmount(line);
+                if (amt !== null && amt > 0) {
+                    result.beginning_balance = amt;
+                    break;
+                }
             }
 
             // Pre-process: join lines that are broken by PDF line wrapping.
@@ -3322,10 +3325,15 @@
             const normalized = this.normalizeAgencyActivityLines(lines);
             result.transactions = this.parseAgencyTransactions(normalized);
 
-            // Extract last ending balance from the report
+            // Final ending balance — last "Ending Balance" row (may be parenthesized negative)
             for (let j = lines.length - 1; j >= 0; j--) {
-                const ebMatch = lines[j].match(/Ending\s+Balance.*?\$?([\d,]+\.\d{2})/i);
-                if (ebMatch) { result.ending_balance = this.parseMoney(ebMatch[1]); break; }
+                if (!/Ending\s+Balance/i.test(lines[j])) continue;
+                const chunk = [lines[j], lines[j + 1] || ''].join(' ');
+                const amt = this.extractAccountingAmount(chunk);
+                if (amt !== null) {
+                    result.ending_balance = amt;
+                    break;
+                }
             }
 
             // Compute totals from parsed transactions
@@ -3378,21 +3386,88 @@
                 out.push(line);
             }
 
-            // Join continuation lines: if a line doesn't start with a time or "Beginning/Ending Balance",
-            // it's a continuation of the previous line
+            // Join continuation lines; merge type suffixes (e.g. "Electronico") before amounts
             const joined = [];
             for (let i = 0; i < out.length; i++) {
                 const line = out[i];
                 const isNewEntry = /^\d{1,2}:\d{2}\s/.test(line) || /^(Beginning|Ending)\s+Balance/i.test(line);
                 if (isNewEntry || joined.length === 0) {
                     joined.push(line);
+                    continue;
+                }
+                const prev = joined[joined.length - 1];
+                const isTypeSuffix = /^(Electronico|Anulado)$/i.test(line.trim());
+                if (isTypeSuffix && /Cambio Cheques\s+\d{6,}/i.test(prev)) {
+                    joined[joined.length - 1] = prev.replace(/(Cambio Cheques)\s+(\d{6,})/i, `$1 ${line.trim()} $2`);
                 } else {
                     joined[joined.length - 1] += ' ' + line;
                 }
             }
 
-            // Normalize parenthesized negatives: (1,000.00) → -1000.00 in the numeric fields
-            return joined.map(line => line.replace(/\((\d[\d,]*\.\d{2})\s*\)/g, '-$1'));
+            // Normalize parenthesized negatives: (1,000.00) or ($1,000.00) → -1000.00
+            return joined.map(line => line
+                .replace(/\(\$?([\d,]+\.\d{2})\)?/g, '-$1')
+                .replace(/\(\$?([\d,]+\.\d{2})/g, '-$1'));
+        },
+
+        extractAccountingAmount(text) {
+            if (!text) return null;
+            const s = String(text);
+            const paren = s.match(/\(\$?([\d,]+\.\d{2})\)?/);
+            if (paren) return -(parseFloat(paren[1].replace(/,/g, '')) || 0);
+            const neg = s.match(/-\$?([\d,]+\.\d{2})/);
+            if (neg) return -(parseFloat(neg[1].replace(/,/g, '')) || 0);
+            const pos = s.match(/\$([\d,]+\.\d{2})/);
+            if (pos) return parseFloat(pos[1].replace(/,/g, '')) || 0;
+            return null;
+        },
+
+        parseAgencyActivityTail(line) {
+            const timeMatch = line.match(/^(\d{1,2}:\d{2})\s+/);
+            if (!timeMatch) return null;
+
+            let rest = line.slice(timeMatch[0].length).trim();
+            rest = rest.replace(/\s+If you have any questions.*$/i, '').trim();
+
+            const moneyTokens = [];
+            let work = rest;
+            while (work.length && moneyTokens.length < 9) {
+                const m = work.match(/(\(?-?\$?[\d,]+\.\d{2}\)?)\s*$/);
+                if (m) {
+                    moneyTokens.unshift(m[1]);
+                    work = work.slice(0, work.length - m[0].length).trimEnd();
+                    continue;
+                }
+                if (moneyTokens.length >= 8) break;
+                if (!/\s/.test(work)) break;
+                work = work.replace(/\s+\S+\s*$/, '').trimEnd();
+            }
+            if (moneyTokens.length < 8) return null;
+
+            const headMatch = work.match(/^(.+?)\s+(a\d{4,})\s+(\d+)(?:\s+(.+))?$/);
+            if (!headMatch) return null;
+
+            const left = headMatch[1].trim();
+            const operator = headMatch[2];
+            const qty = parseInt(headMatch[3], 10);
+            const nameSuffix = (headMatch[4] || '').trim();
+
+            const refMatch = left.match(/^(.*?)\s(\d{6,})(?:\s(.*))?$/);
+            if (!refMatch) return null;
+
+            const type = refMatch[1].trim();
+            const reference = refMatch[2];
+            let customer_name = [refMatch[3] || '', nameSuffix].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
+            return {
+                time: timeMatch[1].length === 4 ? '0' + timeMatch[1] : timeMatch[1],
+                type,
+                reference,
+                customer_name,
+                operator,
+                qty,
+                amounts: moneyTokens,
+            };
         },
 
         parseAgencyTransactions(lines) {
@@ -3453,6 +3528,31 @@
                     continue;
                 }
                 if (/^(Beginning|Ending)\s+Balance/i.test(line)) continue;
+
+                const parsed = this.parseAgencyActivityTail(line);
+                if (parsed) {
+                    const rawType = parsed.type.trim().toLowerCase();
+                    const type = typeMap[rawType] || rawType;
+                    const a = parsed.amounts;
+                    transactions.push({
+                        time: parsed.time,
+                        type,
+                        reference: parsed.reference,
+                        customer_name: parsed.customer_name,
+                        operator: parsed.operator,
+                        qty: parsed.qty,
+                        principal: this.parseSignedMoney(a[0]),
+                        fee: this.parseSignedMoney(a[1]),
+                        tax: this.parseSignedMoney(a[2]),
+                        total: this.parseSignedMoney(a[3]),
+                        balance: this.parseSignedMoney(a[4]),
+                        agcomm: this.parseSignedMoney(a[5]),
+                        var_fee: this.parseSignedMoney(a[6]),
+                        var_fx: this.parseSignedMoney(a[7]),
+                        transaction_date: currentDate,
+                    });
+                    continue;
+                }
 
                 const m = line.match(txnRe);
                 if (m) {
@@ -3515,14 +3615,18 @@
         },
 
         parseMoney(str) {
-            if (!str) return 0;
-            return parseFloat(str.replace(/[$,]/g, '')) || 0;
+            return this.parseSignedMoney(str);
         },
 
         parseSignedMoney(str) {
             if (!str) return 0;
-            const negative = str.startsWith('-');
-            const val = parseFloat(str.replace(/[-$,]/g, '')) || 0;
+            const s = String(str).trim();
+            if (s.includes('(')) {
+                const paren = s.match(/\(\$?([\d,]+\.\d{2})\)?/);
+                if (paren) return -(parseFloat(paren[1].replace(/,/g, '')) || 0);
+            }
+            const negative = s.startsWith('-');
+            const val = parseFloat(s.replace(/[-$,()]/g, '')) || 0;
             return negative ? -val : val;
         },
 

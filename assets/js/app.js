@@ -396,7 +396,11 @@ const App = {
 
     money(val) {
         const locale = this.lang === 'es' ? 'es-US' : 'en-US';
-        return new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(val || 0);
+        const n = Number(val) || 0;
+        if (n < 0) {
+            return `(${new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(Math.abs(n))})`;
+        }
+        return new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(n);
     },
 
     formatDate(str) {
