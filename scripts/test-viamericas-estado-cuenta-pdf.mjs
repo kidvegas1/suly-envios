@@ -128,8 +128,8 @@ function parseViamericasEstadoCuentaRows(lines) {
         if (currentSection === 'skip' || currentSection === 'anulados') continue;
 
         // Envíos / Cancelados — 3-line block: A10556-\tNAME → date row → txnNum name
-        if (currentSection === 'envios' || currentSection === 'cancelados') {
-            const prefixMatch = trimmed.match(/^(A\d{4,6})-\t(.+)$/);
+                if (currentSection === 'envios' || currentSection === 'cancelados') {
+                    const prefixMatch = trimmed.match(/^(A\d{4,6})-[\t\s]+(.+)$/);
             if (!prefixMatch) continue;
             const agency = prefixMatch[1].toUpperCase();
             const namePart1 = prefixMatch[2].trim();
@@ -289,5 +289,40 @@ if (!sample || sample.principal !== 900) fail('missing sample A10556-76161 princ
 
 const cancelled = parsed.transactions.filter((t) => t.transaction_status === 'cancelled');
 if (cancelled.length < 10) fail(`cancelled ${cancelled.length} expected >= 10`);
+
+// Browser PDF.js may join columns with spaces instead of tabs when gap threshold differs
+function extractLinesGap(items, gapTh) {
+    const yThreshold = 3;
+    const lineMap = new Map();
+    for (const item of items) {
+        const y = Math.round(item.transform[5]);
+        let matched = false;
+        for (const [key] of lineMap) {
+            if (Math.abs(key - y) <= yThreshold) { lineMap.get(key).push(item); matched = true; break; }
+        }
+        if (!matched) lineMap.set(y, [item]);
+    }
+    return [...lineMap.keys()].sort((a, b) => b - a).map((key) => {
+        const lineItems = lineMap.get(key).sort((a, b) => a.transform[4] - b.transform[4]);
+        let result = '';
+        for (let i = 0; i < lineItems.length; i++) {
+            if (i > 0) {
+                const prev = lineItems[i - 1];
+                const gap = lineItems[i].transform[4] - (prev.transform[4] + (prev.width || 0));
+                result += gap > gapTh ? '\t' : ' ';
+            }
+            result += lineItems[i].str;
+        }
+        return result.trim();
+    }).filter((l) => l.length > 0);
+}
+
+const pdf2 = await getDocument({ data: new Uint8Array(data) }).promise;
+let spaceLines = [];
+for (let i = 1; i <= pdf2.numPages; i++) {
+    spaceLines = spaceLines.concat(extractLinesGap((await (await pdf2.getPage(i)).getTextContent()).items, 80));
+}
+const spaceParsed = parseViamericasEstadoCuentaRows(spaceLines);
+if (spaceParsed.transactions.length < 900) fail(`space-gap txns ${spaceParsed.transactions.length} expected >= 900`);
 
 console.log('OK: Viamericas Estado de Cuenta PDF regression passed');

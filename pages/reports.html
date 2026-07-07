@@ -941,10 +941,11 @@
             }
         },
 
-        async parseDocumentWithGemini(file) {
+        async parseDocumentWithGemini(file, opts = {}) {
             document.getElementById('parse-status').textContent = this.t('reports.parse_status.ai_parser');
             const fd = new FormData();
             fd.append('file', file);
+            if (opts.document_hint) fd.append('document_hint', opts.document_hint);
             const res = await App.apiForm('/api/parse-document', fd);
             if (!res?.parsed?.transactions?.length) {
                 throw new Error('AI parser found no transactions in this document');
@@ -969,7 +970,10 @@
             if (isEstadoCuenta && txCount > 100) {
                 needsAiEnhancement = false;
             }
-            if (!needsAiEnhancement && isViamericas && lineCount > 40) {
+            if (isEstadoCuenta && txCount > 0 && txCount < 100) {
+                needsAiEnhancement = false;
+            }
+            if (!needsAiEnhancement && isViamericas && lineCount > 40 && !isEstadoCuenta) {
                 const ratio = lineCount > 0 ? txCount / lineCount : 1;
                 if (ratio < 0.18 || (isCreacion && txCount < 40)) {
                     needsAiEnhancement = true;
@@ -989,6 +993,9 @@
             if (!ai.transactions.length) return clientParsed;
             if (!client.transactions.length) return aiParsed;
             if (clientParsed?.report_format === 'agency_activity') {
+                return clientParsed;
+            }
+            if (clientParsed?.report_format === 'viamericas_estado_cuenta') {
                 return clientParsed;
             }
 
@@ -1035,11 +1042,17 @@
 
         async resolveParsePipeline(file, clientParsed, allLines, allText) {
             const quality = this.evaluateParseQuality(clientParsed, allLines, allText);
+            const isEstadoCuenta = /Estado de Cuenta/i.test(allText) && /Total\s+a\s+Depositar/i.test(allText);
+
+            if (clientParsed?.report_format === 'viamericas_estado_cuenta' && (clientParsed?.transactions?.length || 0) >= 50) {
+                return clientParsed;
+            }
+
             let aiParsed = null;
 
             if (quality.needsAiEnhancement) {
                 try {
-                    aiParsed = await this.parseDocumentWithGemini(file);
+                    aiParsed = await this.parseDocumentWithGemini(file, { document_hint: isEstadoCuenta ? 'viamericas_estado_cuenta' : '' });
                 } catch (err) {
                     console.warn('[Parser Pipeline] AI enhancement failed:', err);
                     if (!clientParsed?.transactions?.length) {
@@ -1052,9 +1065,18 @@
             }
 
             if (aiParsed && clientParsed?.transactions?.length) {
+                if (isEstadoCuenta && aiParsed.transactions.length < clientParsed.transactions.length) {
+                    return clientParsed;
+                }
                 return this.mergeParsedReports(clientParsed, aiParsed);
             }
-            if (aiParsed) return aiParsed;
+            if (aiParsed) {
+                if (isEstadoCuenta && aiParsed.transactions.length < 50) {
+                    if (clientParsed?.transactions?.length) return clientParsed;
+                    throw new Error('Viamericas Estado de Cuenta: AI parser returned too few transactions. Use client parser or paste report text.');
+                }
+                return aiParsed;
+            }
             if (clientParsed?.transactions?.length) return clientParsed;
             return null;
         },
@@ -2110,7 +2132,7 @@
                 if (currentSection === 'skip' || currentSection === 'anulados') continue;
 
                 if (currentSection === 'envios' || currentSection === 'cancelados') {
-                    const prefixMatch = trimmed.match(/^(A\d{4,6})-\t(.+)$/);
+                    const prefixMatch = trimmed.match(/^(A\d{4,6})-[\t\s]+(.+)$/);
                     if (!prefixMatch) continue;
                     const agency = prefixMatch[1].toUpperCase();
                     const namePart1 = prefixMatch[2].trim();
@@ -2795,12 +2817,21 @@
 
         parseViamericasFormat(lines) {
             const allText = lines.join(' ');
-            if (/Estado de Cuenta/i.test(allText) && /Total\s+a\s+Depositar/i.test(allText)) {
+            const isEstadoCuentaDoc = /Estado de Cuenta/i.test(allText) && /Total\s+a\s+Depositar/i.test(allText);
+            if (isEstadoCuentaDoc) {
                 const estado = this.parseViamericasEstadoCuentaRows(lines);
                 if (estado.transactions.length > 0) {
                     console.log('[Report Parser] Viamericas Estado de Cuenta result:', estado.transactions.length, 'txns');
                     return estado;
                 }
+                const emailStyle = this.parseViamericasEmailFormat(lines);
+                if (emailStyle.transactions.length > 0) {
+                    console.log('[Report Parser] Viamericas Estado de Cuenta (email fallback):', emailStyle.transactions.length, 'txns');
+                    emailStyle.report_format = 'viamericas_estado_cuenta';
+                    return emailStyle;
+                }
+                console.warn('[Report Parser] Estado de Cuenta detected but 0 transactions parsed');
+                return estado;
             }
 
             const creacion = this.parseViamericasCreacionEnviosRows(lines);
@@ -2843,10 +2874,9 @@
             const footerRe = /^(Producto:|Transacciones|Listo\s|Pendiente|Bajo\s|En el|Requiere|Pagado|Cancelado|ViaRemote|Mis contactos|©|Centro de|Autenticar|Inicio\s|Transacciones\s|Status\s|Procesar|Reportes|\d+%$)/i;
 
             for (const line of lines) {
-                const agencyMatch = line.match(/(A\d{4,6})\s*-\s*([A-Z].*)/i);
+                const agencyMatch = line.match(/^(A\d{4,6})-\s*$/);
                 if (agencyMatch && !result.agency_number) {
                     result.agency_number = agencyMatch[1];
-                    result.agency_name = agencyMatch[2].trim();
                 }
                 const totalMatch = line.match(/\$([\d,]+\.\d{2})\s*USD/);
                 if (totalMatch && !result.ending_balance) {
@@ -3955,7 +3985,7 @@
         showPreview(data, opts = {}) {
             data = this.enrichParsedReport(data);
             const companyLabel = data.company ? ` [${data.company}]` : '';
-            document.getElementById('preview-agency').textContent = `${data.agency_number} ${data.agency_name}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`;
+            document.getElementById('preview-agency').textContent = `${data.agency_number || ''} ${data.store_name || data.agency_name || ''}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`.replace(/\s+/g, ' ').trim();
             document.getElementById('preview-from').textContent = data.date_from;
             document.getElementById('preview-to').textContent = data.date_to;
             document.getElementById('preview-begin-bal').textContent = App.money(data.beginning_balance);
@@ -3971,7 +4001,7 @@
                 }
             }
 
-            const hasViaFields = data.company === 'Viamericas' || data.company === 'Ria';
+            const hasViaFields = data.company === 'Viamericas' || data.company === 'Ria' || data.report_format === 'viamericas_estado_cuenta';
             const previewHead = document.querySelector('#preview-section thead tr');
             if (previewHead) {
                 const t = (k) => this.t(k);

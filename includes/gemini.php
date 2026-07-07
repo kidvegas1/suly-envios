@@ -28,7 +28,7 @@ function gemini_is_text_document(string $mimeType, string $filename): bool {
     return $mimeType === 'text/csv' || $ext === 'csv';
 }
 
-function gemini_parse_remittance_document(string $filePath, string $mimeType, string $filename): array {
+function gemini_parse_remittance_document(string $filePath, string $mimeType, string $filename, string $documentHint = ''): array {
     if (!gemini_configured()) {
         throw new RuntimeException('Gemini API is not configured');
     }
@@ -49,7 +49,7 @@ function gemini_parse_remittance_document(string $filePath, string $mimeType, st
         throw new RuntimeException('Failed to read document file');
     }
 
-    $prompt = gemini_remittance_prompt($filename);
+    $prompt = gemini_remittance_prompt($filename, $documentHint);
     if (gemini_is_text_document($mimeType, $filename)) {
         $textBody = file_get_contents($filePath);
         if ($textBody === false || trim($textBody) === '') {
@@ -142,9 +142,23 @@ function gemini_extract_text(array $response): string {
     return trim(implode("\n", $chunks));
 }
 
-function gemini_remittance_prompt(string $filename): string {
+function gemini_remittance_prompt(string $filename, string $documentHint = ''): string {
+    $hintBlock = '';
+    if ($documentHint === 'viamericas_estado_cuenta') {
+        $hintBlock = <<<HINT
+
+DOCUMENT FORMAT HINT (mandatory): Viamericas "Estado de Cuenta" PDF.
+- Read Fecha desde/hasta, Balance Inicial, and Total a Depositar from the header exactly — do not invent totals.
+- Envíos De Dinero transactions use THREE lines each: (1) A#####- + sender first name, (2) date + country + dollar columns, (3) transaction number + name suffix.
+- Also parse sections: Envíos De Dinero - Cancelados, Pago de Envíos, Pago de Biles, Money Orders.
+- Exclude summary/subtotal rows. agency_number from A-prefix (e.g. A10556). store_name from VIAMERICAS CORPORATION line.
+- Expect hundreds of transactions for a monthly report — if you find fewer than 50, re-read the PDF.
+
+HINT;
+    }
     return <<<PROMPT
 You are a data extraction engine for money-transfer agency reports (Barri, Viamericas, Intercambio, Intermex, Ria / Dandelion).
+{$hintBlock}
 
 Analyze the attached document "{$filename}" and return ONLY valid JSON matching this schema (no markdown, no commentary):
 

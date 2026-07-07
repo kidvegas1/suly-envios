@@ -60,7 +60,8 @@ if ($detected && is_string($detected)) {
 }
 
 try {
-    $parsed = gemini_parse_remittance_document($file['tmp_name'], $mime, $filename);
+    $documentHint = sanitize($_POST['document_hint'] ?? '');
+    $parsed = gemini_parse_remittance_document($file['tmp_name'], $mime, $filename, $documentHint);
 } catch (Throwable $e) {
     error_log('parse-document: ' . $e->getMessage());
     json_error('Document parsing failed. Try a different file or paste text manually.', 502);
