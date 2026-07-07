@@ -178,6 +178,12 @@ body {
 .badge-warning { background: oklch(0.8 0.15 85 / 0.12); color: oklch(0.55 0.14 85); }
 .badge-info { background: oklch(0.82 0.12 55 / 0.15); color: oklch(0.55 0.12 50); }
 
+/* ── Transaction flow (product summary colors) ── */
+.txn-type-in,
+.txn-flow-in { color: oklch(0.22 0.02 260); }
+.txn-type-out,
+.txn-flow-out { color: oklch(0.50 0.18 25); font-weight: 500; }
+
 /* ── Modal ── */
 .modal-backdrop { position: fixed; inset: 0; background: oklch(0.25 0.03 45 / 0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 50; opacity: 0; transition: opacity 0.2s ease-out; pointer-events: none; }
 .modal-backdrop.open { opacity: 1; pointer-events: auto; }

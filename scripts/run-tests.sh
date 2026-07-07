@@ -21,6 +21,9 @@ node scripts/test-viamericas-pdf-parse.mjs
 echo "== barri agency activity pdf =="
 node scripts/test-barri-agency-pdf.mjs
 
+echo "== txn money flow colors =="
+node scripts/test-txn-money-flow.mjs
+
 echo "== barri auto-match helpers =="
 php scripts/test-barri-auto-match.php
 

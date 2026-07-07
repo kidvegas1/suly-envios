@@ -329,6 +329,14 @@
                     </table>
                 </div>
 
+                <div class="flex flex-wrap items-center gap-4 text-xs text-text-muted" id="preview-flow-legend">
+                    <span data-i18n="reports.flow.legend">Type colors match product summary: black = normal, red = money out.</span>
+                    <span class="inline-flex items-center gap-3">
+                        <span class="txn-type-in font-medium" data-i18n="reports.flow.in">Normal</span>
+                        <span class="txn-type-out font-medium" data-i18n="reports.flow.out">Money out</span>
+                    </span>
+                </div>
+
                 <div class="flex items-center justify-end gap-3">
                     <button class="btn-secondary" id="btn-cancel-import"><span data-i18n="action.cancel">Cancel</span></button>
                     <button class="btn-primary" id="btn-import-report">
@@ -560,6 +568,7 @@
         lastBulkSummary: null,
         duplicateCheck: null,
         duplicateRefSet: new Set(),
+        currentReportCompany: '',
 
         t(key, params) { return App.t(key, params); },
 
@@ -3473,12 +3482,27 @@
         parseAgencyTransactions(lines) {
             const transactions = [];
             const typeMap = {
-                'giros': 'giros', 'giro': 'giros', 'giro - pago': 'giros',
-                'cambio cheques electronico': 'money_order', 'cambio cheques': 'money_order',
-                'cambio de cheques electronico': 'money_order', 'cambio de cheques': 'money_order',
+                'giros': 'giros',
+                'giro': 'giros',
+                'giro - pago': 'giro_pago',
+                'giro/pago': 'giro_pago',
+                'cambio cheques electronico': 'cambio_cheques',
+                'cambio cheques': 'cambio_cheques',
+                'cambio de cheques electronico': 'cambio_cheques',
+                'cambio de cheques': 'cambio_cheques',
                 'money order': 'money_order',
-                'pago con tarjeta': 'bill_payment', 'bill payment': 'bill_payment',
+                'pago con tarjeta': 'pago_tarjeta',
+                'pago con targeta': 'pago_tarjeta',
+                'bill payment': 'bill_payment',
                 'pago facturas': 'bill_payment',
+                'recarga pinless': 'recarga',
+                'recargas pinless': 'recarga',
+                'commission cancel': 'comision_cancel',
+                'comision cancel': 'comision_cancel',
+                'debitos bancarios cheque': 'debito_bancario',
+                'reembolso payment': 'reembolso',
+                'rembolso payment': 'reembolso',
+                'reembolsos': 'reembolso',
                 'commission payment': 'commission_payment',
                 'payment': 'payment',
             };
@@ -3531,12 +3555,14 @@
 
                 const parsed = this.parseAgencyActivityTail(line);
                 if (parsed) {
-                    const rawType = parsed.type.trim().toLowerCase();
+                    const rawTypeLabel = parsed.type.trim();
+                    const rawType = rawTypeLabel.toLowerCase();
                     const type = typeMap[rawType] || rawType;
                     const a = parsed.amounts;
                     transactions.push({
                         time: parsed.time,
                         type,
+                        raw_type: rawTypeLabel,
                         reference: parsed.reference,
                         customer_name: parsed.customer_name,
                         operator: parsed.operator,
@@ -3556,11 +3582,14 @@
 
                 const m = line.match(txnRe);
                 if (m) {
-                    const rawType = m[2].trim().toLowerCase();
+                    const rawTypeLabel = m[2].trim();
+                    const rawType = rawTypeLabel.toLowerCase();
                     const type = typeMap[rawType] || rawType;
                     transactions.push({
                         time: m[1].length === 4 ? '0' + m[1] : m[1],
-                        type, reference: m[3],
+                        type,
+                        raw_type: rawTypeLabel,
+                        reference: m[3],
                         customer_name: m[4].trim(),
                         operator: m[5], qty: parseInt(m[6]),
                         principal: this.parseSignedMoney(m[7]),
@@ -3579,12 +3608,15 @@
                 // Try no-operator pattern (Commission Payment, Payment)
                 const m2 = line.match(noOpRe);
                 if (m2) {
-                    const rawType = m2[2].trim().toLowerCase();
+                    const rawTypeLabel = m2[2].trim();
+                    const rawType = rawTypeLabel.toLowerCase();
                     const type = typeMap[rawType] || rawType;
                     if (['commission payment', 'payment', 'commission_payment'].includes(type) || /payment|commission/i.test(rawType)) {
                         transactions.push({
                             time: m2[1].length === 4 ? '0' + m2[1] : m2[1],
-                            type, reference: '',
+                            type,
+                            raw_type: rawTypeLabel,
+                            reference: '',
                             customer_name: '',
                             operator: '', qty: parseInt(m2[3]),
                             principal: this.parseSignedMoney(m2[4]),
@@ -3633,6 +3665,7 @@
         // ── Preview ──
 
         showPreview(data, opts = {}) {
+            data = this.enrichParsedReport(data);
             const companyLabel = data.company ? ` [${data.company}]` : '';
             document.getElementById('preview-agency').textContent = `${data.agency_number} ${data.agency_name}${companyLabel}${data.agency_address ? ' — ' + data.agency_address : ''}`;
             document.getElementById('preview-from').textContent = data.date_from;
@@ -3668,35 +3701,38 @@
             const dupRowClass = (ref) => dupRefs.has((ref || '').trim()) ? 'bg-warning/10' : '';
 
             const tbody = document.getElementById('preview-tbody');
+            const company = data.company || '';
             tbody.innerHTML = data.transactions.map(tx => {
                 const ref = tx.reference || tx.reference_number || '';
                 const isDup = dupRefs.has(ref.trim());
                 const dupBadge = isDup ? '<span class="badge badge-warning text-[10px] ml-1">dup</span>' : '';
+                const flow = tx.money_flow || this.txnMoneyFlow(tx, company);
+                const amtCls = this.txnMoneyClass(flow);
                 if (hasViaFields) {
                     const dest = [tx.destination_city, tx.destination_state, tx.destination_country].filter(Boolean).join(', ');
                     const recvAmt = tx.amount_received ? `${App.money(tx.amount_received).replace('$','')} ${tx.received_currency || ''}` : '—';
                     return `<tr class="${dupRowClass(ref)}">
                         <td class="font-mono text-sm text-text-primary whitespace-nowrap">${this.esc(tx.transaction_date)}</td>
                         <td class="font-mono text-sm text-text-secondary">${this.esc(ref)}${dupBadge}</td>
-                        <td class="text-text-primary text-sm">${this.esc(tx.customer_name)}</td>
-                        <td class="text-text-secondary text-sm">${this.esc(tx.beneficiary)}</td>
-                        <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.principal)}</td>
+                        <td class="text-sm ${amtCls}">${this.esc(tx.customer_name)}</td>
+                        <td class="text-sm text-text-secondary">${this.esc(tx.beneficiary)}</td>
+                        <td class="text-right font-mono tabular-nums font-semibold ${amtCls}">${App.money(tx.principal)}</td>
                         <td class="text-right font-mono tabular-nums text-text-secondary text-sm">${recvAmt}</td>
                         <td class="text-sm text-text-secondary">${this.esc(tx.paying_bank || '')}</td>
                         <td class="text-sm text-text-muted">${this.esc(dest)}</td>
                     </tr>`;
                 }
-                const typeBadge = this.typeBadge(tx.type);
+                const typeBadge = this.typeBadge(tx, company);
                 const nameDisplay = tx.beneficiary ? `${this.esc(tx.customer_name)}<br><span class="text-xs text-text-muted">→ ${this.esc(tx.beneficiary)}</span>` : this.esc(tx.customer_name);
                 return `<tr class="${dupRowClass(ref)}">
                     <td class="font-mono text-sm text-text-primary">${this.esc(tx.transaction_date || tx.time)}</td>
                     <td>${typeBadge}</td>
                     <td class="font-mono text-sm text-text-secondary">${this.esc(ref)}${dupBadge}</td>
                     <td class="text-text-primary text-sm">${nameDisplay}</td>
-                    <td class="text-right font-mono tabular-nums">${App.money(tx.principal)}</td>
-                    <td class="text-right font-mono tabular-nums">${App.money(tx.fee)}</td>
-                    <td class="text-right font-mono tabular-nums">${App.money(tx.tax)}</td>
-                    <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.total)}</td>
+                    <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.principal)}</td>
+                    <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.fee)}</td>
+                    <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.tax)}</td>
+                    <td class="text-right font-mono tabular-nums font-semibold ${amtCls}">${App.money(tx.total)}</td>
                     <td class="text-right font-mono tabular-nums text-success">${App.money(tx.agcomm)}</td>
                 </tr>`;
             }).join('');
@@ -3993,6 +4029,7 @@
                 const r = data.report;
                 const txs = data.transactions || [];
                 const stats = data.match_stats || { matched: 0, total: txs.length, pushed: 0 };
+                this.currentReportCompany = r.company || 'Barri';
 
                 document.getElementById('detail-title').textContent = this.t('reports.detail_title', { from: r.date_from, to: r.date_to });
                 document.getElementById('detail-agency').textContent = `${r.agency_number || ''} ${r.agency_name} — ${r.agency_address || ''}`;
@@ -4015,7 +4052,11 @@
                 this.lastMatchStats = stats;
                 this.lastDetailTxs = txs;
                 this.updateMatchStats(stats.matched, stats.total, stats.pushed);
-                this.renderDetailTable(txs);
+                this.renderDetailTable(txs.map(tx => ({
+                    ...tx,
+                    money_flow: this.txnMoneyFlow(tx, this.currentReportCompany),
+                    raw_type: tx.raw_type || tx.type,
+                })));
             } catch (err) {
                 App.toastKey('toast.report_load_failed', 'danger');
                 tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-danger">${this.t('reports.load_failed')}</td></tr>`;
@@ -4050,8 +4091,11 @@
 
         renderDetailTable(txs) {
             const tbody = document.getElementById('detail-tbody');
+            const company = this.currentReportCompany || 'Barri';
             tbody.innerHTML = txs.map(tx => {
                 const isMatched = !!tx.client_id;
+                const flow = tx.money_flow || this.txnMoneyFlow(tx, company);
+                const amtCls = this.txnMoneyClass(flow);
                 const matchIcon = isMatched
                     ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
                     : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-danger" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -4075,13 +4119,13 @@
 
                 return `<tr data-tx-id="${tx.id}">
                     <td class="font-mono text-sm text-text-primary">${this.esc(tx.time)}</td>
-                    <td>${this.typeBadge(tx.type)}</td>
+                    <td>${this.typeBadge(tx, company)}</td>
                     <td class="font-mono text-sm text-text-secondary">${this.esc(tx.reference)}</td>
                     <td class="text-text-primary text-sm">${this.esc(tx.customer_name)}</td>
-                    <td class="text-right font-mono tabular-nums">${App.money(tx.principal)}</td>
-                    <td class="text-right font-mono tabular-nums">${App.money(tx.fee)}</td>
-                    <td class="text-right font-mono tabular-nums">${App.money(tx.tax)}</td>
-                    <td class="text-right font-mono tabular-nums font-semibold">${App.money(tx.total)}</td>
+                    <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.principal)}</td>
+                    <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.fee)}</td>
+                    <td class="text-right font-mono tabular-nums ${amtCls}">${App.money(tx.tax)}</td>
+                    <td class="text-right font-mono tabular-nums font-semibold ${amtCls}">${App.money(tx.total)}</td>
                     <td class="text-center">${matchIcon}</td>
                     <td>${clientCell}</td>
                     <td>${actionsCell}</td>
@@ -4362,15 +4406,108 @@
             return label === key ? this.esc(status) : label;
         },
 
-        typeBadge(type) {
-            const t = (type || '').toLowerCase();
-            if (t.includes('money_transfer') || t.includes('money transfer')) return `<span class="badge badge-info">${this.t('reports.type.money_transfer')}</span>`;
-            if (t.includes('giro')) return `<span class="badge badge-info">${this.t('reports.type.giros')}</span>`;
-            if (t.includes('money')) return `<span class="badge badge-success">${this.t('reports.type.money_order')}</span>`;
-            if (t.includes('bill')) return `<span class="badge badge-warning">${this.t('reports.type.bill_payment')}</span>`;
-            if (t.includes('nueva_orden')) return `<span class="badge badge-info">${this.t('reports.type.nueva_orden')}</span>`;
-            if (t.includes('cheque_escaneado')) return `<span class="badge badge-success">${this.t('reports.type.cheque_escaneado')}</span>`;
-            return `<span class="badge badge-info">${this.esc(type)}</span>`;
+        normalizeTxnTypeLabel(type) {
+            return (type || '')
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, ' ');
+        },
+
+        isBarriMoneyOut(raw) {
+            const n = this.normalizeTxnTypeLabel(raw);
+            if (/giro\s*[-\/]\s*pago/.test(n)) return true;
+            if (/cambio.*cheque|cheque.*electronico/.test(n)) return true;
+            if (/^pago con tarjeta|^pago con targeta/.test(n)) return true;
+            if (/^reembolso|^rembolso/.test(n)) return true;
+            const outs = [
+                'giro - pago', 'giro/pago', 'giro pago',
+                'cambio cheques electronico', 'cambio cheques',
+                'cambio de cheques electronico', 'cambio de cheques',
+                'pago con tarjeta', 'pago con targeta',
+                'reembolso', 'reembolsos', 'reembolso payment', 'rembolso payment',
+            ];
+            return outs.includes(n);
+        },
+
+        isBarriMoneyIn(raw) {
+            const n = this.normalizeTxnTypeLabel(raw);
+            if (this.isBarriMoneyOut(raw)) return false;
+            const ins = [
+                'bill payment', 'pago facturas',
+                'comision cancel', 'commission cancel',
+                'debitos bancarios cheque', 'debito bancario',
+                'giros', 'giro', 'money order',
+                'recarga pinless', 'recargas pinless', 'recarga', 'recargas',
+            ];
+            if (ins.includes(n)) return true;
+            if (/^recarga/.test(n)) return true;
+            return false;
+        },
+
+        txnMoneyFlow(tx, company = '') {
+            const raw = this.normalizeTxnTypeLabel(tx.raw_type || tx.type || tx.transaction_type || '');
+            const co = (company || tx.company || '').toLowerCase();
+            const status = this.normalizeTxnTypeLabel(tx.status || '');
+
+            if (co === 'barri' || co === '') {
+                if (this.isBarriMoneyOut(raw)) return 'out';
+                if (this.isBarriMoneyIn(raw)) return 'in';
+            }
+
+            if (/cancel|anulado|reembolso|rembolso|refund|void|reversal|devolucion/.test(raw + ' ' + status)) {
+                return 'out';
+            }
+            if (/cambio.*cheque|cheque.*cambio|pago con tarjeta|card payment|giro\s*[-\/]\s*pago/.test(raw)) {
+                return 'out';
+            }
+            if (['viamericas', 'ria', 'intercambio', 'intermex'].includes(co)) {
+                if (/cancelado|anulado|reembolso|rembolso/.test(status)) return 'out';
+            }
+
+            const principal = Number(tx.principal);
+            const total = Number(tx.total);
+            const hasNegative = (Number.isFinite(principal) && principal < 0) || (Number.isFinite(total) && total < 0);
+            if (hasNegative && !/comision cancel|commission cancel/.test(raw)) {
+                return 'out';
+            }
+
+            return 'in';
+        },
+
+        enrichParsedReport(data) {
+            if (!data?.transactions?.length) return data;
+            const company = data.company || '';
+            data.transactions = data.transactions.map(tx => {
+                const raw_type = tx.raw_type || tx.type || tx.transaction_type || '';
+                const enriched = { ...tx, raw_type, company: tx.company || company };
+                enriched.money_flow = this.txnMoneyFlow(enriched, company);
+                return enriched;
+            });
+            return data;
+        },
+
+        txnMoneyClass(flow) {
+            return flow === 'out' ? 'txn-flow-out' : 'txn-flow-in';
+        },
+
+        txnTypeDisplayLabel(tx) {
+            const raw = (tx.raw_type || tx.type || '').trim();
+            if (!raw) return '—';
+            const slug = raw.toLowerCase().replace(/[^\w]+/g, '_').replace(/^_|_$/g, '');
+            const key = `reports.type.${slug}`;
+            const translated = this.t(key);
+            if (translated !== key) return translated;
+            return raw.replace(/\b\w/g, c => c.toUpperCase());
+        },
+
+        typeBadge(txOrType, company) {
+            const tx = typeof txOrType === 'object' ? txOrType : { type: txOrType };
+            const flow = tx.money_flow || this.txnMoneyFlow(tx, company || this.currentReportCompany || '');
+            const label = this.txnTypeDisplayLabel(tx);
+            const cls = flow === 'out' ? 'txn-type-out' : 'txn-type-in';
+            return `<span class="${cls}">${this.esc(label)}</span>`;
         },
 
         esc(str) {
