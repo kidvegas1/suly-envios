@@ -43,6 +43,9 @@ php scripts/test-barri-auto-match.php
 echo "== store filter bindings =="
 php scripts/test-store-filter-bindings.php
 
+echo "== caja update guards =="
+php scripts/test-caja-update.php
+
 echo "== suly ledger mark paid =="
 php scripts/test-suly-ledger-paid.php
 

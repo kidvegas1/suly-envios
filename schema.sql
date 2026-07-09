@@ -80,6 +80,23 @@ CREATE TABLE caja_denominations (
     FOREIGN KEY (session_id) REFERENCES caja_sessions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- ── Company Flags (manual admin risk markers; global, not session-scoped) ──
+CREATE TABLE company_flags (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_key VARCHAR(120) NOT NULL,
+    company_label VARCHAR(120) NOT NULL,
+    reason TEXT NOT NULL,
+    flagged_by_user_id INT UNSIGNED DEFAULT NULL,
+    flagged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cleared_at TIMESTAMP NULL DEFAULT NULL,
+    cleared_by_user_id INT UNSIGNED DEFAULT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    FOREIGN KEY (flagged_by_user_id) REFERENCES users(id),
+    FOREIGN KEY (cleared_by_user_id) REFERENCES users(id),
+    INDEX idx_company_flags_key (company_key),
+    INDEX idx_company_flags_active (is_active)
+) ENGINE=InnoDB;
+
 -- ── Clients ──
 CREATE TABLE clients (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

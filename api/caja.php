@@ -3,6 +3,8 @@ $user = auth_require();
 $method = get_method();
 $pdo = db();
 
+require_once __DIR__ . '/../includes/company-flags.php';
+
 $action = $_GET['action'] ?? '';
 
 function caja_store_id(?array $data = null): int {
@@ -15,47 +17,106 @@ function caja_store_id(?array $data = null): int {
     return resolve_store_id($requested);
 }
 
-function caja_assert_session(PDO $pdo, int $sessionId, int $storeId): void {
-    $stmt = $pdo->prepare('SELECT id FROM caja_sessions WHERE id = ? AND store_id = ?');
+function caja_fetch_session(PDO $pdo, int $sessionId, int $storeId): array {
+    $stmt = $pdo->prepare('SELECT * FROM caja_sessions WHERE id = ? AND store_id = ?');
     $stmt->execute([$sessionId, $storeId]);
-    if (!$stmt->fetch()) {
+    $session = $stmt->fetch();
+    if (!$session) {
         json_error('Session not found', 404);
+    }
+    return $session;
+}
+
+function caja_assert_session(PDO $pdo, int $sessionId, int $storeId): void {
+    caja_fetch_session($pdo, $sessionId, $storeId);
+}
+
+function caja_assert_open_session(PDO $pdo, int $sessionId, int $storeId): array {
+    $session = caja_fetch_session($pdo, $sessionId, $storeId);
+    if (($session['status'] ?? '') !== 'open') {
+        json_error('Session is closed', 403);
+    }
+    return $session;
+}
+
+function caja_require_affected(PDOStatement $stmt, string $message = 'Record not found'): void {
+    if ($stmt->rowCount() < 1) {
+        json_error($message, 404);
     }
 }
 
-// GET: List sessions or single session with entries
+function caja_assert_entry_mutable(PDO $pdo, int $entryId, int $storeId): array {
+    $stmt = $pdo->prepare(
+        'SELECT e.*, s.status AS session_status, s.id AS session_id
+         FROM caja_entries e
+         JOIN caja_sessions s ON s.id = e.session_id
+         WHERE e.id = ? AND s.store_id = ?'
+    );
+    $stmt->execute([$entryId, $storeId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_error('Entry not found', 404);
+    }
+    if (($row['session_status'] ?? '') !== 'open') {
+        json_error('Session is closed', 403);
+    }
+    return $row;
+}
+
+function caja_assert_denom_mutable(PDO $pdo, int $denomId, int $storeId): array {
+    $stmt = $pdo->prepare(
+        'SELECT d.*, s.status AS session_status, s.id AS session_id
+         FROM caja_denominations d
+         JOIN caja_sessions s ON s.id = d.session_id
+         WHERE d.id = ? AND s.store_id = ?'
+    );
+    $stmt->execute([$denomId, $storeId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_error('Denomination not found', 404);
+    }
+    if (($row['session_status'] ?? '') !== 'open') {
+        json_error('Session is closed', 403);
+    }
+    return $row;
+}
+
+// GET: List sessions, single session, or company flags
 if ($method === 'GET') {
-    $storeFilter = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
+    $storeId = caja_store_id();
+
+    if ($action === 'list_company_flags') {
+        json_response([
+            'flags' => company_flags_list_active($pdo),
+            'can_manage' => auth_is_admin(),
+        ]);
+    }
+
     if ($action === 'session' && isset($_GET['id'])) {
-        if ($storeFilter) {
-            $stmt = $pdo->prepare('SELECT * FROM caja_sessions WHERE id = ? AND store_id = ?');
-            $stmt->execute([(int)$_GET['id'], $storeFilter]);
-        } else {
-            $stmt = $pdo->prepare('SELECT * FROM caja_sessions WHERE id = ?');
-            $stmt->execute([(int)$_GET['id']]);
-        }
-        $session = $stmt->fetch();
-        if (!$session) json_error('Session not found', 404);
+        $session = caja_fetch_session($pdo, (int)$_GET['id'], $storeId);
 
         $entries = $pdo->prepare('SELECT * FROM caja_entries WHERE session_id = ? ORDER BY sort_order, id');
         $entries->execute([$session['id']]);
+        $entryRows = $entries->fetchAll();
 
         $denoms = $pdo->prepare('SELECT * FROM caja_denominations WHERE session_id = ? ORDER BY denomination DESC');
         $denoms->execute([$session['id']]);
 
+        $labels = array_map(static fn(array $row): string => (string)($row['company'] ?? ''), $entryRows);
+
         json_response([
-            'session'       => $session,
-            'entries'        => $entries->fetchAll(),
-            'denominations' => $denoms->fetchAll(),
+            'session'         => $session,
+            'entries'         => $entryRows,
+            'denominations'   => $denoms->fetchAll(),
+            'company_flags'   => company_flags_map_for_labels($pdo, $labels),
+            'can_manage_flags'=> auth_is_admin(),
         ]);
     }
 
-  // List sessions
+    // List sessions for active store
     $date = $_GET['date'] ?? null;
-    $storeSql = store_filter_sql('cs.store_id', $storeFilter);
-    $where = 'WHERE 1=1' . $storeSql;
-    $params = [];
-    if ($storeFilter) $params[] = $storeFilter;
+    $where = 'WHERE cs.store_id = ?';
+    $params = [$storeId];
     if ($date) {
         $where .= ' AND cs.session_date = ?';
         $params[] = $date;
@@ -68,7 +129,7 @@ if ($method === 'GET') {
         {$where} ORDER BY cs.session_date DESC, cs.id DESC LIMIT 50");
     $stmt->execute($params);
 
-    json_response(['sessions' => $stmt->fetchAll(), 'scope' => $storeFilter ? 'store' : 'all']);
+    json_response(['sessions' => $stmt->fetchAll(), 'scope' => 'store', 'store_id' => $storeId]);
 }
 
 // POST: Create/update
@@ -77,6 +138,20 @@ if ($method === 'POST') {
     $data = get_json_body();
     $storeId = caja_store_id($data);
     $act = $data['action'] ?? '';
+
+    if ($act === 'set_company_flag') {
+        company_flag_require_admin();
+        validate_required($data, ['company', 'reason']);
+        $flag = company_flag_set($pdo, (string)$data['company'], (string)$data['reason'], (int)$user['id']);
+        json_response(['success' => true, 'flag' => $flag]);
+    }
+
+    if ($act === 'clear_company_flag') {
+        company_flag_require_admin();
+        validate_required($data, ['company']);
+        company_flag_clear($pdo, (string)$data['company'], (int)$user['id']);
+        json_response(['success' => true]);
+    }
 
     // Open new session
     if ($act === 'open_session') {
@@ -113,15 +188,19 @@ if ($method === 'POST') {
     // Update entry
     if ($act === 'update_entry') {
         validate_required($data, ['entry_id']);
-        $stmt = $pdo->prepare('UPDATE caja_entries SET cash_in = ?, checks_debits = ?, company = ?, notes = ? WHERE id = ? AND session_id IN (SELECT id FROM caja_sessions WHERE store_id = ?)');
+        $entryId = (int)$data['entry_id'];
+        caja_assert_entry_mutable($pdo, $entryId, $storeId);
+        $stmt = $pdo->prepare('UPDATE caja_entries SET cash_in = ?, checks_debits = ?, company = ?, notes = ? WHERE id = ? AND session_id IN (SELECT id FROM caja_sessions WHERE store_id = ? AND status = ?)');
         $stmt->execute([
             (float)($data['cash_in'] ?? 0),
             (float)($data['checks_debits'] ?? 0),
             sanitize($data['company'] ?? ''),
             sanitize($data['notes'] ?? ''),
-            (int)$data['entry_id'],
+            $entryId,
             $storeId,
+            'open',
         ]);
+        caja_require_affected($stmt, 'Entry not found');
         json_response(['success' => true]);
     }
 
@@ -129,7 +208,7 @@ if ($method === 'POST') {
     if ($act === 'add_entry') {
         validate_required($data, ['session_id', 'company']);
         $sessionId = (int)$data['session_id'];
-        caja_assert_session($pdo, $sessionId, $storeId);
+        caja_assert_open_session($pdo, $sessionId, $storeId);
         $stmt = $pdo->prepare('INSERT INTO caja_entries (session_id, company, cash_in, checks_debits, notes, sort_order) VALUES (?,?,?,?,?, (SELECT COALESCE(MAX(e2.sort_order),0)+1 FROM caja_entries e2 WHERE e2.session_id = ?))');
         $stmt->execute([
             $sessionId,
@@ -145,16 +224,22 @@ if ($method === 'POST') {
     // Delete entry
     if ($act === 'delete_entry') {
         validate_required($data, ['entry_id']);
-        $stmt = $pdo->prepare('DELETE FROM caja_entries WHERE id = ? AND session_id IN (SELECT id FROM caja_sessions WHERE store_id = ?)');
-        $stmt->execute([(int)$data['entry_id'], $storeId]);
+        $entryId = (int)$data['entry_id'];
+        caja_assert_entry_mutable($pdo, $entryId, $storeId);
+        $stmt = $pdo->prepare('DELETE FROM caja_entries WHERE id = ? AND session_id IN (SELECT id FROM caja_sessions WHERE store_id = ? AND status = ?)');
+        $stmt->execute([$entryId, $storeId, 'open']);
+        caja_require_affected($stmt, 'Entry not found');
         json_response(['success' => true]);
     }
 
     // Update denomination
     if ($act === 'update_denomination') {
         validate_required($data, ['denom_id', 'count']);
-        $stmt = $pdo->prepare('UPDATE caja_denominations SET count = ? WHERE id = ? AND session_id IN (SELECT id FROM caja_sessions WHERE store_id = ?)');
-        $stmt->execute([(int)$data['count'], (int)$data['denom_id'], $storeId]);
+        $denomId = (int)$data['denom_id'];
+        caja_assert_denom_mutable($pdo, $denomId, $storeId);
+        $stmt = $pdo->prepare('UPDATE caja_denominations SET count = ? WHERE id = ? AND session_id IN (SELECT id FROM caja_sessions WHERE store_id = ? AND status = ?)');
+        $stmt->execute([(int)$data['count'], $denomId, $storeId, 'open']);
+        caja_require_affected($stmt, 'Denomination not found');
         json_response(['success' => true]);
     }
 
@@ -162,13 +247,14 @@ if ($method === 'POST') {
     if ($act === 'close_session') {
         validate_required($data, ['session_id']);
         $sessionId = (int)$data['session_id'];
-        caja_assert_session($pdo, $sessionId, $storeId);
+        caja_assert_open_session($pdo, $sessionId, $storeId);
         $stmt = $pdo->prepare('SELECT COALESCE(SUM(total),0) as t FROM caja_entries WHERE session_id = ?');
         $stmt->execute([$sessionId]);
         $total = (float)$stmt->fetch()['t'];
 
-        $upd = $pdo->prepare("UPDATE caja_sessions SET status = 'closed', closing_balance = ?, notes = ? WHERE id = ? AND store_id = ?");
+        $upd = $pdo->prepare("UPDATE caja_sessions SET status = 'closed', closing_balance = ?, notes = ? WHERE id = ? AND store_id = ? AND status = 'open'");
         $upd->execute([$total, sanitize($data['notes'] ?? ''), $sessionId, $storeId]);
+        caja_require_affected($upd, 'Session not found or already closed');
         json_response(['success' => true, 'closing_balance' => $total]);
     }
 

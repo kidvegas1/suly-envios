@@ -166,6 +166,24 @@ CREATE TABLE caja_denominations (
   subtotal NUMERIC(12, 2) GENERATED ALWAYS AS (denomination * count) STORED
 );
 
+-- ── Company Flags (manual admin risk markers) ──
+
+CREATE TABLE company_flags (
+  id SERIAL PRIMARY KEY,
+  company_key VARCHAR(120) NOT NULL,
+  company_label VARCHAR(120) NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  flagged_by_user_id INTEGER REFERENCES users(id),
+  flagged_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  cleared_at TIMESTAMPTZ,
+  cleared_by_user_id INTEGER REFERENCES users(id),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX idx_company_flags_key ON company_flags (company_key);
+CREATE INDEX idx_company_flags_active ON company_flags (is_active);
+CREATE UNIQUE INDEX idx_company_flags_active_key ON company_flags (company_key) WHERE is_active IS TRUE;
+
 -- ── Suly Ledger ──
 
 CREATE TABLE suly_ledger (

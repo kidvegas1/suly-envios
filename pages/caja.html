@@ -145,12 +145,18 @@
 
                 <!-- Entries Table -->
                 <div class="card p-0 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+                    <div class="px-6 py-4 border-b border-border flex items-center justify-between gap-3">
                         <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider" data-i18n="caja.company_entries">Company Entries</h3>
-                        <button id="add-entry-btn" class="btn-secondary text-xs py-1.5 px-3">
+                        <div class="flex items-center gap-2">
+                            <button id="company-flags-btn" class="btn-secondary text-xs py-1.5 px-3 hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                                <span data-i18n="caja.company_flags">Company Flags</span>
+                            </button>
+                            <button id="add-entry-btn" class="btn-secondary text-xs py-1.5 px-3">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             <span data-i18n="caja.add_row">Add Row</span>
-                        </button>
+                            </button>
+                        </div>
                     </div>
                     <table class="w-full">
                         <thead class="bg-[oklch(0.18_0.015_260)]">
@@ -216,10 +222,95 @@
         </form>
     </div>
 
+    <!-- Company Flags Modal -->
+    <div class="modal-backdrop" id="company-flags-modal-backdrop"></div>
+    <div class="modal-content max-w-2xl" id="company-flags-modal">
+        <h3 class="text-lg font-bold mb-4" data-i18n="caja.company_flags">Company Flags</h3>
+        <p class="text-sm text-text-secondary mb-4" data-i18n="caja.company_flags_help">Flagged companies show a warning badge in every Caja session. Only admins can change flags.</p>
+        <div id="company-flags-list" class="space-y-2 max-h-80 overflow-y-auto mb-4"></div>
+        <div class="flex gap-3 pt-2">
+            <button type="button" class="btn-secondary flex-1" onclick="App.closeModal('company-flags-modal')" data-i18n="action.close">Close</button>
+            <button type="button" id="new-company-flag-btn" class="btn-primary flex-1 justify-center" data-i18n="caja.flag_company">Flag Company</button>
+        </div>
+    </div>
+
+    <!-- Flag Company Modal -->
+    <div class="modal-backdrop" id="flag-company-modal-backdrop"></div>
+    <div class="modal-content" id="flag-company-modal">
+        <h3 class="text-lg font-bold mb-4" data-i18n="caja.flag_company">Flag Company</h3>
+        <form id="flag-company-form" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2" data-i18n="caja.col.company">Company</label>
+                <input type="text" name="company" class="input" required>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2" data-i18n="caja.flag_reason">Reason</label>
+                <textarea name="reason" class="input" rows="3" required data-i18n-placeholder="caja.flag_reason_placeholder" placeholder="Why is this company flagged?"></textarea>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" class="btn-secondary flex-1" onclick="App.closeModal('flag-company-modal')" data-i18n="action.cancel">Cancel</button>
+                <button type="submit" class="btn-danger flex-1 justify-center" data-i18n="caja.flag_save">Save Flag</button>
+            </div>
+        </form>
+    </div>
+
     <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
         let currentSessionId = null;
+        let canManageFlags = false;
+        let companyFlags = {};
+        let refreshTimer = null;
+        const editingFields = new Map();
+        const REFRESH_MS = 30000;
+
+        const debouncedUpdate = App.debounce(async (entryId, field, value, el) => {
+            try {
+                setSaving(el, true);
+                const getVal = (f) => editingFields.get(fieldKey('entry', entryId, f))
+                    ?? document.querySelector(`[data-entry-id="${entryId}"][data-field="${f}"]`)?.value
+                    ?? '';
+                const payload = cajaStorePayload({
+                    action: 'update_entry',
+                    entry_id: entryId,
+                    company: field === 'company' ? value : getVal('company'),
+                    cash_in: field === 'cash_in' ? (parseFloat(value) || 0) : (parseFloat(getVal('cash_in')) || 0),
+                    checks_debits: field === 'checks_debits' ? (parseFloat(value) || 0) : (parseFloat(getVal('checks_debits')) || 0),
+                });
+                await App.api('POST', '/api/caja', payload);
+                editingFields.delete(fieldKey('entry', entryId, field));
+                if (el) {
+                    el.dataset.pending = '0';
+                    el.classList.remove('ring-2', 'ring-warning/40');
+                }
+                await loadSession(currentSessionId, { silent: true });
+            } catch (err) {
+                App.toast(err.message, 'danger');
+            } finally {
+                setSaving(el, false);
+            }
+        }, 600);
+
+        const debouncedDenomUpdate = App.debounce(async (denomId, count, el) => {
+            try {
+                setSaving(el, true);
+                await App.api('POST', '/api/caja', cajaStorePayload({
+                    action: 'update_denomination',
+                    denom_id: denomId,
+                    count: parseInt(count, 10) || 0,
+                }));
+                editingFields.delete(fieldKey('denom', denomId, 'count'));
+                if (el) {
+                    el.dataset.pending = '0';
+                    el.classList.remove('ring-2', 'ring-warning/40');
+                }
+                await loadSession(currentSessionId, { silent: true });
+            } catch (err) {
+                App.toast(err.message, 'danger');
+            } finally {
+                setSaving(el, false);
+            }
+        }, 600);
 
         (async () => {
             const ok = await App.init();
@@ -246,13 +337,13 @@
                 e.preventDefault();
                 const fd = new FormData(e.target);
                 try {
-                    const res = await App.api('POST', '/api/caja', {
+                    const res = await App.api('POST', '/api/caja', cajaStorePayload({
                         action: 'open_session',
                         session_date: fd.get('session_date'),
                         cashier_name: fd.get('cashier_name'),
                         opening_balance: parseFloat(fd.get('opening_balance')) || 0,
                         notes: fd.get('notes'),
-                    });
+                    }));
                     App.closeModal('new-session-modal');
                     App.toastKey('caja.toast.session_opened', 'success');
                     openSession(res.session_id);
@@ -262,6 +353,9 @@
             });
 
             document.getElementById('back-to-list').addEventListener('click', () => {
+                stopSessionRefresh();
+                currentSessionId = null;
+                editingFields.clear();
                 document.getElementById('session-detail').classList.add('hidden');
                 document.getElementById('sessions-view').classList.remove('hidden');
                 loadSessions();
@@ -271,26 +365,130 @@
                 const name = prompt(App.t('caja.prompt_entry_name'));
                 if (!name) return;
                 try {
-                    await App.api('POST', '/api/caja', { action: 'add_entry', session_id: currentSessionId, company: name });
-                    loadSession(currentSessionId);
+                    await App.api('POST', '/api/caja', cajaStorePayload({
+                        action: 'add_entry',
+                        session_id: currentSessionId,
+                        company: name,
+                    }));
+                    await loadSession(currentSessionId);
                 } catch (err) { App.toast(err.message, 'danger'); }
             });
 
             document.getElementById('close-session-btn').addEventListener('click', async () => {
                 if (!App.confirmKey('caja.confirm_close')) return;
                 try {
-                    const res = await App.api('POST', '/api/caja', { action: 'close_session', session_id: currentSessionId });
+                    const res = await App.api('POST', '/api/caja', cajaStorePayload({
+                        action: 'close_session',
+                        session_id: currentSessionId,
+                    }));
                     App.toastKey('caja.toast.session_closed', 'success', { balance: App.money(res.closing_balance) });
-                    loadSession(currentSessionId);
+                    stopSessionRefresh();
+                    await loadSession(currentSessionId);
                 } catch (err) { App.toast(err.message, 'danger'); }
             });
 
-            window.addEventListener('store-changed', loadSessions);
+            document.getElementById('company-flags-btn')?.addEventListener('click', openCompanyFlagsModal);
+            document.getElementById('new-company-flag-btn')?.addEventListener('click', () => openFlagCompanyModal(''));
+            document.getElementById('flag-company-form')?.addEventListener('submit', submitCompanyFlag);
+
+            window.addEventListener('store-changed', () => {
+                if (currentSessionId) {
+                    stopSessionRefresh();
+                    currentSessionId = null;
+                    editingFields.clear();
+                    document.getElementById('session-detail').classList.add('hidden');
+                    document.getElementById('sessions-view').classList.remove('hidden');
+                }
+                loadSessions();
+            });
             document.addEventListener('language-changed', () => {
                 loadSessions();
                 if (currentSessionId) loadSession(currentSessionId);
             });
         })();
+
+        function cajaStorePayload(extra = {}) {
+            const payload = { ...extra };
+            if (App.currentStore?.id) payload.store_id = App.currentStore.id;
+            return payload;
+        }
+
+        function cajaStoreQuery() {
+            return App.currentStore?.id ? `&store_id=${encodeURIComponent(App.currentStore.id)}` : '';
+        }
+
+        function fieldKey(type, id, field) {
+            return `${type}-${id}-${field}`;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function companyFlagKey(label) {
+            return (label || '').trim().replace(/\s+/g, ' ').toUpperCase();
+        }
+
+        function setSaving(el, saving) {
+            if (!el) return;
+            el.classList.toggle('opacity-70', saving);
+            el.disabled = saving && el.tagName === 'BUTTON';
+        }
+
+        function shouldPauseRefresh() {
+            return document.querySelectorAll('#session-detail [data-pending="1"]').length > 0;
+        }
+
+        function startSessionRefresh() {
+            stopSessionRefresh();
+            refreshTimer = setInterval(() => {
+                if (currentSessionId && !document.getElementById('session-detail').classList.contains('hidden')) {
+                    refreshSessionIfIdle();
+                }
+            }, REFRESH_MS);
+            window.addEventListener('focus', onSessionRefreshTrigger);
+            document.addEventListener('visibilitychange', onVisibilityRefresh);
+        }
+
+        function stopSessionRefresh() {
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+            window.removeEventListener('focus', onSessionRefreshTrigger);
+            document.removeEventListener('visibilitychange', onVisibilityRefresh);
+        }
+
+        function onVisibilityRefresh() {
+            if (document.visibilityState === 'visible') onSessionRefreshTrigger();
+        }
+
+        async function onSessionRefreshTrigger() {
+            if (currentSessionId) await refreshSessionIfIdle();
+        }
+
+        async function refreshSessionIfIdle() {
+            if (shouldPauseRefresh()) return;
+            await loadSession(currentSessionId, { silent: true });
+        }
+
+        function onFieldInput(type, id, field, el) {
+            editingFields.set(fieldKey(type, id, field), el.value);
+            el.dataset.pending = '1';
+            el.classList.add('ring-2', 'ring-warning/40');
+            if (type === 'entry') debouncedUpdate(id, field, el.value, el);
+            else debouncedDenomUpdate(id, el.value, el);
+        }
+
+        function renderFlagBadge(flag) {
+            if (!flag) return '';
+            const reason = escapeHtml(flag.reason || '');
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-warning/15 text-warning border border-warning/30" title="${reason}">⚠ ${App.t('caja.flag.warn')}</span>`;
+        }
 
         async function loadSessions() {
             const t = (k, v) => App.t(k, v);
@@ -301,7 +499,7 @@
             };
             const date = document.getElementById('filter-date').value;
             try {
-                const res = await App.api('GET', `/api/caja?date=${date}`);
+                const res = await App.api('GET', `/api/caja?date=${encodeURIComponent(date)}${cajaStoreQuery()}`);
                 const tbody = document.getElementById('sessions-tbody');
                 if (!res.sessions.length) {
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-text-muted py-8">${t('caja.empty_sessions')}</td></tr>`;
@@ -310,7 +508,7 @@
                 tbody.innerHTML = res.sessions.map(s => `
                     <tr class="cursor-pointer" onclick="openSession(${s.id})">
                         <td class="font-medium">${App.formatDate(s.session_date)}</td>
-                        <td>${s.cashier_name || s.user_name || t('empty.none')}</td>
+                        <td>${escapeHtml(s.cashier_name || s.user_name || t('empty.none'))}</td>
                         <td class="font-mono tabular-nums">${App.money(s.opening_balance)}</td>
                         <td class="font-mono tabular-nums font-semibold">${App.money(s.entries_total)}</td>
                         <td><span class="badge ${s.status === 'open' ? 'badge-success' : 'badge-info'}">${statusLabel(s.status)}</span></td>
@@ -327,9 +525,11 @@
             document.getElementById('sessions-view').classList.add('hidden');
             document.getElementById('session-detail').classList.remove('hidden');
             await loadSession(id);
+            startSessionRefresh();
         }
 
-        async function loadSession(id) {
+        async function loadSession(id, opts = {}) {
+            const silent = opts.silent === true;
             const t = (k, v) => App.t(k, v);
             const statusLabel = (status) => {
                 const key = 'status.' + status;
@@ -337,9 +537,13 @@
                 return translated !== key ? translated : status;
             };
             try {
-                const res = await App.api('GET', `/api/caja?action=session&id=${id}`);
+                const res = await App.api('GET', `/api/caja?action=session&id=${id}${cajaStoreQuery()}`);
                 const s = res.session;
                 const isOpen = s.status === 'open';
+                canManageFlags = !!res.can_manage_flags;
+                companyFlags = res.company_flags || {};
+
+                document.getElementById('company-flags-btn')?.classList.toggle('hidden', !canManageFlags);
 
                 document.getElementById('detail-date').textContent = App.formatDate(s.session_date);
                 document.getElementById('detail-cashier').textContent = s.cashier_name || t('empty.none');
@@ -358,16 +562,28 @@
                     totalCash += parseFloat(e.cash_in);
                     totalChecks += parseFloat(e.checks_debits);
                     grandTotal += parseFloat(e.total);
+                    const flag = companyFlags[companyFlagKey(e.company)];
+                    const companyVal = editingFields.get(fieldKey('entry', e.id, 'company')) ?? e.company;
+                    const cashVal = editingFields.get(fieldKey('entry', e.id, 'cash_in')) ?? e.cash_in;
+                    const checksVal = editingFields.get(fieldKey('entry', e.id, 'checks_debits')) ?? e.checks_debits;
+                    const companyPending = editingFields.has(fieldKey('entry', e.id, 'company')) ? '1' : '0';
+                    const cashPending = editingFields.has(fieldKey('entry', e.id, 'cash_in')) ? '1' : '0';
+                    const checksPending = editingFields.has(fieldKey('entry', e.id, 'checks_debits')) ? '1' : '0';
+                    const pendingClass = 'ring-2 ring-warning/40';
                     return `
                     <tr class="border-b border-[oklch(0.25_0.015_260)]">
                         <td class="px-4 py-2">
-                            ${isOpen ? `<input type="text" value="${e.company}" class="input py-1.5 text-sm" onchange="updateEntry(${e.id}, 'company', this.value)">` : `<span class="font-medium">${e.company}</span>`}
+                            <div class="flex items-center gap-2 flex-wrap">
+                                ${renderFlagBadge(flag)}
+                                ${isOpen ? `<input type="text" value="${escapeHtml(companyVal)}" data-entry-id="${e.id}" data-field="company" data-pending="${companyPending}" class="input py-1.5 text-sm flex-1 min-w-[8rem] ${companyPending === '1' ? pendingClass : ''}" oninput="onFieldInput('entry', ${e.id}, 'company', this)">` : `<span class="font-medium">${escapeHtml(e.company)}</span>`}
+                                ${canManageFlags ? `<button type="button" class="btn-secondary text-[10px] py-1 px-2" onclick="openFlagCompanyModal('${escapeHtml(e.company).replace(/'/g, "\\'")}')">${flag ? App.t('caja.flag_edit') : App.t('caja.flag_company')}</button>` : ''}
+                            </div>
                         </td>
                         <td class="px-4 py-2 text-right">
-                            ${isOpen ? `<input type="number" value="${e.cash_in}" step="0.01" class="input py-1.5 text-sm text-right font-mono w-28 ml-auto" onchange="updateEntry(${e.id}, 'cash_in', this.value)">` : `<span class="font-mono tabular-nums">${App.money(e.cash_in)}</span>`}
+                            ${isOpen ? `<input type="number" value="${cashVal}" step="0.01" data-entry-id="${e.id}" data-field="cash_in" data-pending="${cashPending}" class="input py-1.5 text-sm text-right font-mono w-28 ml-auto ${cashPending === '1' ? pendingClass : ''}" oninput="onFieldInput('entry', ${e.id}, 'cash_in', this)">` : `<span class="font-mono tabular-nums">${App.money(e.cash_in)}</span>`}
                         </td>
                         <td class="px-4 py-2 text-right">
-                            ${isOpen ? `<input type="number" value="${e.checks_debits}" step="0.01" class="input py-1.5 text-sm text-right font-mono w-28 ml-auto" onchange="updateEntry(${e.id}, 'checks_debits', this.value)">` : `<span class="font-mono tabular-nums">${App.money(e.checks_debits)}</span>`}
+                            ${isOpen ? `<input type="number" value="${checksVal}" step="0.01" data-entry-id="${e.id}" data-field="checks_debits" data-pending="${checksPending}" class="input py-1.5 text-sm text-right font-mono w-28 ml-auto ${checksPending === '1' ? pendingClass : ''}" oninput="onFieldInput('entry', ${e.id}, 'checks_debits', this)">` : `<span class="font-mono tabular-nums">${App.money(e.checks_debits)}</span>`}
                         </td>
                         <td class="px-4 py-2 text-right font-mono tabular-nums font-semibold">${App.money(e.total)}</td>
                         <td class="px-4 py-2">
@@ -380,52 +596,114 @@
                 document.getElementById('total-checks').textContent = App.money(totalChecks);
                 document.getElementById('grand-total').textContent = App.money(grandTotal);
 
-                // Denominations
                 const denomGrid = document.getElementById('denoms-grid');
                 let denomTotal = 0;
                 denomGrid.innerHTML = (res.denominations || []).map(d => {
                     denomTotal += parseFloat(d.subtotal);
                     const label = parseFloat(d.denomination) >= 1 ? `$${parseInt(d.denomination)}` : `${parseInt(d.denomination * 100)}¢`;
+                    const countVal = editingFields.get(fieldKey('denom', d.id, 'count')) ?? d.count;
+                    const countPending = editingFields.has(fieldKey('denom', d.id, 'count')) ? '1' : '0';
                     return `
                     <div class="p-3 rounded-xl bg-bg-elevated border border-border">
                         <p class="text-xs text-text-muted mb-1">${t('caja.denom_bills', { label })}</p>
-                        ${isOpen ? `<input type="number" value="${d.count}" min="0" class="input py-1.5 text-sm font-mono text-center" onchange="updateDenom(${d.id}, this.value)">` : `<p class="text-lg font-bold font-mono tabular-nums">${d.count}</p>`}
+                        ${isOpen ? `<input type="number" value="${countVal}" min="0" data-pending="${countPending}" class="input py-1.5 text-sm font-mono text-center ${countPending === '1' ? 'ring-2 ring-warning/40' : ''}" oninput="onFieldInput('denom', ${d.id}, 'count', this)">` : `<p class="text-lg font-bold font-mono tabular-nums">${d.count}</p>`}
                         <p class="text-xs text-text-muted mt-1 font-mono">${App.money(d.subtotal)}</p>
                     </div>`;
                 }).join('');
                 document.getElementById('denom-total').textContent = App.money(denomTotal);
 
-            } catch (err) { App.toast(err.message, 'danger'); }
+                if (!silent) {
+                    const savingEl = document.getElementById('session-saving-indicator');
+                    savingEl?.remove();
+                }
+            } catch (err) {
+                if (!silent) App.toast(err.message, 'danger');
+            }
         }
 
-        const debouncedUpdate = App.debounce(async (entryId, field, value) => {
-            try {
-                const payload = { action: 'update_entry', entry_id: entryId };
-                if (field === 'company') payload.company = value;
-                else {
-                    payload[field] = parseFloat(value) || 0;
-                    payload.company = document.querySelector(`tr input[onchange*="updateEntry(${entryId}, 'company'"]`)?.value || '';
-                }
-                await App.api('POST', '/api/caja', payload);
-                loadSession(currentSessionId);
-            } catch (err) { App.toast(err.message, 'danger'); }
-        }, 600);
-
-        function updateEntry(id, field, value) { debouncedUpdate(id, field, value); }
+        function updateEntry(id, field, value) {
+            const el = document.querySelector(`[data-entry-id="${id}"][data-field="${field}"]`);
+            onFieldInput('entry', id, field, el || { value, dataset: {}, classList: { add() {}, remove() {} } });
+        }
 
         async function deleteEntry(id) {
             if (!App.confirmKey('caja.confirm_delete_entry')) return;
             try {
-                await App.api('POST', '/api/caja', { action: 'delete_entry', entry_id: id });
-                loadSession(currentSessionId);
+                await App.api('POST', '/api/caja', cajaStorePayload({ action: 'delete_entry', entry_id: id }));
+                editingFields.forEach((_, key) => {
+                    if (key.startsWith(`entry-${id}-`)) editingFields.delete(key);
+                });
+                await loadSession(currentSessionId);
             } catch (err) { App.toast(err.message, 'danger'); }
         }
 
         async function updateDenom(id, count) {
+            const el = document.querySelector(`#denoms-grid input[oninput*="onFieldInput('denom', ${id}"]`);
+            onFieldInput('denom', id, 'count', el || { value: count, dataset: {}, classList: { add() {}, remove() {} } });
+        }
+
+        async function openCompanyFlagsModal() {
             try {
-                await App.api('POST', '/api/caja', { action: 'update_denomination', denom_id: id, count: parseInt(count) || 0 });
-                loadSession(currentSessionId);
-            } catch (err) { App.toast(err.message, 'danger'); }
+                const res = await App.api('GET', `/api/caja?action=list_company_flags${cajaStoreQuery()}`);
+                const list = document.getElementById('company-flags-list');
+                if (!res.flags.length) {
+                    list.innerHTML = `<p class="text-sm text-text-muted py-4 text-center">${App.t('caja.flags_empty')}</p>`;
+                } else {
+                    list.innerHTML = res.flags.map(flag => `
+                        <div class="p-3 rounded-xl border border-border bg-bg-elevated flex items-start justify-between gap-3">
+                            <div>
+                                <p class="font-semibold text-sm">${escapeHtml(flag.company_label)}</p>
+                                <p class="text-xs text-text-secondary mt-1">${escapeHtml(flag.reason || '')}</p>
+                                <p class="text-[10px] text-text-muted mt-2">${escapeHtml(flag.flagged_by_name || App.t('empty.none'))}</p>
+                            </div>
+                            ${canManageFlags ? `<button type="button" class="btn-secondary text-xs py-1 px-2" onclick="clearCompanyFlag('${escapeHtml(flag.company_key).replace(/'/g, "\\'")}')">${App.t('caja.flag_clear')}</button>` : ''}
+                        </div>
+                    `).join('');
+                }
+                App.openModal('company-flags-modal');
+            } catch (err) {
+                App.toast(err.message, 'danger');
+            }
+        }
+
+        function openFlagCompanyModal(company) {
+            const form = document.getElementById('flag-company-form');
+            form.company.value = company || '';
+            const existing = companyFlags[companyFlagKey(company)];
+            form.reason.value = existing?.reason || '';
+            App.openModal('flag-company-modal');
+        }
+
+        async function submitCompanyFlag(e) {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            try {
+                await App.api('POST', '/api/caja', cajaStorePayload({
+                    action: 'set_company_flag',
+                    company: fd.get('company'),
+                    reason: fd.get('reason'),
+                }));
+                App.closeModal('flag-company-modal');
+                App.toastKey('caja.toast.flag_saved', 'success');
+                if (currentSessionId) await loadSession(currentSessionId);
+            } catch (err) {
+                App.toast(err.message, 'danger');
+            }
+        }
+
+        async function clearCompanyFlag(companyKey) {
+            if (!App.confirmKey('caja.confirm_clear_flag')) return;
+            try {
+                await App.api('POST', '/api/caja', cajaStorePayload({
+                    action: 'clear_company_flag',
+                    company: companyKey,
+                }));
+                App.toastKey('caja.toast.flag_cleared', 'success');
+                await openCompanyFlagsModal();
+                if (currentSessionId) await loadSession(currentSessionId);
+            } catch (err) {
+                App.toast(err.message, 'danger');
+            }
         }
     </script>
 </body>
