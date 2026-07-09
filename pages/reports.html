@@ -544,20 +544,6 @@
         </div>
     </div>
 
-    <!-- Confirm Delete Modal -->
-    <div class="modal-backdrop" id="delete-modal-backdrop"></div>
-    <div class="modal-content" id="delete-modal">
-        <h3 class="text-lg font-semibold text-text-primary mb-2" data-i18n="reports.delete_modal.title">Delete Report</h3>
-        <p class="text-sm text-text-secondary mb-6" data-i18n="reports.delete_modal.body">This will permanently delete this report and all its transactions. This action cannot be undone.</p>
-        <div class="flex items-center justify-end gap-3">
-            <button class="btn-secondary" id="btn-delete-cancel"><span data-i18n="action.cancel">Cancel</span></button>
-            <button class="btn-danger" id="btn-delete-confirm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                <span data-i18n="action.delete">Delete</span>
-            </button>
-        </div>
-    </div>
-
     <script src="assets/js/i18n.js"></script>
     <script src="assets/js/app.js"></script>
     <script type="module">
@@ -566,7 +552,6 @@
         parsedData: null,
         currentPdfFile: null,
         currentReportId: null,
-        deleteTargetId: null,
         filterStoreId: null,
         filterStoreName: '',
         bulkFiles: [],
@@ -720,8 +705,6 @@
             document.getElementById('btn-push-cancel').addEventListener('click', () => App.closeModal('push-modal'));
             document.getElementById('btn-push-confirm').addEventListener('click', () => this.pushToTransfers());
 
-            document.getElementById('btn-delete-cancel').addEventListener('click', () => App.closeModal('delete-modal'));
-            document.getElementById('btn-delete-confirm').addEventListener('click', () => this.deleteReport());
         },
 
         showView(view) {
@@ -816,9 +799,6 @@
                                 <button class="p-1.5 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-accent transition-colors" onclick="Reports.viewReport(${r.id})" title="${this.t('common.view')}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                 </button>
-                                <button class="p-1.5 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-danger transition-colors" onclick="Reports.confirmDelete(${r.id})" title="${this.t('action.delete')}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                </button>
                             </div>
                         </td>
                     </tr>`;
@@ -827,22 +807,6 @@
                 loading.classList.add('hidden');
                 empty.classList.remove('hidden');
                 App.toastKey('toast.reports_load_failed', 'danger');
-            }
-        },
-
-        confirmDelete(id) {
-            this.deleteTargetId = id;
-            App.openModal('delete-modal');
-        },
-
-        async deleteReport() {
-            App.closeModal('delete-modal');
-            try {
-                await App.api('POST', '/api/barri-reports', { action: 'delete', report_id: this.deleteTargetId });
-                App.toastKey('toast.report_deleted', 'success');
-                this.loadReports();
-            } catch (err) {
-                App.toastKey('toast.delete_failed', 'danger');
             }
         },
 

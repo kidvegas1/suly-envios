@@ -907,10 +907,7 @@ if ($method === 'POST') {
     }
 
     if ($act === 'delete') {
-        validate_required($data, ['report_id']);
-        $pdo->prepare('DELETE FROM barri_reports WHERE id = ? AND store_id = ?')
-            ->execute([(int)$data['report_id'], $storeId]);
-        json_response(['success' => true]);
+        json_error('Uploaded reports are retained and cannot be deleted.', 403);
     }
 
     json_error('Unknown action');
