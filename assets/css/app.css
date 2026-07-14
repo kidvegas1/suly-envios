@@ -216,7 +216,7 @@ body {
 ::-webkit-scrollbar-thumb { background: oklch(0.82 0.04 55); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.72 0.06 55); }
 
-/* ── Info tip (hover / keyboard focus only) ── */
+/* ── Info tip button (floating bubble is appended to body on hover) ── */
 .info-tip {
   position: relative;
   display: inline-flex;
@@ -234,48 +234,14 @@ body {
   flex-shrink: 0;
   vertical-align: middle;
   line-height: 0;
-  z-index: 1;
 }
 .info-tip:hover,
 .info-tip:focus-visible {
   color: oklch(0.55 0.12 50);
   outline: none;
-  z-index: 80;
 }
 .info-tip:focus-visible {
   box-shadow: 0 0 0 2px oklch(0.75 0.16 55 / 0.35);
-}
-.info-tip-bubble {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.45rem);
-  bottom: auto;
-  transform: translateX(-50%) translateY(-0.15rem);
-  width: max-content;
-  max-width: min(18rem, calc(100vw - 2rem));
-  padding: 0.5rem 0.65rem;
-  border-radius: 0.625rem;
-  border: 1px solid oklch(0.90 0.01 70);
-  background: oklch(1 0 0);
-  color: oklch(0.35 0.03 45);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1.45;
-  text-align: left;
-  text-transform: none;
-  letter-spacing: normal;
-  white-space: pre-line;
-  box-shadow: 0 10px 28px oklch(0 0 0 / 0.14);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.12s ease-out, transform 0.12s ease-out, visibility 0.12s;
-  z-index: 81;
-}
-.info-tip-wide .info-tip-bubble {
-  max-width: min(20rem, calc(100vw - 2rem));
-  font-size: 0.75rem;
-  padding: 0.65rem 0.75rem;
 }
 .info-tip-lg {
   width: 1.35rem;
@@ -288,47 +254,23 @@ body {
   background: oklch(0.75 0.16 55 / 0.22);
   color: oklch(0.48 0.12 50);
 }
-.info-tip-bubble::after {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  top: auto;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-bottom-color: oklch(1 0 0);
-}
-.info-tip:hover .info-tip-bubble,
-.info-tip:focus-visible .info-tip-bubble {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-.info-tip-end .info-tip-bubble {
-  left: auto;
-  right: 0;
-  transform: translateX(0) translateY(-0.15rem);
-}
-.info-tip-end .info-tip-bubble::after {
-  left: auto;
-  right: 0.55rem;
-  transform: none;
-}
-.info-tip-end:hover .info-tip-bubble,
-.info-tip-end:focus-visible .info-tip-bubble {
-  transform: translateX(0) translateY(0);
-}
-
-/* Only show custom tooltips on devices that support hover (avoids stuck overlays on tap) */
-@media (hover: none) {
-  .info-tip:hover .info-tip-bubble {
-    opacity: 0;
-    visibility: hidden;
-  }
-  .info-tip:focus-visible .info-tip-bubble {
-    opacity: 1;
-    visibility: visible;
-  }
+.info-tip-float {
+  position: fixed;
+  z-index: 200;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.625rem;
+  border: 1px solid oklch(0.90 0.01 70);
+  background: oklch(1 0 0);
+  color: oklch(0.35 0.03 45);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: pre-line;
+  text-align: left;
+  box-shadow: 0 12px 32px oklch(0 0 0 / 0.16);
+  pointer-events: none;
 }
 
 /* ── Mobile sidebar ── */
