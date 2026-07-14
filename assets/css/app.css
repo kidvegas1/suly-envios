@@ -151,8 +151,12 @@ body {
 .table-container {
   background: oklch(1 0 0);
   border: 1px solid oklch(0.92 0.01 70);
-  border-radius: 1rem; overflow: hidden;
+  border-radius: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
+.table-container table { min-width: 40rem; }
 .table-container table { width: 100%; border-collapse: collapse; }
 .table-container thead { background: oklch(0.97 0.005 70); }
 .table-container th {
