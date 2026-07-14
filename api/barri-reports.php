@@ -26,6 +26,60 @@ function barri_report_label(array $data): string {
     return $agency . ' (' . ($data['report_date_from'] ?? '?') . ' — ' . ($data['report_date_to'] ?? '?') . ')';
 }
 
+/** True when a txn is a nameless Money Order / other service (no FinCEN client). */
+function barri_is_nameless_money_order(array $txn): bool {
+    $rawType = strtolower(trim((string)($txn['transaction_type'] ?? $txn['type'] ?? '')));
+    $type = str_replace(' ', '_', $rawType);
+    if ($type !== 'money_order') {
+        return false;
+    }
+    $name = trim((string)($txn['customer_name'] ?? ''));
+    if ($name === '') {
+        return true;
+    }
+    $placeholder = ['money order', 'giro postal', 'money_order', 'otros servicios', 'other services'];
+    return in_array(strtolower($name), $placeholder, true);
+}
+
+/** Post Money Order / Otros servicios totals for mixed remittance reports. */
+function barri_create_money_order_side_accounting(PDO $pdo, int $storeId, int $reportId, array $data, array $moTxns): void {
+    if ($moTxns === []) {
+        return;
+    }
+    $dup = $pdo->prepare("SELECT id FROM accounting_entries WHERE source_report_id = ? AND category = 'Money Orders' LIMIT 1");
+    $dup->execute([$reportId]);
+    if ($dup->fetch()) {
+        return;
+    }
+
+    $principal = 0.0;
+    $fees = 0.0;
+    foreach ($moTxns as $txn) {
+        $principal += (float)($txn['principal'] ?? 0);
+        $fees += (float)($txn['fee'] ?? 0);
+    }
+    $count = count($moTxns);
+    $company = sanitize($data['company'] ?? 'Viamericas');
+    $agency = trim($data['agency_number'] ?? '') ?: trim($data['agency_name'] ?? 'Agency');
+    $from = $data['report_date_from'] ?? $data['date_from'] ?? date('Y-m-d');
+    $to = $data['report_date_to'] ?? $data['date_to'] ?? $from;
+    $notes = "Otros servicios — {$count} money orders without client names. Principal \${$principal}. Fees \${$fees}. Source report #{$reportId}.";
+
+    $ins = $pdo->prepare('INSERT INTO accounting_entries (store_id, category, description, amount, entry_type, entry_date, notes, finance_class, data_completeness, source_report_id) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    $ins->execute([
+        $storeId,
+        'Money Orders',
+        "{$company} Money Orders {$agency} ({$from} — {$to})",
+        $principal + $fees,
+        'receivable',
+        $to,
+        $notes,
+        'side_finances',
+        'incomplete_vital',
+        $reportId,
+    ]);
+}
+
 /** Post side-finance summary lines to accounting (incomplete but vital). */
 function barri_create_side_finance_accounting(PDO $pdo, int $storeId, int $reportId, array $data): void {
     $dup = $pdo->prepare('SELECT id FROM accounting_entries WHERE source_report_id = ? LIMIT 1');
@@ -369,9 +423,13 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         $pushedCount = 0;
         $sideFinanceCount = 0;
         $skippedMissingCustomer = 0;
+        $namelessMoneyOrders = [];
         foreach ($data['transactions'] as $txn) {
             $custName = trim($txn['customer_name'] ?? '');
-            $isSideTxn = $isSideFinance || (($txn['finance_class'] ?? '') === 'side_finances');
+            $isNamelessMo = barri_is_nameless_money_order($txn);
+            $isSideTxn = $isSideFinance
+                || (($txn['finance_class'] ?? '') === 'side_finances')
+                || $isNamelessMo;
             if (!$isSideTxn && !$custName) {
                 $skippedMissingCustomer++;
                 continue;
@@ -382,8 +440,14 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             $clientId = null;
             $isMatched = 0;
             if ($isSideTxn) {
-                $custName = trim($txn['side_label'] ?? $txn['reference'] ?? $txn['reference_number'] ?? 'Side Finances');
+                $refLabel = trim($txn['reference'] ?? $txn['reference_number'] ?? '');
+                $custName = trim($txn['side_label'] ?? '')
+                    ?: ($isNamelessMo && $refLabel !== '' ? ('MO ' . $refLabel) : '')
+                    ?: ($refLabel !== '' ? $refLabel : 'Side Finances');
                 $sideFinanceCount++;
+                if ($isNamelessMo) {
+                    $namelessMoneyOrders[] = $txn;
+                }
             } else {
                 $clientLookup->execute([$custName]);
                 $matches = $clientLookup->fetchAll();
@@ -466,6 +530,8 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         barri_refresh_report_totals($pdo, $reportId);
         if ($isSideFinance) {
             barri_create_side_finance_accounting($pdo, $storeId, $reportId, $data);
+        } elseif ($namelessMoneyOrders !== []) {
+            barri_create_money_order_side_accounting($pdo, $storeId, $reportId, $data, $namelessMoneyOrders);
         }
         $pdo->commit();
 

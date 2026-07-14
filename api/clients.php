@@ -37,10 +37,77 @@ function clients_list_store_where(int $storeId): string {
     return 'EXISTS (SELECT 1 FROM transfers t_scope WHERE t_scope.client_id = c.id AND t_scope.store_id = ' . (int)$storeId . ')';
 }
 
+/** Synthetic bucket clients created from nameless Money Orders — not FinCEN senders. */
+function clients_is_service_bucket_sql(string $alias = 'c'): string {
+    return "(LOWER(TRIM({$alias}.name)) IN ('money order', 'giro postal', 'otros servicios', 'other services'))";
+}
+
 if ($method === 'GET') {
     $storeFilter = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $storeId = $storeFilter ?? resolve_store_id(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
     $action = $_GET['action'] ?? 'list';
+
+    if ($action === 'other_services') {
+        $limit = min(300, max(20, (int)($_GET['limit'] ?? 150)));
+        $params = [];
+        $storeSql = '';
+        if ($storeFilter) {
+            $storeSql = ' AND bt.store_id = ?';
+            $params[] = $storeId;
+        }
+        // Nameless MOs: no client, or legacy bucket name / reference-as-name
+        $sql = "SELECT bt.id, bt.reference_number, bt.transaction_date, bt.transaction_type,
+                       bt.customer_name, bt.principal, bt.fee, bt.tax, bt.total,
+                       bt.store_id, s.name AS store_name,
+                       br.id AS report_id, br.original_name AS report_original_name,
+                       br.filename AS report_filename, br.company AS report_company,
+                       br.report_date_from, br.report_date_to
+                FROM barri_transactions bt
+                LEFT JOIN stores s ON s.id = bt.store_id
+                LEFT JOIN barri_reports br ON br.id = bt.report_id
+                WHERE REPLACE(LOWER(COALESCE(bt.transaction_type, '')), ' ', '_') = 'money_order'
+                  AND (
+                        bt.client_id IS NULL
+                     OR LOWER(TRIM(COALESCE(bt.customer_name, ''))) IN ('money order', 'giro postal', '')
+                     OR TRIM(COALESCE(bt.customer_name, '')) = TRIM(COALESCE(bt.reference_number, ''))
+                     OR bt.customer_name LIKE 'MO %'
+                  )
+                  {$storeSql}
+                ORDER BY bt.transaction_date DESC NULLS LAST, bt.id DESC
+                LIMIT {$limit}";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+
+        $sumPrincipal = 0.0;
+        $sumFees = 0.0;
+        foreach ($rows as $row) {
+            $sumPrincipal += (float)($row['principal'] ?? 0);
+            $sumFees += (float)($row['fee'] ?? 0);
+        }
+
+        $countStmt = $pdo->prepare(
+            "SELECT COUNT(*) FROM barri_transactions bt
+             WHERE REPLACE(LOWER(COALESCE(bt.transaction_type, '')), ' ', '_') = 'money_order'
+               AND (
+                     bt.client_id IS NULL
+                  OR LOWER(TRIM(COALESCE(bt.customer_name, ''))) IN ('money order', 'giro postal', '')
+                  OR TRIM(COALESCE(bt.customer_name, '')) = TRIM(COALESCE(bt.reference_number, ''))
+                  OR bt.customer_name LIKE 'MO %'
+               ){$storeSql}"
+        );
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+
+        json_response([
+            'transactions' => $rows,
+            'total' => $total,
+            'shown' => count($rows),
+            'sum_principal' => $sumPrincipal,
+            'sum_fees' => $sumFees,
+            'note' => 'Viamericas Money Orders have no client names in Estado de Cuenta PDFs.',
+        ]);
+    }
 
     if ($action === 'detail' && isset($_GET['id'])) {
         $clientId = (int)$_GET['id'];
@@ -49,6 +116,11 @@ if ($method === 'GET') {
         $stmt->execute([$clientId]);
         $client = $stmt->fetch();
         if (!$client) json_error('Client not found', 404);
+        $isServiceBucket = in_array(
+            strtolower(trim((string)($client['name'] ?? ''))),
+            ['money order', 'giro postal', 'otros servicios', 'other services'],
+            true
+        );
 
         $storeParams = [$clientId, $storeId];
 
@@ -142,6 +214,7 @@ if ($method === 'GET') {
 
         json_response([
             'client'            => with_stored_file_urls($client),
+            'is_service_bucket' => $isServiceBucket,
             'month_usage'       => $monthUsage,
             'month_limit'       => (float)$client['monthly_limit'],
             'transfers'         => $transfers->fetchAll(),
@@ -197,6 +270,8 @@ if ($method === 'GET') {
     } else {
         $where = ['EXISTS (SELECT 1 FROM transfers t_scope WHERE t_scope.client_id = c.id)'];
     }
+    // Never list synthetic Money Order bucket clients in FinCEN / client roster
+    $where[] = 'NOT ' . clients_is_service_bucket_sql('c');
     $params = [];
 
     if ($search) {
