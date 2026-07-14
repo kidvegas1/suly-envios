@@ -146,9 +146,9 @@
             <!-- Period Tabs -->
             <div class="card !p-2">
                 <div class="flex items-center gap-1 flex-wrap">
-                    <button class="period-tab active" data-period="daily" data-i18n="reports_center.period.today">Today</button>
+                    <button class="period-tab" data-period="daily" data-i18n="reports_center.period.today">Today</button>
                     <button class="period-tab" data-period="weekly" data-i18n="reports_center.period.week">This Week</button>
-                    <button class="period-tab" data-period="monthly" data-i18n="reports_center.period.month">This Month</button>
+                    <button class="period-tab active" data-period="monthly" data-i18n="reports_center.period.month">This Month</button>
                     <button class="period-tab" data-period="annual" data-i18n="reports_center.period.year">This Year</button>
                     <button class="period-tab" data-period="all" data-i18n="reports_center.period.all">All Time</button>
                     <button class="period-tab" data-period="custom" data-i18n="reports_center.period.custom">Custom Range</button>
@@ -220,19 +220,61 @@
                 </div>
             </div>
 
+            <!-- KPI Analysis -->
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4" id="kpi-cards">
+                <div class="card !p-4">
+                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.avg_ticket">Avg Ticket</p>
+                    <p class="text-lg font-bold font-mono tabular-nums" id="kpi-avg-ticket">$0.00</p>
+                </div>
+                <div class="card !p-4">
+                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.fee_rate">Fee Rate</p>
+                    <p class="text-lg font-bold font-mono tabular-nums" id="kpi-fee-rate">0%</p>
+                </div>
+                <div class="card !p-4">
+                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.txns_per_sender">Txns / Sender</p>
+                    <p class="text-lg font-bold font-mono tabular-nums" id="kpi-txns-sender">0</p>
+                </div>
+                <div class="card !p-4">
+                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.over_limit">Over Limit</p>
+                    <p class="text-lg font-bold font-mono tabular-nums text-danger" id="kpi-over-limit">0</p>
+                </div>
+                <div class="card !p-4">
+                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.high_freq">High-Frequency Days</p>
+                    <p class="text-lg font-bold font-mono tabular-nums text-warning" id="kpi-high-freq">0</p>
+                </div>
+                <div class="card !p-4 finance-side-banner !p-4">
+                    <p class="text-xs mb-1" data-i18n="reports_center.kpi.other_services">Otros servicios (MO)</p>
+                    <p class="text-lg font-bold font-mono tabular-nums finance-side-text" id="kpi-other-services">$0.00</p>
+                    <p class="text-[10px] opacity-80 mt-0.5" id="kpi-other-services-meta"></p>
+                </div>
+            </div>
+
             <!-- Charts Row -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Daily Activity Chart -->
-                <div class="card">
+                <div class="card lg:col-span-1">
                     <h3 class="text-sm font-semibold text-text-primary mb-4" data-i18n="reports_center.chart.activity">Activity Over Time</h3>
                     <div class="h-48 flex items-end gap-1" id="chart-daily"></div>
                 </div>
 
                 <!-- Company Breakdown -->
-                <div class="card">
+                <div class="card lg:col-span-1">
                     <h3 class="text-sm font-semibold text-text-primary mb-4" data-i18n="reports_center.chart.company_breakdown">Company Breakdown</h3>
                     <div id="company-breakdown" class="space-y-3"></div>
                 </div>
+
+                <!-- Type Breakdown -->
+                <div class="card lg:col-span-1">
+                    <h3 class="text-sm font-semibold text-text-primary mb-4" data-i18n="reports_center.chart.type_breakdown">By Transaction Type</h3>
+                    <div id="type-breakdown" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- High-frequency analysis -->
+            <div class="card" id="patterns-card">
+                <h3 class="text-sm font-semibold text-text-primary mb-3" data-i18n="reports_center.patterns.title">Transaction Pattern Alerts</h3>
+                <p class="text-xs text-text-muted mb-3" data-i18n="reports_center.patterns.hint">Clients with 4+ transfers on a single day in this period — useful for KPI review and compliance checks.</p>
+                <div id="high-freq-list" class="space-y-2"></div>
             </div>
 
             <!-- Tabs: Top Senders / Transactions / Barri Reports -->
@@ -368,13 +410,13 @@
         .company-bar-fill { height: 100%; border-radius: 9999px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 
-    <script src="assets/js/i18n.js"></script>
-    <script src="assets/js/app.js"></script>
+    <script src="assets/js/i18n.js?v=20260714d"></script>
+    <script src="assets/js/app.js?v=20260714d"></script>
     <script type="module">
 
     const RC = {
         data: null,
-        currentPeriod: 'daily',
+        currentPeriod: 'monthly',
         currentPage: 1,
         fincenLimit: 3000,
 
@@ -460,8 +502,11 @@
                 this.fincenLimit = parseFloat(data.fincen_limit) || 3000;
                 this.populateFilters(data);
                 this.renderSummary(data.summary, data.fincen_flagged);
+                this.renderKpis(data.kpis || {}, data.patterns || {});
                 this.renderDailyChart(data.daily_breakdown);
                 this.renderCompanyBreakdown(data.companies);
+                this.renderTypeBreakdown(data.type_breakdown || []);
+                this.renderHighFrequency(data.patterns?.high_frequency_clients || []);
                 this.renderTopSenders(data.top_senders);
                 this.renderTransactions(data.transactions, data.total_rows, data.page, data.pages);
                 this.renderBarriReports(data.barri_reports);
@@ -509,6 +554,55 @@
             document.getElementById('stat-txns').textContent = parseInt(s.total_transactions).toLocaleString();
             document.getElementById('stat-senders').textContent = parseInt(s.unique_senders).toLocaleString();
             document.getElementById('stat-fincen').textContent = fincen;
+        },
+
+        renderKpis(kpis, patterns) {
+            document.getElementById('kpi-avg-ticket').textContent = App.money(kpis.avg_ticket || 0);
+            document.getElementById('kpi-fee-rate').textContent = (kpis.fee_rate_pct || 0) + '%';
+            document.getElementById('kpi-txns-sender').textContent = kpis.txns_per_sender || 0;
+            document.getElementById('kpi-over-limit').textContent = kpis.over_limit_clients || 0;
+            document.getElementById('kpi-high-freq').textContent = kpis.high_frequency_days || 0;
+            document.getElementById('kpi-other-services').textContent = App.money(kpis.other_services_principal || 0);
+            document.getElementById('kpi-other-services-meta').textContent = this.t('reports_center.kpi.other_services_meta', {
+                count: kpis.other_services_count || 0,
+                fees: App.money(kpis.other_services_fees || 0),
+            });
+        },
+
+        renderTypeBreakdown(types) {
+            const el = document.getElementById('type-breakdown');
+            if (!types || types.length === 0) {
+                el.innerHTML = '<p class="text-sm text-text-muted text-center py-4">' + this.esc(this.t('reports_center.empty.no_company_data')) + '</p>';
+                return;
+            }
+            const maxTotal = Math.max(...types.map(t => parseFloat(t.total_principal) || 0), 1);
+            el.innerHTML = types.map((t) => {
+                const pct = (parseFloat(t.total_principal) / maxTotal) * 100;
+                const label = String(t.txn_type || 'unknown').replace(/_/g, ' ');
+                return `<div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium capitalize">${this.esc(label)}</span>
+                        <span class="text-sm font-mono tabular-nums">${App.money(t.total_principal)} · ${t.count}</span>
+                    </div>
+                    <div class="company-bar-bg"><div class="company-bar-fill" style="width:${pct}%;background:oklch(0.55 0.12 50)"></div></div>
+                </div>`;
+            }).join('');
+        },
+
+        renderHighFrequency(rows) {
+            const el = document.getElementById('high-freq-list');
+            if (!rows || rows.length === 0) {
+                el.innerHTML = '<p class="text-sm text-text-muted">' + this.esc(this.t('reports_center.patterns.empty')) + '</p>';
+                return;
+            }
+            el.innerHTML = rows.map((r) => `
+                <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-bg-elevated border border-border">
+                    <div class="min-w-0">
+                        <a href="clients?id=${encodeURIComponent(r.client_id)}" class="text-sm font-medium text-accent hover:underline">${this.esc(r.client_name || '')}</a>
+                        <p class="text-xs text-text-muted">${this.esc(r.txn_date || '')}</p>
+                    </div>
+                    <span class="badge badge-warning text-xs shrink-0">${this.esc(this.t('reports_center.patterns.day_count', { count: r.day_count }))}</span>
+                </div>`).join('');
         },
 
         renderDailyChart(days) {
