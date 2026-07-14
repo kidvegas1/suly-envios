@@ -289,6 +289,14 @@ function barri_refresh_report_totals(PDO $pdo, int $reportId): void {
     ]);
 }
 
+function barri_truncate(string $value, int $maxLen): string {
+    if ($maxLen <= 0) return '';
+    if (function_exists('mb_substr')) {
+        return mb_strlen($value) > $maxLen ? mb_substr($value, 0, $maxLen) : $value;
+    }
+    return strlen($value) > $maxLen ? substr($value, 0, $maxLen) : $value;
+}
+
 function barri_import_report(PDO $pdo, array $user, array $data, array $options = []): array {
     $explicitStore = $options['explicit_store'] ?? null;
     $pdfFile = $options['pdf_file'] ?? null;
@@ -297,6 +305,8 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
     $sourceLabel = $options['source_label'] ?? barri_report_label($data);
 
     try {
+        // Large Viamericas/Estado reports can be 40+ pages / 900+ txns.
+        set_time_limit(300);
         $data = barri_normalize_report_data($data);
         validate_required($data, ['agency_name', 'report_date_from', 'report_date_to', 'transactions']);
 
@@ -416,6 +426,10 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         $transferIns = $pdo->prepare('INSERT INTO transfers (client_id, store_id, transaction_code, beneficiary, date_sent, amount_usd, fee, tax, company, transaction_type, source) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         $markPushed = $pdo->prepare('UPDATE barri_transactions SET pushed_to_transfers = ' . sql_bool(true) . ', transfer_id = ? WHERE id = ?');
         $clientLookup = $pdo->prepare('SELECT id, name FROM clients WHERE LOWER(name) = LOWER(?) LIMIT 2');
+        $clientInsert = $pdo->prepare('INSERT INTO clients (name, phone, monthly_limit, notes) VALUES (?,?,3000,?)');
+
+        // Cache lookups — large Estado reports repeat many sender names.
+        $clientCache = [];
 
         $matchedCount = 0;
         $unmatchedCount = 0;
@@ -424,7 +438,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         $sideFinanceCount = 0;
         $skippedMissingCustomer = 0;
         $namelessMoneyOrders = [];
-        foreach ($data['transactions'] as $txn) {
+        foreach ($data['transactions'] as $txnIndex => $txn) {
             $custName = trim($txn['customer_name'] ?? '');
             $isNamelessMo = barri_is_nameless_money_order($txn);
             $isSideTxn = $isSideFinance
@@ -438,7 +452,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             $txnDate = !empty($txn['transaction_date']) ? sanitize($txn['transaction_date']) : $dateFrom;
 
             $clientId = null;
-            $isMatched = 0;
+            $isMatched = false;
             if ($isSideTxn) {
                 $refLabel = trim($txn['reference'] ?? $txn['reference_number'] ?? '');
                 $custName = trim($txn['side_label'] ?? '')
@@ -449,72 +463,102 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
                     $namelessMoneyOrders[] = $txn;
                 }
             } else {
-                $clientLookup->execute([$custName]);
-                $matches = $clientLookup->fetchAll();
-                if (count($matches) === 1) {
-                    $clientId = (int)$matches[0]['id'];
-                    $isMatched = 1;
-                    $matchedCount++;
-                } elseif (count($matches) === 0) {
-                    $pdo->prepare('INSERT INTO clients (name, phone, monthly_limit, notes) VALUES (?,?,3000,?)')
-                        ->execute([sanitize($custName), '', 'Auto-created from ' . $company . ' report']);
-                    $clientId = sql_last_insert_id($pdo, 'clients');
-                    $isMatched = 1;
-                    $matchedCount++;
-                    $createdCount++;
+                $cacheKey = mb_strtolower($custName, 'UTF-8');
+                if (array_key_exists($cacheKey, $clientCache)) {
+                    $cached = $clientCache[$cacheKey];
+                    if ($cached === false) {
+                        $unmatchedCount++;
+                    } else {
+                        $clientId = $cached;
+                        $isMatched = true;
+                        $matchedCount++;
+                    }
                 } else {
-                    $unmatchedCount++;
+                    $clientLookup->execute([$custName]);
+                    $matches = $clientLookup->fetchAll();
+                    if (count($matches) === 1) {
+                        $clientId = (int)$matches[0]['id'];
+                        $isMatched = true;
+                        $matchedCount++;
+                        $clientCache[$cacheKey] = $clientId;
+                    } elseif (count($matches) === 0) {
+                        $clientInsert->execute([
+                            barri_truncate(sanitize($custName), 200),
+                            '',
+                            'Auto-created from ' . $company . ' report',
+                        ]);
+                        $clientId = sql_last_insert_id($pdo, 'clients');
+                        $isMatched = true;
+                        $matchedCount++;
+                        $createdCount++;
+                        $clientCache[$cacheKey] = $clientId;
+                    } else {
+                        $unmatchedCount++;
+                        $clientCache[$cacheKey] = false;
+                    }
                 }
             }
 
             $typeMap = ['giros' => 'giros', 'money order' => 'money_order', 'bill payment' => 'bill_payment', 'nueva_orden' => 'nueva_orden', 'cheque_escaneado' => 'cheque_escaneado'];
             $rawType = strtolower(trim($txn['transaction_type'] ?? $txn['type'] ?? 'giros'));
-            $txnType = $typeMap[$rawType] ?? $rawType;
+            $txnType = barri_truncate($typeMap[$rawType] ?? $rawType, 30);
 
             $txnTime = $txn['transaction_time'] ?? $txn['time'] ?? '00:00';
+            if ($txnTime === '' || $txnTime === null) $txnTime = '00:00';
             if (strlen($txnTime) === 5) $txnTime .= ':00';
 
             $principal = (float)($txn['principal'] ?? 0);
             $txnFee = (float)($txn['fee'] ?? 0);
             $txnTax = (float)($txn['tax'] ?? 0);
             $txnTotal = (float)($txn['total'] ?? 0);
-            $refNum = sanitize($txn['reference_number'] ?? $txn['reference'] ?? '');
+            $refNum = barri_truncate(sanitize($txn['reference_number'] ?? $txn['reference'] ?? ''), 30);
 
-            $beneficiaryName = sanitize($txn['beneficiary_name'] ?? $txn['beneficiary'] ?? '');
-            $txnDescription = sanitize($txn['description'] ?? '');
+            $beneficiaryName = barri_truncate(sanitize($txn['beneficiary_name'] ?? $txn['beneficiary'] ?? ''), 200);
+            $txnDescription = barri_truncate(sanitize($txn['description'] ?? ''), 300);
 
             $amountReceived = (float)($txn['amount_received'] ?? 0);
-            $receivedCurrency = sanitize($txn['received_currency'] ?? '');
-            $payingBank = sanitize($txn['paying_bank'] ?? '');
-            $destCountry = sanitize($txn['destination_country'] ?? '');
-            $destState = sanitize($txn['destination_state'] ?? '');
-            $destCity = sanitize($txn['destination_city'] ?? '');
-            $paymentDate = !empty($txn['payment_date']) ? sanitize($txn['payment_date']) : null;
-            $txnStatus = sanitize($txn['transaction_status'] ?? $txn['status'] ?? '');
+            $receivedCurrency = barri_truncate(sanitize($txn['received_currency'] ?? ''), 10);
+            $payingBank = barri_truncate(sanitize($txn['paying_bank'] ?? ''), 200);
+            $destCountry = barri_truncate(sanitize($txn['destination_country'] ?? ''), 100);
+            $destState = barri_truncate(sanitize($txn['destination_state'] ?? ''), 100);
+            $destCity = barri_truncate(sanitize($txn['destination_city'] ?? ''), 200);
+            $rawPaymentDate = trim((string)($txn['payment_date'] ?? ''));
+            $paymentDate = $rawPaymentDate !== '' ? sanitize($rawPaymentDate) : null;
+            $txnStatus = barri_truncate(sanitize($txn['transaction_status'] ?? $txn['status'] ?? ''), 50);
 
-            $txnIns->execute([
-                $reportId, $storeId, $clientId,
-                $txnTime, $txnDate, $txnType,
-                $refNum, sanitize($custName),
-                $beneficiaryName, $txnDescription,
-                sanitize($txn['operator'] ?? ''), (int)($txn['quantity'] ?? $txn['qty'] ?? 1),
-                $principal, $txnFee, $txnTax, $txnTotal,
-                (float)($txn['running_balance'] ?? $txn['balance'] ?? 0),
-                (float)($txn['ag_commission'] ?? $txn['agcomm'] ?? 0),
-                (float)($txn['variable_fee'] ?? $txn['var_fee'] ?? 0),
-                (float)($txn['variable_fx'] ?? $txn['var_fx'] ?? 0),
-                db_bool($isMatched === 1),
-                $amountReceived, $receivedCurrency, $payingBank,
-                $destCountry, $destState, $destCity,
-                $paymentDate, $txnStatus
-            ]);
+            try {
+                $txnIns->execute([
+                    $reportId, $storeId, $clientId,
+                    $txnTime, $txnDate, $txnType,
+                    $refNum, barri_truncate(sanitize($custName), 200),
+                    $beneficiaryName, $txnDescription,
+                    barri_truncate(sanitize($txn['operator'] ?? ''), 30), (int)($txn['quantity'] ?? $txn['qty'] ?? 1),
+                    $principal, $txnFee, $txnTax, $txnTotal,
+                    (float)($txn['running_balance'] ?? $txn['balance'] ?? 0),
+                    (float)($txn['ag_commission'] ?? $txn['agcomm'] ?? 0),
+                    (float)($txn['variable_fee'] ?? $txn['var_fee'] ?? 0),
+                    (float)($txn['variable_fx'] ?? $txn['var_fx'] ?? 0),
+                    db_bool($isMatched),
+                    $amountReceived, $receivedCurrency, $payingBank,
+                    $destCountry, $destState, $destCity,
+                    $paymentDate, $txnStatus
+                ]);
+            } catch (\Throwable $rowError) {
+                throw new RuntimeException(
+                    'Failed on transaction #' . ($txnIndex + 1)
+                    . ' ref ' . ($refNum !== '' ? $refNum : '(none)')
+                    . ': ' . $rowError->getMessage(),
+                    0,
+                    $rowError
+                );
+            }
             $barriTxnId = sql_last_insert_id($pdo, 'barri_transactions');
 
             if (!$isSideTxn && $isMatched && $clientId) {
-                $typeLabel = str_replace('_', ' ', $txnType);
+                $typeLabel = barri_truncate(str_replace('_', ' ', $txnType), 30);
                 $dateSent = $txnDate . ' ' . $txnTime;
-                $transferBeneficiary = $beneficiaryName ?: sanitize($custName);
-                $transferCompany = $company ?: 'Barri';
+                $transferBeneficiary = $beneficiaryName ?: barri_truncate(sanitize($custName), 200);
+                $transferCompany = barri_truncate($company ?: 'Barri', 50);
                 $transferIns->execute([
                     $clientId, $storeId, $refNum,
                     $transferBeneficiary, $dateSent, $principal,
@@ -559,6 +603,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
+        error_log('[barri_import_report] ' . $e->getMessage());
         return [
             'status' => 'failed',
             'label' => $sourceLabel,
@@ -738,7 +783,7 @@ if ($method === 'POST') {
 
     // Handle multipart import (PDF file + JSON data)
     if (!empty($_POST['action']) && $_POST['action'] === 'import') {
-        set_time_limit(120);
+        set_time_limit(300);
         $data = json_decode($_POST['data'] ?? '{}', true) ?: [];
         if (empty($data)) json_error('No report data received. The payload may be too large.');
 

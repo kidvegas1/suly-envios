@@ -57,9 +57,13 @@ function sql_bool(bool $value): string {
     return $value ? '1' : '0';
 }
 
-/** Boolean value for PDO prepared-statement binds. */
-function db_bool(bool $value): bool|int {
-    return db_is_pgsql() ? $value : ($value ? 1 : 0);
+/**
+ * Boolean value for PDO prepared-statement binds.
+ * Always use 0/1 — PDO pgsql can send PHP false as "" which Postgres rejects
+ * with: invalid input syntax for type boolean: ""
+ */
+function db_bool(bool $value): int {
+    return $value ? 1 : 0;
 }
 
 function sql_year(string $col): string {
