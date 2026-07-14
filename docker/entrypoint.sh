@@ -42,6 +42,12 @@ if [ -n "${DATABASE_URL:-}" ] && [ -f /var/www/html/supabase/migrations/001_init
         echo "[entrypoint] Applying company flags migration..."
         psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /var/www/html/migrate-company-flags.sql
       fi
+      activity_tbl="$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'client_activity_log'" 2>/dev/null || echo 0)"
+      activity_tbl="$(echo "$activity_tbl" | tr -d '[:space:]')"
+      if [ "${activity_tbl:-0}" = "0" ] && [ -f /var/www/html/migrate-client-security.sql ]; then
+        echo "[entrypoint] Applying client security migration..."
+        psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /var/www/html/migrate-client-security.sql
+      fi
     fi
   else
     echo "[entrypoint] WARNING: psql not found; skipping Postgres schema bootstrap."

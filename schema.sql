@@ -143,6 +143,66 @@ CREATE TABLE transfers (
     INDEX idx_store_date (store_id, date_sent)
 ) ENGINE=InnoDB;
 
+-- ── Client Activity Log ──
+CREATE TABLE client_activity_log (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id INT UNSIGNED NOT NULL,
+    store_id INT UNSIGNED DEFAULT NULL,
+    actor_user_id INT UNSIGNED DEFAULT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    summary VARCHAR(500) NOT NULL DEFAULT '',
+    payload TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (store_id) REFERENCES stores(id),
+    FOREIGN KEY (actor_user_id) REFERENCES users(id),
+    INDEX idx_client_activity_client (client_id),
+    INDEX idx_client_activity_created (created_at),
+    INDEX idx_client_activity_event (event_type)
+) ENGINE=InnoDB;
+
+-- ── Client Record Requests ──
+CREATE TABLE client_record_requests (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    requester_name VARCHAR(200) NOT NULL,
+    requester_phone VARCHAR(30) DEFAULT NULL,
+    matched_client_id INT UNSIGNED DEFAULT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    date_from DATE DEFAULT NULL,
+    date_to DATE DEFAULT NULL,
+    fulfilled_by_user_id INT UNSIGNED DEFAULT NULL,
+    fulfillment_notes TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fulfilled_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (matched_client_id) REFERENCES clients(id),
+    FOREIGN KEY (fulfilled_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+-- ── Transfer Security Alerts ──
+CREATE TABLE transfer_security_alerts (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    alert_type VARCHAR(50) NOT NULL,
+    severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+    client_id INT UNSIGNED DEFAULT NULL,
+    store_id INT UNSIGNED DEFAULT NULL,
+    transfer_id INT UNSIGNED DEFAULT NULL,
+    title VARCHAR(200) NOT NULL,
+    details TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP NULL DEFAULT NULL,
+    resolved_by_user_id INT UNSIGNED DEFAULT NULL,
+    resolution_notes TEXT DEFAULT NULL,
+    FOREIGN KEY (client_id) REFERENCES clients(id),
+    FOREIGN KEY (store_id) REFERENCES stores(id),
+    FOREIGN KEY (transfer_id) REFERENCES transfers(id),
+    FOREIGN KEY (resolved_by_user_id) REFERENCES users(id),
+    INDEX idx_security_alerts_status (status),
+    INDEX idx_security_alerts_type (alert_type),
+    INDEX idx_security_alerts_client (client_id),
+    INDEX idx_security_alerts_detected (detected_at)
+) ENGINE=InnoDB;
+
 -- ── Suly Ledger ──
 CREATE TABLE suly_ledger (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

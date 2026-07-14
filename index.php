@@ -65,6 +65,7 @@ $pageMap = [
     '/reports'        => 'pages/reports.html',
     '/reports-center' => 'pages/reports-center.html',
     '/analytics'      => 'pages/analytics.html',
+    '/security'       => 'pages/security.html',
     '/stores'         => 'pages/stores.html',
 ];
 

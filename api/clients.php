@@ -3,6 +3,8 @@ $user = auth_require();
 $method = get_method();
 $pdo = db();
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/client-activity.php';
+require_once __DIR__ . '/../includes/transfer-security.php';
 
 function fincen_period_options(): array {
     return [
@@ -92,6 +94,8 @@ if ($method === 'GET') {
                 fn(array $receiver) => with_stored_file_urls($receiver, ['id_path']),
                 $receivers->fetchAll()
             ),
+            'activity'        => client_activity_list($pdo, $clientId, 30),
+            'security_alerts' => transfer_security_open_for_client($pdo, $clientId),
         ]);
     }
 
@@ -194,6 +198,7 @@ if ($method === 'POST') {
             if (!$path) json_error('Upload failed');
             $pdo->prepare('UPDATE clients SET income_doc_path = ?, income_verified = ' . sql_bool(true) . ', monthly_limit = ? WHERE id = ?')
                 ->execute([$path, $newLimit, $clientId]);
+            client_activity_log($pdo, $clientId, 'income_uploaded', 'Income doc uploaded, limit: $' . number_format($newLimit, 2), (int)$user['id']);
             json_response(['success' => true, 'path' => $path, 'path_url' => stored_file_url($path), 'new_limit' => $newLimit]);
         }
 
@@ -206,6 +211,7 @@ if ($method === 'POST') {
             if (!$path) json_error('Upload failed');
             $pdo->prepare('UPDATE clients SET sender_id_path = ?, sender_id_type = ? WHERE id = ?')
                 ->execute([$path, $idType, $clientId]);
+            client_activity_log($pdo, $clientId, 'id_uploaded', 'Client ID uploaded (' . $idType . ')', (int)$user['id']);
             json_response(['success' => true, 'path' => $path, 'path_url' => stored_file_url($path)]);
         }
 
@@ -259,6 +265,7 @@ if ($method === 'POST') {
             sanitize($data['notes'] ?? ''),
             (int)$data['id'],
         ]);
+        client_activity_log($pdo, $clientId, 'client_updated', 'Client profile updated', (int)$user['id']);
         json_response(['success' => true]);
     }
 
@@ -304,28 +311,38 @@ if ($method === 'POST') {
             sanitize($data['company'] ?? ''),
         ]);
 
+        $newTransferId = sql_last_insert_id($pdo, 'transfers');
+
+        client_activity_log($pdo, $clientId, 'transfer_added', "Transfer #{$newTransferId} \${$newAmount} to " . sanitize($data['beneficiary']), (int)$user['id']);
+        $secAlerts = transfer_security_scan_transfer($pdo, $newTransferId);
+
         json_response([
-            'success'     => true,
-            'transfer_id' => sql_last_insert_id($pdo, 'transfers'),
-            'warning'     => $warning,
+            'success'         => true,
+            'transfer_id'     => $newTransferId,
+            'warning'         => $warning,
+            'security_alerts' => $secAlerts,
         ], 201);
     }
 
     if ($act === 'verify_income') {
         validate_required($data, ['client_id', 'new_limit']);
-        auth_require_client_store_access($pdo, (int)$data['client_id']);
+        $viClientId = (int)$data['client_id'];
+        auth_require_client_store_access($pdo, $viClientId);
         $stmt = $pdo->prepare('UPDATE clients SET income_verified = ' . sql_bool(true) . ', monthly_limit = ? WHERE id = ?');
-        $stmt->execute([(float)$data['new_limit'], (int)$data['client_id']]);
+        $stmt->execute([(float)$data['new_limit'], $viClientId]);
+        client_activity_log($pdo, $viClientId, 'income_verified', 'New limit: $' . number_format((float)$data['new_limit'], 2), (int)$user['id']);
         json_response(['success' => true]);
     }
 
     if ($act === 'update_limit') {
         validate_required($data, ['id', 'monthly_limit']);
-        auth_require_client_store_access($pdo, (int)$data['id']);
+        $ulClientId = (int)$data['id'];
+        auth_require_client_store_access($pdo, $ulClientId);
         $newLimit = max(0, (float)$data['monthly_limit']);
         $stmt = $pdo->prepare('UPDATE clients SET monthly_limit = ? WHERE id = ?');
-        $stmt->execute([$newLimit, (int)$data['id']]);
+        $stmt->execute([$newLimit, $ulClientId]);
         if ($stmt->rowCount() === 0) json_error('Client not found', 404);
+        client_activity_log($pdo, $ulClientId, 'limit_updated', 'New limit: $' . number_format($newLimit, 2), (int)$user['id']);
         json_response(['success' => true, 'monthly_limit' => $newLimit]);
     }
 
@@ -358,14 +375,17 @@ if ($method === 'POST') {
 
     if ($act === 'add_receiver') {
         validate_required($data, ['client_id', 'name']);
-        auth_require_client_store_access($pdo, (int)$data['client_id']);
+        $arClientId = (int)$data['client_id'];
+        auth_require_client_store_access($pdo, $arClientId);
         $stmt = $pdo->prepare('INSERT INTO receivers (client_id, name, phone, destination_country, destination_city, notes) VALUES (?,?,?,?,?,?)');
         $stmt->execute([
-            (int)$data['client_id'], sanitize($data['name']),
+            $arClientId, sanitize($data['name']),
             sanitize($data['phone'] ?? ''), sanitize($data['destination_country'] ?? ''),
             sanitize($data['destination_city'] ?? ''), sanitize($data['notes'] ?? '')
         ]);
-        json_response(['success' => true, 'receiver_id' => sql_last_insert_id($pdo, 'receivers')], 201);
+        $newRecId = sql_last_insert_id($pdo, 'receivers');
+        client_activity_log($pdo, $arClientId, 'receiver_added', 'Receiver: ' . sanitize($data['name']), (int)$user['id']);
+        json_response(['success' => true, 'receiver_id' => $newRecId], 201);
     }
 
     if ($act === 'update_receiver') {

@@ -46,6 +46,9 @@ php scripts/test-store-filter-bindings.php
 echo "== caja update guards =="
 php scripts/test-caja-update.php
 
+echo "== client security + txn analytics =="
+php scripts/test-client-security.php
+
 echo "== suly ledger mark paid =="
 php scripts/test-suly-ledger-paid.php
 

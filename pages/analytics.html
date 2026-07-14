@@ -53,6 +53,7 @@
             <a href="statistics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="nav-label" data-i18n="nav.statistics">Statistics</span></a>
             <a href="reports" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg><span class="nav-label" data-i18n="nav.reports">Reports</span></a>
             <a href="analytics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="nav-label" data-i18n="nav.analytics">Analytics</span></a>
+            <a href="security" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="nav-label" data-i18n="nav.security">Security</span></a>
             <a href="reports-center" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="nav-label" data-i18n="nav.reports_center">Reports Center</span></a>
             <a href="accounting" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M10 3v18"/></svg><span class="nav-label" data-i18n="nav.accounting">Accounting</span></a>
             <a href="inventory" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><span class="nav-label" data-i18n="nav.inventory">Inventory</span></a>
@@ -211,7 +212,84 @@
                 </div>
             </section>
 
-            <!-- Row 5: Export -->
+            <!-- Row 5: Transactional Analysis -->
+            <section class="card" id="txn-analysis-section">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider" data-i18n="analytics.txn_heading">Transactional Analysis</h3>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-text-muted" data-i18n="analytics.txn_date_from">From</label>
+                            <input type="date" id="txn-date-from" class="input py-1.5 px-2 text-sm w-36">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-text-muted" data-i18n="analytics.txn_date_to">To</label>
+                            <input type="date" id="txn-date-to" class="input py-1.5 px-2 text-sm w-36">
+                        </div>
+                        <button id="txn-load-btn" class="btn-primary text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span data-i18n="analytics.txn_load">Load Analysis</span>
+                        </button>
+                        <button id="txn-export-btn" class="btn-secondary text-sm hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span data-i18n="analytics.txn_export_csv">Export CSV</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="txn-results" class="hidden space-y-6">
+                    <!-- Summary cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="txn-summary-cards"></div>
+
+                    <!-- Patterns & Alerts -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="txn-pattern-cards"></div>
+
+                    <!-- Company Mix Table -->
+                    <div class="card p-0 overflow-hidden bg-bg-elevated">
+                        <div class="px-5 py-3 border-b border-border">
+                            <h4 class="text-xs font-semibold text-text-secondary uppercase tracking-wider" data-i18n="analytics.txn_company_mix">Company Mix</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[600px]">
+                                <thead>
+                                    <tr class="border-b border-border">
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_company">Company</th>
+                                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_count">Transfers</th>
+                                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_principal">Principal</th>
+                                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_fees">Fees</th>
+                                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_clients">Unique Clients</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="txn-company-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- High-Frequency Clients Table -->
+                    <div class="card p-0 overflow-hidden bg-bg-elevated">
+                        <div class="px-5 py-3 border-b border-border">
+                            <h4 class="text-xs font-semibold text-text-secondary uppercase tracking-wider" data-i18n="analytics.txn_high_freq">High-Frequency Clients</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[500px]">
+                                <thead>
+                                    <tr class="border-b border-border">
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_client">Client</th>
+                                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_days">Active Days</th>
+                                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-text-muted uppercase tracking-wider" data-i18n="analytics.txn_col_last_txn">Last Transaction</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="txn-hf-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="txn-empty" class="text-center py-8">
+                    <p class="text-sm text-text-muted" data-i18n="analytics.txn_no_data">No transactional data for the selected period.</p>
+                </div>
+            </section>
+
+            <!-- Row 6: Export -->
             <section class="card flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-semibold text-text-primary" data-i18n="analytics.export_title">Export Full Dataset</h3>
@@ -509,7 +587,165 @@
                 refreshStoreFilter();
                 if (analyticsData) renderFromCache();
                 else loadData();
+                if (txnData) renderTxnResults(txnData);
             });
+
+            // ── Transactional Analysis ──────────────────────────
+            const txnDateFrom = document.getElementById('txn-date-from');
+            const txnDateTo   = document.getElementById('txn-date-to');
+            const txnLoadBtn  = document.getElementById('txn-load-btn');
+            const txnExportBtn = document.getElementById('txn-export-btn');
+            const txnResults  = document.getElementById('txn-results');
+            const txnEmpty    = document.getElementById('txn-empty');
+            let txnData = null;
+
+            {
+                const today = new Date();
+                const ago90 = new Date(today);
+                ago90.setDate(ago90.getDate() - 90);
+                txnDateTo.value = today.toISOString().slice(0, 10);
+                txnDateFrom.value = ago90.toISOString().slice(0, 10);
+            }
+
+            txnLoadBtn.addEventListener('click', loadTxnAnalysis);
+
+            async function loadTxnAnalysis() {
+                const btnLabel = txnLoadBtn.querySelector('span');
+                const origText = btnLabel.textContent;
+                btnLabel.textContent = App.t('analytics.txn_loading');
+                txnLoadBtn.disabled = true;
+                try {
+                    const params = new URLSearchParams({
+                        date_from: txnDateFrom.value,
+                        date_to: txnDateTo.value,
+                    });
+                    if (App.currentStore?.id) params.set('store_id', App.currentStore.id);
+                    const year = yearSel.value;
+                    if (year) params.set('year', year);
+
+                    txnData = await App.api('GET', `/api/transaction-analysis?${params}`);
+                    renderTxnResults(txnData);
+                } catch (err) {
+                    App.toast(err.message, 'danger');
+                } finally {
+                    btnLabel.textContent = origText;
+                    txnLoadBtn.disabled = false;
+                }
+            }
+
+            function renderTxnResults(data) {
+                const s = data.summary || {};
+                const hasData = (parseInt(s.count) || 0) > 0;
+
+                txnResults.classList.toggle('hidden', !hasData);
+                txnEmpty.classList.toggle('hidden', hasData);
+                txnExportBtn.classList.toggle('hidden', !hasData);
+
+                if (!hasData) return;
+
+                renderTxnSummary(s);
+                renderTxnPatterns(data.patterns || {}, data.open_alert_counts || {});
+                renderTxnCompanyTable(data.by_company || []);
+                renderTxnHighFreq((data.patterns || {}).high_frequency_clients || []);
+            }
+
+            function renderTxnSummary(s) {
+                const cards = document.getElementById('txn-summary-cards');
+                cards.innerHTML = [
+                    txnCard(App.t('analytics.txn_summary_count'), (parseInt(s.count) || 0).toLocaleString(), 'stat-icon-info'),
+                    txnCard(App.t('analytics.txn_summary_principal'), App.money(s.principal), 'stat-icon-accent'),
+                    txnCard(App.t('analytics.txn_summary_fees'), App.money(s.fees), 'stat-icon-success'),
+                    txnCard(App.t('analytics.txn_summary_clients'), (parseInt(s.unique_clients) || 0).toLocaleString(), 'stat-icon-warning'),
+                    txnCard(App.t('analytics.txn_summary_companies'), (parseInt(s.companies) || 0).toLocaleString(), 'stat-icon-info'),
+                ].join('');
+            }
+
+            function txnCard(label, value, iconClass) {
+                return `<div class="rounded-xl border border-border bg-bg-surface p-4">
+                    <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">${label}</p>
+                    <p class="text-lg font-bold font-mono tabular-nums mt-1">${value}</p>
+                </div>`;
+            }
+
+            function renderTxnPatterns(p, alerts) {
+                const cards = document.getElementById('txn-pattern-cards');
+                const alertTotal = (parseInt(alerts.low) || 0) + (parseInt(alerts.medium) || 0) + (parseInt(alerts.high) || 0);
+                const alertBadges = alertTotal > 0
+                    ? `<div class="flex gap-1 mt-1.5 flex-wrap">
+                        ${(alerts.high || 0) > 0 ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-danger/15 text-danger">${App.t('analytics.txn_alert_high')}: ${alerts.high}</span>` : ''}
+                        ${(alerts.medium || 0) > 0 ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-warning/15 text-warning">${App.t('analytics.txn_alert_medium')}: ${alerts.medium}</span>` : ''}
+                        ${(alerts.low || 0) > 0 ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-info/15 text-info">${App.t('analytics.txn_alert_low')}: ${alerts.low}</span>` : ''}
+                    </div>`
+                    : '';
+
+                cards.innerHTML = [
+                    txnCard(App.t('analytics.txn_avg_amount'), App.money(p.avg_amount)),
+                    txnCard(App.t('analytics.txn_median'), App.money(p.median)),
+                    txnCard(App.t('analytics.txn_multi_store'), (parseInt(p.multi_store_clients_count) || 0).toLocaleString()),
+                    txnCard(App.t('analytics.txn_over_limit'), (parseInt(p.over_limit_clients_count) || 0).toLocaleString()),
+                    `<div class="rounded-xl border border-border bg-bg-surface p-4">
+                        <p class="text-[10px] font-semibold text-text-muted uppercase tracking-wider">${App.t('analytics.txn_open_alerts')}</p>
+                        <p class="text-lg font-bold font-mono tabular-nums mt-1">${alertTotal.toLocaleString()}</p>
+                        ${alertBadges}
+                        ${alertTotal > 0 ? `<a href="security" class="text-[10px] font-semibold text-accent hover:text-accent-hover mt-1.5 inline-block">${App.t('analytics.txn_view_security')} →</a>` : ''}
+                    </div>`,
+                ].join('');
+            }
+
+            function renderTxnCompanyTable(companies) {
+                const tbody = document.getElementById('txn-company-tbody');
+                if (!companies.length) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-text-muted py-6 text-sm">${App.t('analytics.txn_no_data')}</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = companies.map(c => `<tr class="border-b border-border/50 hover:bg-bg-elevated/50 transition-colors">
+                    <td class="px-4 py-2.5 text-sm font-medium">${c.company || '—'}</td>
+                    <td class="px-4 py-2.5 text-sm font-mono tabular-nums text-right">${(parseInt(c.count) || 0).toLocaleString()}</td>
+                    <td class="px-4 py-2.5 text-sm font-mono tabular-nums text-right">${App.money(c.principal)}</td>
+                    <td class="px-4 py-2.5 text-sm font-mono tabular-nums text-right">${App.money(c.fees)}</td>
+                    <td class="px-4 py-2.5 text-sm font-mono tabular-nums text-right">${(parseInt(c.unique_clients) || 0).toLocaleString()}</td>
+                </tr>`).join('');
+            }
+
+            function renderTxnHighFreq(clients) {
+                const tbody = document.getElementById('txn-hf-tbody');
+                if (!clients.length) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-text-muted py-6 text-sm">${App.t('analytics.txn_no_high_freq')}</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = clients.map(c => `<tr class="border-b border-border/50 hover:bg-bg-elevated/50 transition-colors">
+                    <td class="px-4 py-2.5 text-sm font-medium">
+                        <a href="clients?id=${c.client_id}" class="text-accent hover:text-accent-hover transition-colors">${c.client_name || '—'}</a>
+                    </td>
+                    <td class="px-4 py-2.5 text-sm font-mono tabular-nums text-right">${parseInt(c.day_count) || 0}</td>
+                    <td class="px-4 py-2.5 text-sm font-mono tabular-nums text-right">${App.formatDate(c.txn_date)}</td>
+                </tr>`).join('');
+            }
+
+            txnExportBtn.addEventListener('click', async () => {
+                try {
+                    const res = await App.api('POST', '/api/transaction-analysis', {
+                        action: 'export',
+                        date_from: txnDateFrom.value,
+                        date_to: txnDateTo.value,
+                    });
+                    if (res.csv) {
+                        const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = res.filename || `transaction_analysis_${txnDateFrom.value}_to_${txnDateTo.value}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                        App.toastKey('toast.csv_downloaded', 'success');
+                    }
+                } catch (err) {
+                    App.toast(err.message, 'danger');
+                }
+            });
+
         })();
     </script>
 </body>
