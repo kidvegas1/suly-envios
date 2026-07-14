@@ -80,21 +80,65 @@ if ($method === 'GET') {
 
         if (auth_is_admin()) {
             $tStmt = $pdo->prepare(
-                "SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id
-                 WHERE t.client_id = ? ORDER BY t.date_sent DESC LIMIT ? OFFSET ?"
+                "SELECT t.*, s.name as store_name,
+                        bt.reference_number AS report_reference,
+                        br.id AS report_id,
+                        br.original_name AS report_original_name,
+                        br.filename AS report_filename,
+                        br.company AS report_company,
+                        br.report_type AS report_type,
+                        br.report_date_from AS report_date_from,
+                        br.report_date_to AS report_date_to
+                 FROM transfers t
+                 LEFT JOIN stores s ON s.id = t.store_id
+                 LEFT JOIN barri_transactions bt ON bt.transfer_id = t.id
+                 LEFT JOIN barri_reports br ON br.id = bt.report_id
+                 WHERE t.client_id = ?
+                 ORDER BY t.date_sent DESC LIMIT ? OFFSET ?"
             );
             $tStmt->execute([$clientId, $limit, $offset]);
             $tCount = $pdo->prepare('SELECT COUNT(*) FROM transfers WHERE client_id = ?');
             $tCount->execute([$clientId]);
+            $companyBreakdown = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(company), ''), 'Unknown') AS company,
+                        COUNT(*) AS cnt,
+                        COALESCE(SUM(amount_usd), 0) AS total
+                 FROM transfers WHERE client_id = ?
+                 GROUP BY COALESCE(NULLIF(TRIM(company), ''), 'Unknown')
+                 ORDER BY total DESC"
+            );
+            $companyBreakdown->execute([$clientId]);
         } else {
             $storeId = resolve_store_id();
             $tStmt = $pdo->prepare(
-                "SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id
-                 WHERE t.client_id = ? AND t.store_id = ? ORDER BY t.date_sent DESC LIMIT ? OFFSET ?"
+                "SELECT t.*, s.name as store_name,
+                        bt.reference_number AS report_reference,
+                        br.id AS report_id,
+                        br.original_name AS report_original_name,
+                        br.filename AS report_filename,
+                        br.company AS report_company,
+                        br.report_type AS report_type,
+                        br.report_date_from AS report_date_from,
+                        br.report_date_to AS report_date_to
+                 FROM transfers t
+                 LEFT JOIN stores s ON s.id = t.store_id
+                 LEFT JOIN barri_transactions bt ON bt.transfer_id = t.id
+                 LEFT JOIN barri_reports br ON br.id = bt.report_id
+                 WHERE t.client_id = ? AND t.store_id = ?
+                 ORDER BY t.date_sent DESC LIMIT ? OFFSET ?"
             );
             $tStmt->execute([$clientId, $storeId, $limit, $offset]);
             $tCount = $pdo->prepare('SELECT COUNT(*) FROM transfers WHERE client_id = ? AND store_id = ?');
             $tCount->execute([$clientId, $storeId]);
+            $companyBreakdown = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(company), ''), 'Unknown') AS company,
+                        COUNT(*) AS cnt,
+                        COALESCE(SUM(amount_usd), 0) AS total
+                 FROM transfers WHERE client_id = ? AND store_id = ?
+                 GROUP BY COALESCE(NULLIF(TRIM(company), ''), 'Unknown')
+                 ORDER BY total DESC"
+            );
+            $companyBreakdown->execute([$clientId, $storeId]);
         }
         $totalTransfers = (int)$tCount->fetchColumn();
 
@@ -115,15 +159,16 @@ if ($method === 'GET') {
         }
 
         $response = [
-            'client'          => with_stored_file_urls($client),
-            'receivers'       => array_map(fn($r) => with_stored_file_urls($r, ['id_path']), $receivers->fetchAll()),
-            'transfers'       => $tStmt->fetchAll(),
-            'transfers_total' => $totalTransfers,
-            'transfers_page'  => $page,
-            'transfers_pages' => (int)ceil(max(1, $totalTransfers) / $limit),
-            'monthly_summary' => $msStmt->fetchAll(),
-            'activity_log'    => client_activity_list($pdo, $clientId, 50),
-            'security_alerts' => transfer_security_open_for_client($pdo, $clientId),
+            'client'            => with_stored_file_urls($client),
+            'receivers'         => array_map(fn($r) => with_stored_file_urls($r, ['id_path']), $receivers->fetchAll()),
+            'transfers'         => $tStmt->fetchAll(),
+            'transfers_total'   => $totalTransfers,
+            'transfers_page'    => $page,
+            'transfers_pages'   => (int)ceil(max(1, $totalTransfers) / $limit),
+            'company_breakdown' => $companyBreakdown->fetchAll(),
+            'monthly_summary'   => $msStmt->fetchAll(),
+            'activity_log'      => client_activity_list($pdo, $clientId, 50),
+            'security_alerts'   => transfer_security_open_for_client($pdo, $clientId),
         ];
 
         json_response($response);

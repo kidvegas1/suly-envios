@@ -193,6 +193,11 @@
 
                     <!-- Transfers -->
                     <div class="lg:col-span-2 space-y-4">
+                        <div class="card" id="company-breakdown-card">
+                            <h4 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3" data-i18n="clients.company_breakdown">Money by Company</h4>
+                            <div class="space-y-2" id="company-breakdown"></div>
+                        </div>
+
                         <div class="flex items-center justify-between">
                             <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider" data-i18n="clients.transfer_history">Transfer History</h3>
                             <button id="add-transfer-btn" class="btn-primary text-xs py-1.5 px-3">
@@ -200,15 +205,16 @@
                                 <span data-i18n="clients.add_transfer">Add Transfer</span>
                             </button>
                         </div>
-                        <div class="table-container">
+                        <div class="table-container overflow-x-auto">
                             <table>
                                 <thead>
                                     <tr>
                                         <th data-i18n="common.date">Date</th>
+                                        <th data-i18n="clients.col.company">Company</th>
                                         <th data-i18n="clients.col.beneficiary">Beneficiary</th>
                                         <th data-i18n="clients.col.amount_usd">Amount USD</th>
-                                        <th data-i18n="clients.col.local">Local</th>
-                                        <th data-i18n="clients.col.bank">Bank</th>
+                                        <th data-i18n="clients.col.source">Source</th>
+                                        <th data-i18n="clients.col.report">Report / Origin</th>
                                         <th data-i18n="clients.col.destination">Destination</th>
                                     </tr>
                                 </thead>
@@ -978,21 +984,73 @@
                 form.querySelector('[name=monthly_limit]').value = c.monthly_limit;
                 form.querySelector('[name=notes]').value = c.notes || '';
 
+                // Company breakdown
+                const companyBox = document.getElementById('company-breakdown');
+                const companyCard = document.getElementById('company-breakdown-card');
+                const companies = res.company_breakdown || [];
+                if (!companies.length) {
+                    companyBox.innerHTML = `<p class="text-sm text-text-muted">${App.t('clients.empty.no_company_data')}</p>`;
+                } else {
+                    const maxCompany = Math.max(...companies.map(c => parseFloat(c.total) || 0), 1);
+                    companyBox.innerHTML = companies.map(row => {
+                        const total = parseFloat(row.total) || 0;
+                        const pct = Math.min(100, (total / maxCompany) * 100);
+                        return `
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold w-28 truncate" title="${escHtml(row.company)}">${escHtml(row.company)}</span>
+                            <div class="flex-1 progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+                            <span class="text-xs font-mono tabular-nums w-24 text-right">${App.money(total)}</span>
+                            <span class="text-xs text-text-muted w-14 text-right">${App.t('clients.txns_count', { count: row.cnt })}</span>
+                        </div>`;
+                    }).join('');
+                }
+                companyCard?.classList.remove('hidden');
+
                 // Transfers
                 const tbody = document.getElementById('transfers-tbody');
                 if (!res.transfers.length) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-text-muted py-6">${App.t('clients.empty.no_transfers')}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-text-muted py-6">${App.t('clients.empty.no_transfers')}</td></tr>`;
                 } else {
-                    tbody.innerHTML = res.transfers.map(t => `
+                    tbody.innerHTML = res.transfers.map(t => {
+                        const company = (t.company || t.report_company || '').trim() || App.t('empty.none');
+                        const sourceKey = String(t.source || 'manual').toLowerCase();
+                        const sourceLabel = App.t('clients.source.' + sourceKey);
+                        const sourceText = sourceLabel !== ('clients.source.' + sourceKey) ? sourceLabel : (t.source || 'manual');
+                        const reportName = (t.report_original_name || t.report_filename || '').trim();
+                        const reportType = (t.report_type || '').trim();
+                        const reportRef = (t.report_reference || t.transaction_code || '').trim();
+                        let originHtml;
+                        if (t.report_id && reportName) {
+                            const period = (t.report_date_from && t.report_date_to)
+                                ? `${App.formatDate(t.report_date_from)} – ${App.formatDate(t.report_date_to)}`
+                                : '';
+                            originHtml = `
+                                <div class="min-w-[12rem]">
+                                    <a href="reports?report_id=${encodeURIComponent(t.report_id)}" class="text-accent hover:underline text-sm font-medium" title="${escHtml(reportName)}">${escHtml(reportName)}</a>
+                                    <p class="text-[10px] text-text-muted mt-0.5">
+                                        ${reportType ? escHtml(reportType.toUpperCase()) + ' · ' : ''}${period ? escHtml(period) : ''}
+                                        ${reportRef ? '<br>Ref: ' + escHtml(reportRef) : ''}
+                                    </p>
+                                </div>`;
+                        } else if (sourceKey === 'manual') {
+                            originHtml = `<span class="text-xs text-text-muted">${App.t('clients.origin.manual')}</span>`;
+                        } else if (sourceKey === 'excel_import') {
+                            originHtml = `<span class="text-xs text-text-muted">${App.t('clients.origin.excel')}${reportRef ? ' · ' + escHtml(reportRef) : ''}</span>`;
+                        } else {
+                            originHtml = `<span class="text-xs text-text-muted">${escHtml(sourceText)}${reportRef ? ' · ' + escHtml(reportRef) : ''}</span>`;
+                        }
+                        const dest = [t.destination_country, t.destination_city].filter(Boolean).join(' · ');
+                        return `
                         <tr>
-                            <td class="text-sm">${App.formatDate(t.date_sent)}</td>
-                            <td class="font-medium text-sm">${t.beneficiary}</td>
+                            <td class="text-sm whitespace-nowrap">${App.formatDate(t.date_sent)}</td>
+                            <td><span class="badge badge-info text-[10px] uppercase">${escHtml(company)}</span></td>
+                            <td class="font-medium text-sm">${escHtml(t.beneficiary || '')}</td>
                             <td class="font-mono tabular-nums font-semibold">${App.money(t.amount_usd)}</td>
-                            <td class="font-mono tabular-nums text-sm text-text-secondary">${t.amount_local ? parseFloat(t.amount_local).toLocaleString() + ' ' + (t.currency || '') : App.t('empty.none')}</td>
-                            <td class="text-sm">${t.paying_bank || App.t('empty.none')}</td>
-                            <td class="text-xs text-text-muted">${t.destination_country || ''} ${t.destination_city ? '- ' + t.destination_city : ''}</td>
-                        </tr>
-                    `).join('');
+                            <td class="text-xs text-text-secondary whitespace-nowrap">${escHtml(sourceText)}</td>
+                            <td>${originHtml}</td>
+                            <td class="text-xs text-text-muted">${escHtml(dest || App.t('empty.none'))}${t.paying_bank ? '<br><span class="text-text-muted">' + escHtml(t.paying_bank) + '</span>' : ''}</td>
+                        </tr>`;
+                    }).join('');
                 }
 
                 // Monthly summary
@@ -1232,6 +1290,17 @@
                         <div><span class="text-text-muted block text-xs">${App.t('common.status')}</span><span>${c.income_verified ? App.t('clients.badge.verified') : App.t('clients.badge.standard')}</span></div>
                     </div></div>`;
 
+                // Company breakdown
+                const companies = res.company_breakdown || [];
+                if (companies.length) {
+                    html += `<div class="card"><h4 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">${App.t('clients.company_breakdown')}</h4>
+                        <div class="space-y-1">${companies.map(row => `
+                            <div class="flex items-center justify-between text-sm p-2 rounded-lg bg-bg-elevated">
+                                <span class="font-medium">${escHtml(row.company)}</span>
+                                <span class="font-mono tabular-nums">${App.money(row.total)} · ${App.t('clients.txns_count', { count: row.cnt })}</span>
+                            </div>`).join('')}</div></div>`;
+                }
+
                 // Monthly summary
                 const ms = res.monthly_summary || [];
                 if (ms.length) {
@@ -1246,17 +1315,29 @@
                 html += `<div class="card"><h4 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">${App.t('clients.dossier_transfers')} (${txns.length}${res.transfers_total > txns.length ? ' of ' + res.transfers_total : ''})</h4>`;
                 if (txns.length) {
                     html += `<div class="table-container max-h-[40vh] overflow-y-auto"><table><thead><tr>
-                        <th>${App.t('common.date')}</th><th>${App.t('clients.col.amount_usd')}</th>
-                        <th>${App.t('clients.col.company')}</th><th>${App.t('clients.col.beneficiary')}</th>
-                        <th>${App.t('clients.col.store')}</th><th>${App.t('clients.col.code')}</th>
-                    </tr></thead><tbody>${txns.map(t => `<tr>
-                        <td class="text-sm">${App.formatDate(t.date_sent)}</td>
+                        <th>${App.t('common.date')}</th><th>${App.t('clients.col.company')}</th>
+                        <th>${App.t('clients.col.amount_usd')}</th><th>${App.t('clients.col.beneficiary')}</th>
+                        <th>${App.t('clients.col.source')}</th><th>${App.t('clients.col.report')}</th>
+                        <th>${App.t('clients.col.store')}</th>
+                    </tr></thead><tbody>${txns.map(t => {
+                        const company = (t.company || t.report_company || '-').trim() || '-';
+                        const sourceKey = String(t.source || 'manual').toLowerCase();
+                        const sourceLabel = App.t('clients.source.' + sourceKey);
+                        const sourceText = sourceLabel !== ('clients.source.' + sourceKey) ? sourceLabel : (t.source || 'manual');
+                        const reportName = (t.report_original_name || t.report_filename || '').trim();
+                        const origin = reportName
+                            ? (t.report_id ? `<a href="reports?report_id=${encodeURIComponent(t.report_id)}" class="text-accent hover:underline">${escHtml(reportName)}</a>` : escHtml(reportName))
+                            : escHtml(sourceText);
+                        return `<tr>
+                        <td class="text-sm whitespace-nowrap">${App.formatDate(t.date_sent)}</td>
+                        <td class="text-sm font-medium">${escHtml(company)}</td>
                         <td class="font-mono tabular-nums text-sm">${App.money(t.amount_usd)}</td>
-                        <td class="text-sm">${escHtml(t.company || '-')}</td>
                         <td class="text-sm">${escHtml(t.beneficiary || '-')}</td>
+                        <td class="text-xs">${escHtml(sourceText)}</td>
+                        <td class="text-xs">${origin}</td>
                         <td class="text-sm">${escHtml(t.store_name || '-')}</td>
-                        <td class="text-xs font-mono text-text-muted">${escHtml(t.transaction_code || '-')}</td>
-                    </tr>`).join('')}</tbody></table></div>`;
+                    </tr>`;
+                    }).join('')}</tbody></table></div>`;
                 } else {
                     html += `<p class="text-sm text-text-muted">${App.t('clients.empty.no_transfers')}</p>`;
                 }

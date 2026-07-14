@@ -67,17 +67,73 @@ if ($method === 'GET') {
         $monthUsage = (float)$usage->fetch()['total'];
 
         if (auth_is_admin()) {
-            $transfers = $pdo->prepare('SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id WHERE t.client_id = ? ORDER BY t.date_sent DESC LIMIT 50');
+            $transfers = $pdo->prepare(
+                'SELECT t.*, s.name AS store_name,
+                        bt.id AS barri_txn_id,
+                        bt.reference_number AS report_reference,
+                        br.id AS report_id,
+                        br.original_name AS report_original_name,
+                        br.filename AS report_filename,
+                        br.company AS report_company,
+                        br.report_type AS report_type,
+                        br.report_date_from AS report_date_from,
+                        br.report_date_to AS report_date_to
+                 FROM transfers t
+                 LEFT JOIN stores s ON s.id = t.store_id
+                 LEFT JOIN barri_transactions bt ON bt.transfer_id = t.id
+                 LEFT JOIN barri_reports br ON br.id = bt.report_id
+                 WHERE t.client_id = ?
+                 ORDER BY t.date_sent DESC, t.id DESC
+                 LIMIT 100'
+            );
             $transfers->execute([$clientId]);
             $monthExpr = sql_date_format_ym('date_sent');
             $monthlySummary = $pdo->prepare("SELECT {$monthExpr} as month, COUNT(*) as cnt, SUM(amount_usd) as total FROM transfers WHERE client_id = ? GROUP BY {$monthExpr} ORDER BY month DESC LIMIT 12");
             $monthlySummary->execute([$clientId]);
+            $companyBreakdown = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(company), ''), 'Unknown') AS company,
+                        COUNT(*) AS cnt,
+                        COALESCE(SUM(amount_usd), 0) AS total
+                 FROM transfers
+                 WHERE client_id = ?
+                 GROUP BY COALESCE(NULLIF(TRIM(company), ''), 'Unknown')
+                 ORDER BY total DESC"
+            );
+            $companyBreakdown->execute([$clientId]);
         } else {
-            $transfers = $pdo->prepare('SELECT t.*, s.name as store_name FROM transfers t LEFT JOIN stores s ON s.id = t.store_id WHERE t.client_id = ? AND t.store_id = ? ORDER BY t.date_sent DESC LIMIT 50');
+            $transfers = $pdo->prepare(
+                'SELECT t.*, s.name AS store_name,
+                        bt.id AS barri_txn_id,
+                        bt.reference_number AS report_reference,
+                        br.id AS report_id,
+                        br.original_name AS report_original_name,
+                        br.filename AS report_filename,
+                        br.company AS report_company,
+                        br.report_type AS report_type,
+                        br.report_date_from AS report_date_from,
+                        br.report_date_to AS report_date_to
+                 FROM transfers t
+                 LEFT JOIN stores s ON s.id = t.store_id
+                 LEFT JOIN barri_transactions bt ON bt.transfer_id = t.id
+                 LEFT JOIN barri_reports br ON br.id = bt.report_id
+                 WHERE t.client_id = ? AND t.store_id = ?
+                 ORDER BY t.date_sent DESC, t.id DESC
+                 LIMIT 100'
+            );
             $transfers->execute($storeParams);
             $monthExpr = sql_date_format_ym('date_sent');
             $monthlySummary = $pdo->prepare("SELECT {$monthExpr} as month, COUNT(*) as cnt, SUM(amount_usd) as total FROM transfers WHERE client_id = ? AND store_id = ? GROUP BY {$monthExpr} ORDER BY month DESC LIMIT 12");
             $monthlySummary->execute($storeParams);
+            $companyBreakdown = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(company), ''), 'Unknown') AS company,
+                        COUNT(*) AS cnt,
+                        COALESCE(SUM(amount_usd), 0) AS total
+                 FROM transfers
+                 WHERE client_id = ? AND store_id = ?
+                 GROUP BY COALESCE(NULLIF(TRIM(company), ''), 'Unknown')
+                 ORDER BY total DESC"
+            );
+            $companyBreakdown->execute($storeParams);
         }
 
         // Receivers
@@ -85,17 +141,18 @@ if ($method === 'GET') {
         $receivers->execute([$clientId]);
 
         json_response([
-            'client'          => with_stored_file_urls($client),
-            'month_usage'     => $monthUsage,
-            'month_limit'     => (float)$client['monthly_limit'],
-            'transfers'       => $transfers->fetchAll(),
-            'monthly_summary' => $monthlySummary->fetchAll(),
-            'receivers'       => array_map(
+            'client'            => with_stored_file_urls($client),
+            'month_usage'       => $monthUsage,
+            'month_limit'       => (float)$client['monthly_limit'],
+            'transfers'         => $transfers->fetchAll(),
+            'company_breakdown' => $companyBreakdown->fetchAll(),
+            'monthly_summary'   => $monthlySummary->fetchAll(),
+            'receivers'         => array_map(
                 fn(array $receiver) => with_stored_file_urls($receiver, ['id_path']),
                 $receivers->fetchAll()
             ),
-            'activity'        => client_activity_list($pdo, $clientId, 30),
-            'security_alerts' => transfer_security_open_for_client($pdo, $clientId),
+            'activity'          => client_activity_list($pdo, $clientId, 30),
+            'security_alerts'   => transfer_security_open_for_client($pdo, $clientId),
         ]);
     }
 

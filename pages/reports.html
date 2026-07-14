@@ -617,7 +617,12 @@
 
             this.bindEvents();
             this.showView('list');
-            this.loadReports();
+            await this.loadReports();
+
+            const openReportId = parseInt(params.get('report_id') || '', 10);
+            if (openReportId > 0) {
+                this.viewReport(openReportId);
+            }
         },
 
         bindEvents() {
