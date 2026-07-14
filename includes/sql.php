@@ -145,3 +145,34 @@ function sql_last_insert_id(PDO $pdo, string $table, string $idColumn = 'id'): i
     }
     return (int)$pdo->lastInsertId();
 }
+
+/** Case-insensitive LIKE operator (ILIKE on Postgres). */
+function sql_like_op(): string {
+    return db_is_pgsql() ? 'ILIKE' : 'LIKE';
+}
+
+/**
+ * Accent-folded lowercase SQL expression for fuzzy name matching.
+ */
+function sql_fold_text(string $col): string {
+    $from = 'áéíóúüñàèìòùäëïöüçÁÉÍÓÚÜÑÀÈÌÒÙÄËÏÖÜÇ';
+    $to   = 'aeiouunaeiouaeiouc' . 'aeiouunaeiouaeiouc';
+    if (db_is_pgsql()) {
+        return "translate(lower({$col}), '{$from}', '{$to}')";
+    }
+    return "LOWER({$col})";
+}
+
+/** Normalize a user search string the same way as sql_fold_text. */
+function search_fold(string $s): string {
+    $s = mb_strtolower(trim($s), 'UTF-8');
+    $map = [
+        'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a',
+        'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+        'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+        'ñ' => 'n', 'ç' => 'c',
+    ];
+    return strtr($s, $map);
+}

@@ -79,7 +79,7 @@
             <div class="flex items-center gap-3 flex-wrap">
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" id="search-input" class="input py-2 pl-9 pr-4 text-sm w-52" data-i18n-placeholder="clients.search_placeholder" placeholder="Search clients...">
+                    <input type="text" id="search-input" class="input py-2 pl-9 pr-4 text-sm w-64 sm:w-80" data-i18n-placeholder="clients.search_placeholder" placeholder="Search clients...">
                 </div>
                 <button id="fincen-filter-btn" class="btn-secondary border-danger/20 text-danger hover:bg-danger/5" data-i18n-title="clients.fincen_filter_btn_title" title="Show FinCEN senders at or above the global limit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -477,8 +477,8 @@
         <div id="other-services-list" class="space-y-2"></div>
     </div>
 
-    <script src="assets/js/i18n.js?v=20260714c"></script>
-    <script src="assets/js/app.js?v=20260714c"></script>
+    <script src="assets/js/i18n.js?v=20260714e"></script>
+    <script src="assets/js/app.js?v=20260714e"></script>
     <script>
         function escHtml(s) {
             if (!s) return '';
@@ -650,7 +650,31 @@
             if (avatar && App.user?.name) avatar.textContent = App.user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
             applyClientsAttrI18n();
-            loadClients();
+
+            // Deep-link from Reports Center / bookmarks: /clients?client_id=123 or ?id=123
+            const deepLinkId = parseInt(
+                new URLSearchParams(window.location.search).get('client_id')
+                || new URLSearchParams(window.location.search).get('id')
+                || '',
+                10
+            );
+            if (Number.isFinite(deepLinkId) && deepLinkId > 0) {
+                await openClient(deepLinkId, { fromDeepLink: true });
+            } else {
+                loadClients();
+            }
+
+            window.addEventListener('popstate', () => {
+                const id = parseInt(new URLSearchParams(window.location.search).get('client_id') || '', 10);
+                if (Number.isFinite(id) && id > 0) {
+                    openClient(id, { skipHistory: true });
+                } else if (currentClientId) {
+                    document.getElementById('client-detail').classList.add('hidden');
+                    document.getElementById('client-list-view').classList.remove('hidden');
+                    currentClientId = null;
+                    loadClients();
+                }
+            });
 
             document.addEventListener('language-changed', () => {
                 applyClientsAttrI18n();
@@ -707,6 +731,10 @@
                 document.getElementById('client-detail').classList.add('hidden');
                 document.getElementById('client-list-view').classList.remove('hidden');
                 currentClientId = null;
+                const url = new URL(window.location.href);
+                url.searchParams.delete('client_id');
+                url.searchParams.delete('id');
+                history.pushState({}, '', url.pathname + (url.search || '') + url.hash);
                 loadClients();
             });
 
@@ -1080,10 +1108,18 @@
             }
         }
 
-        async function openClient(id) {
+        async function openClient(id, options = {}) {
             currentClientId = id;
             document.getElementById('client-list-view').classList.add('hidden');
             document.getElementById('client-detail').classList.remove('hidden');
+            if (!options.skipHistory) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('client_id', String(id));
+                url.searchParams.delete('id');
+                const next = url.pathname + '?' + url.searchParams.toString() + url.hash;
+                if (options.fromDeepLink) history.replaceState({ clientId: id }, '', next);
+                else history.pushState({ clientId: id }, '', next);
+            }
             await loadClientDetail(id);
         }
 

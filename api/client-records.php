@@ -30,7 +30,20 @@ if ($method === 'GET') {
         }
 
         $storeFilter = resolve_store_filter(!empty($_GET['store_id']) ? (int)$_GET['store_id'] : null);
-        $like = '%' . $name . '%';
+        $tokens = preg_split('/\s+/u', search_fold($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $tokens = array_values(array_filter($tokens, static fn($t) => mb_strlen($t) >= 1));
+        if ($tokens === []) {
+            $tokens = [search_fold($name)];
+        }
+        $nameFold = sql_fold_text('c.name');
+        $likeOp = sql_like_op();
+        $tokenSql = [];
+        $tokenParams = [];
+        foreach ($tokens as $token) {
+            $tokenSql[] = "{$nameFold} {$likeOp} ?";
+            $tokenParams[] = '%' . $token . '%';
+        }
+        $nameWhere = implode(' AND ', $tokenSql);
 
         if ($storeFilter !== null) {
             $stmt = $pdo->prepare(
@@ -39,11 +52,11 @@ if ($method === 'GET') {
                     (SELECT COUNT(*) FROM transfers WHERE client_id = c.id AND store_id = ?) as transfer_count,
                     (SELECT MAX(date_sent) FROM transfers WHERE client_id = c.id AND store_id = ?) as last_transfer
                  FROM clients c
-                 WHERE LOWER(c.name) LIKE LOWER(?)
+                 WHERE {$nameWhere}
                    AND EXISTS (SELECT 1 FROM transfers t_scope WHERE t_scope.client_id = c.id AND t_scope.store_id = ?)
                  ORDER BY c.name LIMIT 25"
             );
-            $stmt->execute([$storeFilter, $storeFilter, $storeFilter, $like, $storeFilter]);
+            $stmt->execute(array_merge([$storeFilter, $storeFilter, $storeFilter], $tokenParams, [$storeFilter]));
         } else {
             $stmt = $pdo->prepare(
                 "SELECT c.*,
@@ -51,10 +64,10 @@ if ($method === 'GET') {
                     (SELECT COUNT(*) FROM transfers WHERE client_id = c.id) as transfer_count,
                     (SELECT MAX(date_sent) FROM transfers WHERE client_id = c.id) as last_transfer
                  FROM clients c
-                 WHERE LOWER(c.name) LIKE LOWER(?)
+                 WHERE {$nameWhere}
                  ORDER BY c.name LIMIT 25"
             );
-            $stmt->execute([$like]);
+            $stmt->execute($tokenParams);
         }
 
         json_response(['clients' => $stmt->fetchAll()]);

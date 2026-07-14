@@ -598,7 +598,7 @@
             el.innerHTML = rows.map((r) => `
                 <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-bg-elevated border border-border">
                     <div class="min-w-0">
-                        <a href="clients?id=${encodeURIComponent(r.client_id)}" class="text-sm font-medium text-accent hover:underline">${this.esc(r.client_name || '')}</a>
+                        <a href="clients?client_id=${encodeURIComponent(r.client_id)}" class="text-sm font-medium text-accent hover:underline">${this.esc(r.client_name || '')}</a>
                         <p class="text-xs text-text-muted">${this.esc(r.txn_date || '')}</p>
                     </div>
                     <span class="badge badge-warning text-xs shrink-0">${this.esc(this.t('reports_center.patterns.day_count', { count: r.day_count }))}</span>
@@ -666,7 +666,7 @@
                     <td class="text-text-muted font-mono text-sm">${i + 1}</td>
                     <td>
                         <div>
-                            <p class="font-medium text-text-primary">${this.esc(s.name)}</p>
+                            <p class="font-medium text-text-primary"><a href="clients?client_id=${encodeURIComponent(s.id)}" class="text-accent hover:underline">${this.esc(s.name)}</a></p>
                             <p class="text-xs text-text-muted">${this.esc(s.phone || '')}</p>
                         </div>
                     </td>

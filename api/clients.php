@@ -230,7 +230,7 @@ if ($method === 'GET') {
     }
 
     // List clients with search and sorting
-    $search = $_GET['search'] ?? '';
+    $search = trim((string)($_GET['search'] ?? ''));
     $sort = $_GET['sort'] ?? 'name';
     $filter = $_GET['filter'] ?? '';
     $page = max(1, (int)($_GET['page'] ?? 1));
@@ -267,6 +267,9 @@ if ($method === 'GET') {
 
     if ($storeFilter) {
         $where = [clients_list_store_where($storeId)];
+    } elseif ($search !== '') {
+        // Searching: include clients even if they have no transfers yet
+        $where = ['1=1'];
     } else {
         $where = ['EXISTS (SELECT 1 FROM transfers t_scope WHERE t_scope.client_id = c.id)'];
     }
@@ -274,10 +277,26 @@ if ($method === 'GET') {
     $where[] = 'NOT ' . clients_is_service_bucket_sql('c');
     $params = [];
 
-    if ($search) {
-        $like = '%' . $search . '%';
-        $where[] = '(c.name LIKE ? OR c.phone LIKE ? OR c.client_code LIKE ?)';
-        array_push($params, $like, $like, $like);
+    if ($search !== '') {
+        $tokens = preg_split('/\s+/u', search_fold($search), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $tokens = array_values(array_filter($tokens, static fn($t) => mb_strlen($t) >= 1));
+        if ($tokens === []) {
+            $tokens = [search_fold($search)];
+        }
+        $nameFold = sql_fold_text('c.name');
+        $codeFold = sql_fold_text('COALESCE(c.client_code, \'\')');
+        $phoneFold = sql_fold_text('COALESCE(c.phone, \'\')');
+        $likeOp = sql_like_op();
+        $tokenClauses = [];
+        foreach ($tokens as $token) {
+            $like = '%' . $token . '%';
+            // Each word must appear somewhere in name/phone/code (AND across tokens)
+            $tokenClauses[] = "({$nameFold} {$likeOp} ? OR {$phoneFold} {$likeOp} ? OR {$codeFold} {$likeOp} ?)";
+            array_push($params, $like, $like, $like);
+        }
+        if ($tokenClauses) {
+            $where[] = '(' . implode(' AND ', $tokenClauses) . ')';
+        }
     }
 
     if ($filter === 'fincen') {
