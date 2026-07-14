@@ -216,7 +216,7 @@ body {
 ::-webkit-scrollbar-thumb { background: oklch(0.82 0.04 55); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.72 0.06 55); }
 
-/* ── Info tip (hover / focus / tap) ── */
+/* ── Info tip (hover / keyboard focus only) ── */
 .info-tip {
   position: relative;
   display: inline-flex;
@@ -234,12 +234,13 @@ body {
   flex-shrink: 0;
   vertical-align: middle;
   line-height: 0;
+  z-index: 1;
 }
 .info-tip:hover,
-.info-tip:focus-visible,
-.info-tip.is-open {
+.info-tip:focus-visible {
   color: oklch(0.55 0.12 50);
   outline: none;
+  z-index: 80;
 }
 .info-tip:focus-visible {
   box-shadow: 0 0 0 2px oklch(0.75 0.16 55 / 0.35);
@@ -247,10 +248,11 @@ body {
 .info-tip-bubble {
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 0.4rem);
-  transform: translateX(-50%) translateY(0.15rem);
+  top: calc(100% + 0.45rem);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-0.15rem);
   width: max-content;
-  max-width: min(16.5rem, calc(100vw - 2rem));
+  max-width: min(18rem, calc(100vw - 2rem));
   padding: 0.5rem 0.65rem;
   border-radius: 0.625rem;
   border: 1px solid oklch(0.90 0.01 70);
@@ -263,12 +265,12 @@ body {
   text-transform: none;
   letter-spacing: normal;
   white-space: pre-line;
-  box-shadow: 0 10px 28px oklch(0 0 0 / 0.12);
+  box-shadow: 0 10px 28px oklch(0 0 0 / 0.14);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease-out, transform 0.15s ease-out, visibility 0.15s;
-  z-index: 60;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out, visibility 0.12s;
+  z-index: 81;
 }
 .info-tip-wide .info-tip-bubble {
   max-width: min(20rem, calc(100vw - 2rem));
@@ -282,23 +284,22 @@ body {
   background: oklch(0.75 0.16 55 / 0.12);
 }
 .info-tip-lg:hover,
-.info-tip-lg:focus-visible,
-.info-tip-lg.is-open {
+.info-tip-lg:focus-visible {
   background: oklch(0.75 0.16 55 / 0.22);
   color: oklch(0.48 0.12 50);
 }
 .info-tip-bubble::after {
   content: '';
   position: absolute;
-  top: 100%;
+  bottom: 100%;
+  top: auto;
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: oklch(1 0 0);
+  border-bottom-color: oklch(1 0 0);
 }
 .info-tip:hover .info-tip-bubble,
-.info-tip:focus-visible .info-tip-bubble,
-.info-tip.is-open .info-tip-bubble {
+.info-tip:focus-visible .info-tip-bubble {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
@@ -306,7 +307,7 @@ body {
 .info-tip-end .info-tip-bubble {
   left: auto;
   right: 0;
-  transform: translateX(0) translateY(0.15rem);
+  transform: translateX(0) translateY(-0.15rem);
 }
 .info-tip-end .info-tip-bubble::after {
   left: auto;
@@ -314,9 +315,20 @@ body {
   transform: none;
 }
 .info-tip-end:hover .info-tip-bubble,
-.info-tip-end:focus-visible .info-tip-bubble,
-.info-tip-end.is-open .info-tip-bubble {
+.info-tip-end:focus-visible .info-tip-bubble {
   transform: translateX(0) translateY(0);
+}
+
+/* Only show custom tooltips on devices that support hover (avoids stuck overlays on tap) */
+@media (hover: none) {
+  .info-tip:hover .info-tip-bubble {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .info-tip:focus-visible .info-tip-bubble {
+    opacity: 1;
+    visibility: visible;
+  }
 }
 
 /* ── Mobile sidebar ── */

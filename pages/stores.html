@@ -461,7 +461,7 @@
             if (opts.wide) classes.push('info-tip-wide');
             if (opts.lg) classes.push('info-tip-lg');
             const label = opts.label ? t(opts.label) : text;
-            return `<button type="button" class="${classes.join(' ')}" aria-label="${esc(label)}" title="${esc(label)}" data-info-tip>
+            return `<button type="button" class="${classes.join(' ')}" aria-label="${esc(label)}" data-info-tip>
                 <svg xmlns="http://www.w3.org/2000/svg" width="${opts.lg ? 15 : 14}" height="${opts.lg ? 15 : 14}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                 <span class="info-tip-bubble" role="tooltip">${esc(text)}</span>
             </button>`;
@@ -604,10 +604,6 @@
                 tip.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    document.querySelectorAll('[data-info-tip].is-open').forEach((el) => {
-                        if (el !== tip) el.classList.remove('is-open');
-                    });
-                    tip.classList.toggle('is-open');
                 });
             });
         }
@@ -623,22 +619,6 @@
             document.getElementById('team-section')?.classList.remove('hidden');
             App.initSidebar();
             App.initUserMenu();
-            document.addEventListener('click', (e) => {
-                const tip = e.target.closest('[data-info-tip]');
-                document.querySelectorAll('[data-info-tip].is-open').forEach((el) => {
-                    if (el !== tip) el.classList.remove('is-open');
-                });
-                if (tip) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    tip.classList.toggle('is-open');
-                }
-            });
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    document.querySelectorAll('[data-info-tip].is-open').forEach((el) => el.classList.remove('is-open'));
-                }
-            });
             const avatar = document.getElementById('user-avatar');
             if (avatar && App.user && App.user.name) avatar.textContent = App.user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('page-date').textContent = new Date().toLocaleDateString(localeTag(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
