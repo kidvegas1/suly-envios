@@ -88,8 +88,12 @@
             </button>
         </header>
         <main class="p-6 lg:p-8 space-y-6">
-            <div id="balance-overview" class="hidden">
-                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6" id="balance-summary-cards"></div>
+            <div id="balance-overview" class="hidden space-y-3 mb-6">
+                <div class="flex items-center gap-1.5">
+                    <h3 class="text-sm font-semibold text-text-secondary uppercase tracking-wider" data-i18n="stores.balance.overview_title">Company report totals</h3>
+                    <span id="balance-overview-help"></span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="balance-summary-cards"></div>
             </div>
             <section id="team-section" class="card hidden">
                 <div class="flex items-center justify-between mb-4">
@@ -450,12 +454,27 @@
             return prefix + '$' + Math.abs(n).toLocaleString(localeTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        function infoTip(helpKey, opts = {}) {
+            const text = t(helpKey);
+            const classes = ['info-tip'];
+            if (opts.align === 'end') classes.push('info-tip-end');
+            if (opts.wide) classes.push('info-tip-wide');
+            if (opts.lg) classes.push('info-tip-lg');
+            const label = opts.label ? t(opts.label) : text;
+            return `<button type="button" class="${classes.join(' ')}" aria-label="${esc(label)}" title="${esc(label)}" data-info-tip>
+                <svg xmlns="http://www.w3.org/2000/svg" width="${opts.lg ? 15 : 14}" height="${opts.lg ? 15 : 14}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span class="info-tip-bubble" role="tooltip">${esc(text)}</span>
+            </button>`;
+        }
+
         function renderBalanceSummary(companySummary) {
             lastCompanySummary = companySummary;
             const container = document.getElementById('balance-summary-cards');
             const overview = document.getElementById('balance-overview');
+            const overviewHelp = document.getElementById('balance-overview-help');
             if (!companySummary.length) { overview.classList.add('hidden'); return; }
             overview.classList.remove('hidden');
+            if (overviewHelp) overviewHelp.innerHTML = infoTip('stores.balance.help.overview');
 
             container.innerHTML = companySummary.map(cs => {
                 const cc = getCC(cs.company);
@@ -470,10 +489,10 @@
                     </div>
                     <p class="text-xl font-bold ${cc.text} font-mono tabular-nums">${fmtMoney(totalAmount)}</p>
                     <p class="text-xs text-text-muted mt-1">${t('stores.balance.total_amount_txns', { amount: fmtMoney(totalAmount), count: parseInt(cs.total_transactions).toLocaleString(localeTag()) })}</p>
-                    <div class="flex items-center gap-3 mt-2 text-xs">
-                        <span class="text-text-secondary">${t('stores.balance.principal')}: ${fmtMoney(principal)}</span>
-                        <span class="text-text-secondary">${t('stores.balance.fees')}: ${fmtMoney(cs.total_fees)}</span>
-                        <span class="text-success font-medium">${t('stores.balance.comm')}: ${fmtMoney(commission)}</span>
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
+                        <span class="text-text-secondary inline-flex items-center gap-1">${t('stores.balance.principal')}${infoTip('stores.balance.help.principal')}: ${fmtMoney(principal)}</span>
+                        <span class="text-text-secondary inline-flex items-center gap-1">${t('stores.balance.fees')}${infoTip('stores.balance.help.fees')}: ${fmtMoney(cs.total_fees)}</span>
+                        <span class="text-success font-medium inline-flex items-center gap-1">${t('stores.balance.comm')}${infoTip('stores.balance.help.comm')}: ${fmtMoney(commission)}</span>
                     </div>
                 </div>`;
             }).join('');
@@ -497,9 +516,12 @@
                         : `<span class="text-lg font-bold font-mono tabular-nums text-danger">${fmtMoney(totalBal)}</span>`;
 
                     balanceHtml = '<div class="mt-3 pt-3 border-t border-border/50">'
-                        + '<div class="flex items-center justify-between mb-2">'
-                        + '<p class="text-xs font-semibold text-text-secondary uppercase tracking-wider">' + esc(t('stores.balance.account_balances')) + '</p>'
+                        + '<div class="flex items-center justify-between gap-2 mb-2">'
+                        + '<div class="text-xs font-semibold text-text-secondary uppercase tracking-wider">' + esc(t('stores.balance.account_balances')) + '</div>'
+                        + '<div class="flex items-center gap-1.5">'
                         + balBadge
+                        + infoTip('stores.balance.help.account_balances', { align: 'end', wide: true, lg: true, label: 'stores.balance.help.what_is_this' })
+                        + '</div>'
                         + '</div>'
                         + '<div class="space-y-2">'
                         + bal.companies.map(c => {
@@ -523,7 +545,7 @@
                             const cc = getCC(c.company);
                             const amt = c.total_amount || c.total_principal;
                             return `<div class="text-center">
-                                <p class="text-[10px] ${cc.text} font-semibold">${esc(c.company)}</p>
+                                <div class="text-[10px] ${cc.text} font-semibold">${esc(c.company)}</div>
                                 <p class="font-mono text-xs tabular-nums text-text-primary">${fmtMoney(amt)}</p>
                                 <p class="text-[9px] text-text-muted">${c.total_transactions} ${t('stores.txns_short')}</p>
                             </div>`;
@@ -533,7 +555,7 @@
 
                 let agencyHtml = '';
                 if (hasAgency) {
-                    agencyHtml = '<div class="mt-3 pt-3 border-t border-border/50"><p class="text-xs font-semibold text-accent/80 uppercase tracking-wider mb-2">' + esc(t('stores.report_integration')) + '</p><div class="grid grid-cols-2 gap-2">'
+                    agencyHtml = '<div class="mt-3 pt-3 border-t border-border/50"><div class="text-xs font-semibold text-accent/80 uppercase tracking-wider mb-2 inline-flex items-center gap-1">' + esc(t('stores.report_integration')) + infoTip('stores.balance.help.report_integration') + '</div><div class="grid grid-cols-2 gap-2">'
                         + (s.barri_agency_number ? '<div class="bg-bg-base/50 rounded-lg px-3 py-2"><p class="text-[10px] text-text-muted uppercase">' + esc(t('stores.company.barri')) + '</p><p class="font-mono text-sm text-text-primary">' + esc(s.barri_agency_number) + '</p></div>' : '')
                         + (s.barri_operator_number ? '<div class="bg-bg-base/50 rounded-lg px-3 py-2"><p class="text-[10px] text-text-muted uppercase">' + esc(t('stores.balance.operator')) + '</p><p class="font-mono text-sm text-text-primary">' + esc(s.barri_operator_number) + '</p></div>' : '')
                         + (s.viamericas_agency_number ? '<div class="bg-bg-base/50 rounded-lg px-3 py-2"><p class="text-[10px] text-text-muted uppercase">' + esc(t('stores.company.viamericas')) + '</p><p class="font-mono text-sm text-text-primary">' + esc(s.viamericas_agency_number) + '</p></div>' : '')
@@ -570,11 +592,22 @@
             });
 
             grid.querySelectorAll('[data-store-id]').forEach(card => {
-                card.addEventListener('click', () => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('[data-info-tip]')) return;
                     const storeId = card.dataset.storeId;
                     const store = storesList.find(st => st.id == storeId);
                     const name = store ? store.name : '';
                     window.location.href = `/reports?store_id=${storeId}&store_name=${encodeURIComponent(name)}`;
+                });
+            });
+            grid.querySelectorAll('[data-info-tip]').forEach(tip => {
+                tip.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    document.querySelectorAll('[data-info-tip].is-open').forEach((el) => {
+                        if (el !== tip) el.classList.remove('is-open');
+                    });
+                    tip.classList.toggle('is-open');
                 });
             });
         }
@@ -590,6 +623,22 @@
             document.getElementById('team-section')?.classList.remove('hidden');
             App.initSidebar();
             App.initUserMenu();
+            document.addEventListener('click', (e) => {
+                const tip = e.target.closest('[data-info-tip]');
+                document.querySelectorAll('[data-info-tip].is-open').forEach((el) => {
+                    if (el !== tip) el.classList.remove('is-open');
+                });
+                if (tip) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    tip.classList.toggle('is-open');
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('[data-info-tip].is-open').forEach((el) => el.classList.remove('is-open'));
+                }
+            });
             const avatar = document.getElementById('user-avatar');
             if (avatar && App.user && App.user.name) avatar.textContent = App.user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('page-date').textContent = new Date().toLocaleDateString(localeTag(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
