@@ -124,12 +124,14 @@
                                     <div class="flex flex-col gap-1.5" onclick="event.stopPropagation()">
                                         <span data-i18n="clients.col.fincen_limit">FinCEN Limit</span>
                                         <select id="fincen-period-select" class="input text-[11px] py-1 px-2 w-full" data-i18n-title="clients.fincen_period_select_title" title="Period to measure sender volume against the limit">
-                                            <option value="month" data-i18n="clients.fincen_period.month">Per Month</option>
-                                            <option value="3months" data-i18n="clients.fincen_period.3months">Last 3 Months</option>
-                                            <option value="6months" data-i18n="clients.fincen_period.6months">Last 6 Months</option>
-                                            <option value="12months" data-i18n="clients.fincen_period.12months">Last 12 Months</option>
+                                            <option value="month" data-i18n="clients.fincen_period.month">This Calendar Month</option>
+                                            <option value="previous_month" data-i18n="clients.fincen_period.previous_month">Previous Calendar Month</option>
+                                            <option value="3months" data-i18n="clients.fincen_period.3months">Last 3 Calendar Months</option>
+                                            <option value="6months" data-i18n="clients.fincen_period.6months">Last 6 Calendar Months</option>
+                                            <option value="12months" data-i18n="clients.fincen_period.12months">Last 12 Calendar Months</option>
                                             <option value="lifetime" data-i18n="clients.fincen_period.lifetime">Lifetime Total</option>
                                         </select>
+                                        <p id="fincen-period-range" class="text-[10px] text-text-muted leading-tight font-mono"></p>
                                         <div class="flex items-center gap-0.5">
                                             <span class="text-text-muted text-xs">$</span>
                                             <input type="number"
@@ -477,7 +479,7 @@
         <div id="other-services-list" class="space-y-2"></div>
     </div>
 
-    <script src="assets/js/i18n.js?v=20260714e"></script>
+    <script src="assets/js/i18n.js?v=20260714f"></script>
     <script src="assets/js/app.js?v=20260714e"></script>
     <script>
         function escHtml(s) {
@@ -635,6 +637,7 @@
         let globalLimitSaveState = 2500;
         let fincenPeriod = 'month';
         let fincenPeriodLabel = '';
+        let fincenPeriodRange = '';
         let fincenPeriodSaveState = 'month';
         let lastClientsResponse = null;
         let persistGlobalLimitTimer = null;
@@ -820,7 +823,35 @@
 
         function getFincenPeriodLabel(period) {
             const p = period || fincenPeriod || 'month';
-            return App.t('clients.fincen_period.' + p);
+            const key = 'clients.fincen_period.' + p;
+            const translated = App.t(key);
+            return translated !== key ? translated : p;
+        }
+
+        function updateFincenPeriodRange(rangeLabel, dateFrom, dateTo) {
+            const el = document.getElementById('fincen-period-range');
+            if (!el) return;
+            if (rangeLabel) {
+                fincenPeriodRange = rangeLabel;
+            } else if (dateFrom && dateTo) {
+                fincenPeriodRange = dateFrom + ' → ' + dateTo;
+            } else if (dateTo) {
+                fincenPeriodRange = '→ ' + dateTo;
+            } else {
+                fincenPeriodRange = '';
+            }
+            el.textContent = fincenPeriodRange;
+            el.title = fincenPeriodRange
+                ? App.t('clients.fincen_period_range_title', { range: fincenPeriodRange })
+                : '';
+        }
+
+        /** Changing limit/period should actually filter — otherwise users think FinCEN is broken. */
+        function ensureFincenFilterActive() {
+            if (fincenFilterActive) return;
+            fincenFilterActive = true;
+            document.getElementById('sort-select').value = 'fincen';
+            updateFincenButtonState();
         }
 
         function formatIdType(type) {
@@ -919,10 +950,15 @@
             globalFincenLimit = threshold;
             fincenPeriod = res.fincen_period ?? fincenPeriod;
             fincenPeriodLabel = getFincenPeriodLabel(fincenPeriod);
-            updateUsageColumnLabel(fincenPeriodLabel);
+            updateFincenPeriodRange(res.fincen_period_range, res.fincen_period_from, res.fincen_period_to);
+            updateUsageColumnLabel(
+                fincenPeriodRange
+                    ? `${fincenPeriodLabel} (${fincenPeriodRange})`
+                    : fincenPeriodLabel
+            );
             document.getElementById('fincen-filter-btn').title = App.t('clients.fincen_filter_title', {
                 amount: '$' + Number(threshold).toLocaleString(),
-                period: fincenPeriodLabel,
+                period: fincenPeriodRange ? `${fincenPeriodLabel} · ${fincenPeriodRange}` : fincenPeriodLabel,
             });
 
             let clients = [...(res.clients || [])];
@@ -976,11 +1012,13 @@
         }
 
         function onGlobalFincenLimitInput() {
+            ensureFincenFilterActive();
             applyLiveGlobalFincenLimit();
             scheduleFincenReloadAndPersist();
         }
 
         function onFincenPeriodChange() {
+            ensureFincenFilterActive();
             fincenPeriod = getLiveFincenPeriod();
             currentPage = 1;
             scheduleFincenReloadAndPersist();
@@ -1007,6 +1045,7 @@
 
             fincenPeriod = res.fincen_period ?? fincenPeriod;
             fincenPeriodLabel = getFincenPeriodLabel(fincenPeriod);
+            updateFincenPeriodRange(res.fincen_period_range, res.fincen_period_from, res.fincen_period_to);
             fincenPeriodSaveState = fincenPeriod;
             const periodSelect = document.getElementById('fincen-period-select');
             if (periodSelect && document.activeElement !== periodSelect) {

@@ -8,11 +8,69 @@ require_once __DIR__ . '/../includes/transfer-security.php';
 
 function fincen_period_options(): array {
     return [
-        'month'    => ['label' => 'Per Month', 'sql' => 'date_sent >= ' . sql_month_start(0)],
-        '3months'  => ['label' => 'Last 3 Months', 'sql' => 'date_sent >= ' . sql_month_start(2)],
-        '6months'  => ['label' => 'Last 6 Months', 'sql' => 'date_sent >= ' . sql_month_start(5)],
-        '12months' => ['label' => 'Last 12 Months', 'sql' => 'date_sent >= ' . sql_month_start(11)],
-        'lifetime' => ['label' => 'Lifetime Total', 'sql' => '1=1'],
+        'month' => [
+            'label' => 'This Calendar Month',
+            'sql'   => 'date_sent >= ' . sql_month_start(0),
+        ],
+        'previous_month' => [
+            'label' => 'Previous Calendar Month',
+            'sql'   => 'date_sent >= ' . sql_month_start(1) . ' AND date_sent < ' . sql_month_start(0),
+        ],
+        '3months' => [
+            'label' => 'Last 3 Calendar Months',
+            'sql'   => 'date_sent >= ' . sql_month_start(2),
+        ],
+        '6months' => [
+            'label' => 'Last 6 Calendar Months',
+            'sql'   => 'date_sent >= ' . sql_month_start(5),
+        ],
+        '12months' => [
+            'label' => 'Last 12 Calendar Months',
+            'sql'   => 'date_sent >= ' . sql_month_start(11),
+        ],
+        'lifetime' => [
+            'label' => 'Lifetime Total',
+            'sql'   => '1=1',
+        ],
+    ];
+}
+
+/** Inclusive date window used for FinCEN period usage (YYYY-MM-DD). */
+function fincen_period_date_window(string $period): array {
+    $today = new DateTimeImmutable('today');
+    $monthStart = $today->modify('first day of this month');
+
+    switch ($period) {
+        case 'previous_month':
+            $from = $monthStart->modify('-1 month');
+            $to = $monthStart->modify('-1 day');
+            break;
+        case '3months':
+            $from = $monthStart->modify('-2 months');
+            $to = $today;
+            break;
+        case '6months':
+            $from = $monthStart->modify('-5 months');
+            $to = $today;
+            break;
+        case '12months':
+            $from = $monthStart->modify('-11 months');
+            $to = $today;
+            break;
+        case 'lifetime':
+            $from = null;
+            $to = $today;
+            break;
+        case 'month':
+        default:
+            $from = $monthStart;
+            $to = $today;
+            break;
+    }
+
+    return [
+        'from' => $from ? $from->format('Y-m-d') : null,
+        'to'   => $to ? $to->format('Y-m-d') : null,
     ];
 }
 
@@ -22,10 +80,20 @@ function fincen_period_config(?string $period = null): array {
     if (!isset($options[$period])) {
         $period = 'month';
     }
+    $window = fincen_period_date_window($period);
+    $rangeLabel = 'All time';
+    if ($window['from'] && $window['to']) {
+        $rangeLabel = $window['from'] . ' → ' . $window['to'];
+    } elseif ($window['to']) {
+        $rangeLabel = 'Through ' . $window['to'];
+    }
     return [
-        'key'   => $period,
-        'label' => $options[$period]['label'],
-        'sql'   => $options[$period]['sql'],
+        'key'         => $period,
+        'label'       => $options[$period]['label'],
+        'sql'         => $options[$period]['sql'],
+        'date_from'   => $window['from'],
+        'date_to'     => $window['to'],
+        'range_label' => $rangeLabel,
     ];
 }
 
@@ -324,6 +392,9 @@ if ($method === 'GET') {
         'fincen_global_limit'   => $fincenThreshold,
         'fincen_period'         => $periodConfig['key'],
         'fincen_period_label'   => $periodConfig['label'],
+        'fincen_period_range'   => $periodConfig['range_label'],
+        'fincen_period_from'    => $periodConfig['date_from'],
+        'fincen_period_to'      => $periodConfig['date_to'],
         'fincen_period_options' => array_map(
             fn(string $key) => ['value' => $key, 'label' => fincen_period_options()[$key]['label']],
             array_keys(fincen_period_options())
@@ -520,6 +591,9 @@ if ($method === 'POST') {
             'fincen_global_limit' => $newLimit,
             'fincen_period'       => $periodConfig['key'],
             'fincen_period_label' => $periodConfig['label'],
+            'fincen_period_range' => $periodConfig['range_label'],
+            'fincen_period_from'  => $periodConfig['date_from'],
+            'fincen_period_to'    => $periodConfig['date_to'],
             'clients_synced'      => $syncStmt->rowCount(),
         ]);
     }
