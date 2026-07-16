@@ -56,6 +56,7 @@ $pageMap = [
     '/clients'     => 'pages/clients.html',
     '/suly-ledger' => 'pages/suly-ledger.html',
     '/schedule'    => 'pages/schedule.html',
+    '/employees'   => 'pages/employees.html',
     '/statistics'  => 'pages/statistics.html',
     '/accounting'  => 'pages/accounting.html',
     '/inventory'   => 'pages/inventory.html',

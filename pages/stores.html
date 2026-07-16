@@ -49,6 +49,7 @@
             <a href="clients" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-label" data-i18n="nav.clients">Clients</span></a>
             <a href="suly-ledger" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg><span class="nav-label" data-i18n="nav.suly_ledger">Suly Ledger</span></a>
             <a href="schedule" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="nav-label" data-i18n="nav.schedule">Schedule & Clock-In</span></a>
+            <a href="employees" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-label" data-i18n="nav.employees">Employees</span></a>
             <a href="statistics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="nav-label" data-i18n="nav.statistics">Statistics</span></a>
             <a href="reports" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg><span class="nav-label" data-i18n="nav.reports">Reports</span></a>
             <a href="analytics" class="sidebar-link"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="nav-label" data-i18n="nav.analytics">Analytics</span></a>
@@ -190,12 +191,13 @@
     <div class="modal-backdrop" id="user-modal-backdrop"></div>
     <div class="modal-content w-full max-w-lg" id="user-modal">
         <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-bold" data-i18n="stores.add_team_member">Add Team Member</h3>
+            <h3 class="text-lg font-bold" id="user-modal-title" data-i18n="stores.add_team_member">Add Team Member</h3>
             <button onclick="closeUserModal()" class="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
         <form id="user-form" class="space-y-4">
+            <input type="hidden" id="user-id-input" value="">
             <div>
                 <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.full_name">Full Name *</label>
                 <input type="text" id="user-name-input" class="input w-full" required data-i18n-placeholder="stores.form.full_name_ph" placeholder="e.g. Maria Lopez">
@@ -204,12 +206,13 @@
                 <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.email">Email *</label>
                 <input type="email" id="user-email-input" class="input w-full" required data-i18n-placeholder="stores.form.email_ph" placeholder="manager@store.com">
             </div>
-            <div>
+            <div id="user-password-create-wrap">
                 <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.temp_password">Temporary Password *</label>
                 <div class="flex gap-2">
-                    <input type="text" id="user-password-input" class="input w-full font-mono" required minlength="8" autocomplete="new-password" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
+                    <input type="text" id="user-password-input" class="input w-full font-mono" minlength="8" autocomplete="new-password" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
                     <button type="button" id="btn-generate-create-password" class="btn-secondary px-3 py-2 text-xs shrink-0" data-i18n="stores.generate_password">Generate</button>
                 </div>
+                <p id="user-password-edit-hint" class="hidden text-[11px] text-text-muted mt-1" data-i18n="stores.form.password_optional_edit">Leave blank to keep the current password. Use Set Password to rotate it.</p>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -321,14 +324,80 @@
             App.openModal('store-modal');
         }
         function closeModal() { App.closeModal('store-modal'); }
-        function openUserModal() {
+        function isUserActive(u) {
+            return u.active === true || u.active === 1 || u.active === '1' || u.active === 't';
+        }
+
+        function openUserModal(user = null) {
             const sel = document.getElementById('user-store-input');
             sel.innerHTML = storesList.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-            document.getElementById('user-form').reset();
-            document.getElementById('user-password-input').value = generateTempPassword();
+            const form = document.getElementById('user-form');
+            form.reset();
+            const idInput = document.getElementById('user-id-input');
+            const passInput = document.getElementById('user-password-input');
+            const passHint = document.getElementById('user-password-edit-hint');
+            const title = document.getElementById('user-modal-title');
+            const saveBtn = document.getElementById('btn-save-user');
+            if (user) {
+                idInput.value = user.id;
+                document.getElementById('user-name-input').value = user.name || '';
+                document.getElementById('user-email-input').value = user.email || '';
+                document.getElementById('user-role-input').value = user.role || 'manager';
+                if (user.store_id) sel.value = String(user.store_id);
+                passInput.value = '';
+                passInput.required = false;
+                passHint?.classList.remove('hidden');
+                title.textContent = t('stores.edit_team_member');
+                saveBtn.textContent = t('stores.save_user');
+            } else {
+                idInput.value = '';
+                passInput.value = generateTempPassword();
+                passInput.required = true;
+                passHint?.classList.add('hidden');
+                title.textContent = t('stores.add_team_member');
+                saveBtn.textContent = t('stores.create_user');
+            }
             App.openModal('user-modal');
         }
         function closeUserModal() { App.closeModal('user-modal'); }
+
+        async function removeUser(userId) {
+            const u = usersList.find(x => String(x.id) === String(userId));
+            if (!u) return;
+            if (!App.confirmKey('confirm.remove_user', { name: u.name })) return;
+            try {
+                await App.api('POST', '/api/users', { action: 'deactivate', id: parseInt(userId, 10) });
+                App.toastKey('toast.user_removed', 'success', { name: u.name });
+                await loadUsers();
+            } catch (err) {
+                App.toast(err.message || t('toast.error_generic'), 'danger');
+            }
+        }
+
+        async function reactivateUser(userId) {
+            const u = usersList.find(x => String(x.id) === String(userId));
+            if (!u) return;
+            try {
+                await App.api('POST', '/api/users', { action: 'reactivate', id: parseInt(userId, 10) });
+                App.toastKey('toast.user_reactivated', 'success', { name: u.name });
+                await loadUsers();
+            } catch (err) {
+                App.toast(err.message || t('toast.error_generic'), 'danger');
+            }
+        }
+
+        async function deleteUserPermanently(userId) {
+            const u = usersList.find(x => String(x.id) === String(userId));
+            if (!u) return;
+            if (!App.confirmKey('confirm.delete_user_permanent', { name: u.name })) return;
+            try {
+                await App.api('POST', '/api/users', { action: 'delete', id: parseInt(userId, 10) });
+                App.toastKey('toast.user_deleted', 'success', { name: u.name });
+                await loadUsers();
+            } catch (err) {
+                App.toast(err.message || t('toast.error_generic'), 'danger');
+            }
+        }
         function generateTempPassword() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
             let p = '';
@@ -381,11 +450,26 @@
 
         function wireUserTableActions() {
             const tbody = document.getElementById('users-table-body');
+            tbody.querySelectorAll('.edit-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const u = usersList.find(x => String(x.id) === String(btn.dataset.id));
+                    if (u) openUserModal(u);
+                });
+            });
             tbody.querySelectorAll('.set-password-btn').forEach(btn => {
                 btn.addEventListener('click', () => openSetPasswordModal(btn.dataset.id));
             });
             tbody.querySelectorAll('.view-password-btn').forEach(btn => {
                 btn.addEventListener('click', () => openShowPasswordModal(btn.dataset.id));
+            });
+            tbody.querySelectorAll('.remove-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => removeUser(btn.dataset.id));
+            });
+            tbody.querySelectorAll('.reactivate-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => reactivateUser(btn.dataset.id));
+            });
+            tbody.querySelectorAll('.delete-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => deleteUserPermanently(btn.dataset.id));
             });
         }
         async function loadUsers() {
@@ -401,21 +485,31 @@
                 const selfId = App.user ? String(App.user.id) : '';
                 tbody.innerHTML = usersList.map(u => {
                     const isSelf = String(u.id) === selfId;
+                    const active = isUserActive(u);
                     const hasCached = passwordCache[u.id];
                     let actions = '';
+                    actions += '<button type="button" class="btn-secondary px-2 py-1 text-xs edit-user-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('action.edit')) + '</button>';
                     if (!isSelf) {
-                        actions += '<button type="button" class="btn-secondary px-2 py-1 text-xs set-password-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('stores.set_password')) + '</button>';
+                        actions += ' <button type="button" class="btn-secondary px-2 py-1 text-xs set-password-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('stores.set_password')) + '</button>';
                     }
                     if (hasCached) {
                         actions += ' <button type="button" class="btn-secondary px-2 py-1 text-xs view-password-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('stores.view_password')) + '</button>';
                     }
-                    if (!actions) actions = '<span class="text-xs text-text-muted">' + esc(t('empty.none')) + '</span>';
-                    return '<tr class="border-b border-border/50">'
+                    if (!isSelf && active) {
+                        actions += ' <button type="button" class="btn-secondary px-2 py-1 text-xs text-danger border-danger/30 remove-user-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('action.remove')) + '</button>';
+                    }
+                    if (!isSelf && !active) {
+                        actions += ' <button type="button" class="btn-secondary px-2 py-1 text-xs reactivate-user-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('action.reactivate')) + '</button>';
+                        if (u.role !== 'admin') {
+                            actions += ' <button type="button" class="btn-secondary px-2 py-1 text-xs text-danger border-danger/40 delete-user-btn" data-id="' + esc(String(u.id)) + '">' + esc(t('action.delete')) + '</button>';
+                        }
+                    }
+                    return '<tr class="border-b border-border/50' + (active ? '' : ' opacity-70') + '">'
                         + '<td class="py-3 pr-4 font-medium">' + esc(u.name) + '</td>'
                         + '<td class="py-3 pr-4 text-text-secondary">' + esc(u.email) + '</td>'
                         + '<td class="py-3 pr-4">' + esc(roleLabel(u.role)) + '</td>'
                         + '<td class="py-3 pr-4">' + esc(u.store_name || t('empty.none')) + '</td>'
-                        + '<td class="py-3 pr-4">' + (u.active == 1
+                        + '<td class="py-3 pr-4">' + (active
                             ? '<span class="text-success text-xs font-semibold">' + esc(t('stores.user.role_active')) + '</span>'
                             : '<span class="text-danger text-xs font-semibold">' + esc(t('stores.user.role_inactive')) + '</span>')
                         + '</td>'
@@ -694,7 +788,7 @@
             if (avatar && App.user && App.user.name) avatar.textContent = App.user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('page-date').textContent = new Date().toLocaleDateString(localeTag(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
             document.getElementById('btn-add-store').addEventListener('click', function() { openStoreModal(null); });
-            document.getElementById('btn-add-user')?.addEventListener('click', openUserModal);
+            document.getElementById('btn-add-user')?.addEventListener('click', () => openUserModal(null));
             document.getElementById('btn-generate-create-password')?.addEventListener('click', () => {
                 document.getElementById('user-password-input').value = generateTempPassword();
             });
@@ -732,29 +826,63 @@
             document.getElementById('user-form')?.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const btn = document.getElementById('btn-save-user');
+                const userId = document.getElementById('user-id-input').value;
                 const name = document.getElementById('user-name-input').value.trim();
                 const email = document.getElementById('user-email-input').value.trim();
                 const password = document.getElementById('user-password-input').value;
+                const role = document.getElementById('user-role-input').value;
+                const storeVal = document.getElementById('user-store-input').value;
+                const storeId = storeVal ? parseInt(storeVal, 10) : null;
+                const editing = !!userId;
                 btn.disabled = true;
-                btn.textContent = t('common.creating');
+                btn.textContent = editing ? t('common.saving') : t('common.creating');
                 try {
-                    const res = await App.api('POST', '/api/users', {
-                        action: 'create',
-                        name,
-                        email,
-                        password,
-                        role: document.getElementById('user-role-input').value,
-                        store_id: parseInt(document.getElementById('user-store-input').value, 10),
-                    });
-                    App.toastKey('toast.user_created', 'success');
-                    closeUserModal();
-                    if (res.id) {
-                        cacheUserPassword(res.id, name, email, password);
-                        showPasswordReveal(res.id, name, email, password);
+                    if (editing) {
+                        const payload = {
+                            action: 'update',
+                            id: parseInt(userId, 10),
+                            name,
+                            email,
+                            role,
+                            store_id: role === 'admin' ? storeId : storeId,
+                        };
+                        if (password) payload.password = password;
+                        await App.api('POST', '/api/users', payload);
+                        App.toastKey('toast.user_updated', 'success', { name });
+                        closeUserModal();
+                        if (password) {
+                            cacheUserPassword(userId, name, email, password);
+                            showPasswordReveal(userId, name, email, password);
+                        }
+                    } else {
+                        if (!password || password.length < 8) {
+                            App.toast(t('stores.form.password_ph'), 'danger');
+                            btn.disabled = false;
+                            btn.textContent = t('stores.create_user');
+                            return;
+                        }
+                        const res = await App.api('POST', '/api/users', {
+                            action: 'create',
+                            name,
+                            email,
+                            password,
+                            role,
+                            store_id: storeId,
+                        });
+                        App.toastKey('toast.user_created', 'success');
+                        closeUserModal();
+                        if (res.id) {
+                            cacheUserPassword(res.id, name, email, password);
+                            showPasswordReveal(res.id, name, email, password);
+                        }
                     }
                     await loadUsers();
-                } catch (err) { App.toastKey('toast.error_generic', 'danger'); }
-                finally { btn.disabled = false; btn.textContent = t('stores.create_user'); }
+                } catch (err) {
+                    App.toast(err.message || t('toast.error_generic'), 'danger');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = editing ? t('stores.save_user') : t('stores.create_user');
+                }
             });
             document.getElementById('store-form').addEventListener('submit', async function(e) {
                 e.preventDefault();

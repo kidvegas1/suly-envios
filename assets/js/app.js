@@ -301,7 +301,7 @@ const App = {
         const role = this.user?.role;
         const page = location.pathname.split('/').pop() || 'dashboard';
         if (role === 'admin') return;
-        const adminOnly = ['stores', 'reports-center', 'analytics'];
+        const adminOnly = ['stores', 'employees', 'reports-center', 'analytics'];
         const managerPlus = ['import'];
         document.querySelectorAll('.sidebar-link').forEach(link => {
             const href = link.getAttribute('href');

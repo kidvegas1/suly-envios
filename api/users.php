@@ -71,7 +71,7 @@ if ($method === 'POST') {
     if ($act === 'update') {
         validate_required($data, ['id']);
         $id = (int)$data['id'];
-        $existing = $pdo->prepare('SELECT id, role FROM users WHERE id = ?');
+        $existing = $pdo->prepare('SELECT id, role, name, email, store_id FROM users WHERE id = ?');
         $existing->execute([$id]);
         $row = $existing->fetch();
         if (!$row) {
@@ -79,20 +79,46 @@ if ($method === 'POST') {
         }
         $fields = [];
         $params = [];
+        $newName = null;
+        $newStoreId = null;
         if (isset($data['name'])) {
+            $newName = sanitize($data['name']);
             $fields[] = 'name = ?';
-            $params[] = sanitize($data['name']);
+            $params[] = $newName;
+        }
+        if (isset($data['email'])) {
+            $email = strtolower(trim((string)$data['email']));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                json_error('Valid email is required', 400);
+            }
+            $dup = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1');
+            $dup->execute([$email, $id]);
+            if ($dup->fetch()) {
+                json_error('Email already in use', 400);
+            }
+            $fields[] = 'email = ?';
+            $params[] = $email;
         }
         if (isset($data['role'])) {
             $role = sanitize($data['role']);
             if (!in_array($role, ['admin', 'manager', 'cashier', 'employee'], true)) {
                 json_error('Invalid role', 400);
             }
+            if ($row['role'] === 'admin' && $role !== 'admin') {
+                $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND " . sql_is_active())->fetchColumn();
+                if ($adminCount <= 1) {
+                    json_error('Cannot demote the last active admin', 400);
+                }
+            }
             $fields[] = 'role = ?';
             $params[] = $role;
         }
         if (array_key_exists('store_id', $data)) {
             $storeId = $data['store_id'] !== null && $data['store_id'] !== '' ? (int)$data['store_id'] : null;
+            $effectiveRole = isset($data['role']) ? sanitize($data['role']) : $row['role'];
+            if ($effectiveRole !== 'admin' && !$storeId) {
+                json_error('Store is required for non-admin users', 400);
+            }
             if ($storeId) {
                 $check = $pdo->prepare('SELECT id FROM stores WHERE id = ? AND ' . sql_is_active());
                 $check->execute([$storeId]);
@@ -100,6 +126,7 @@ if ($method === 'POST') {
                     json_error('Store not found', 404);
                 }
             }
+            $newStoreId = $storeId;
             $fields[] = 'store_id = ?';
             $params[] = $storeId;
         }
@@ -114,14 +141,45 @@ if ($method === 'POST') {
             $params[] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
         if (isset($data['active'])) {
+            $active = (bool)$data['active'];
+            if (!$active && $id === (int)$user['id']) {
+                json_error('You cannot deactivate your own account', 400);
+            }
+            if (!$active && $row['role'] === 'admin') {
+                $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND " . sql_is_active())->fetchColumn();
+                if ($adminCount <= 1) {
+                    json_error('Cannot deactivate the last active admin', 400);
+                }
+            }
             $fields[] = 'active = ?';
-            $params[] = db_bool((bool)$data['active']);
+            $params[] = db_bool($active);
         }
         if (!$fields) {
             json_error('Nothing to update', 400);
         }
         $params[] = $id;
         $pdo->prepare('UPDATE users SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
+
+        // Keep linked employees row in sync when editing managers/staff.
+        $empFields = [];
+        $empParams = [];
+        if ($newName !== null) {
+            $empFields[] = 'name = ?';
+            $empParams[] = $newName;
+        }
+        if ($newStoreId !== null) {
+            $empFields[] = 'store_id = ?';
+            $empParams[] = $newStoreId;
+        }
+        if (isset($data['active'])) {
+            $empFields[] = 'status = ?';
+            $empParams[] = (bool)$data['active'] ? 'active' : 'inactive';
+        }
+        if ($empFields) {
+            $empParams[] = $id;
+            $pdo->prepare('UPDATE employees SET ' . implode(', ', $empFields) . ' WHERE user_id = ?')->execute($empParams);
+        }
+
         json_response(['success' => true]);
     }
 
@@ -131,7 +189,58 @@ if ($method === 'POST') {
         if ($id === (int)$user['id']) {
             json_error('You cannot deactivate your own account', 400);
         }
+        $existing = $pdo->prepare('SELECT id, role FROM users WHERE id = ?');
+        $existing->execute([$id]);
+        $row = $existing->fetch();
+        if (!$row) {
+            json_error('User not found', 404);
+        }
+        if ($row['role'] === 'admin') {
+            $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND " . sql_is_active())->fetchColumn();
+            if ($adminCount <= 1) {
+                json_error('Cannot remove the last active admin', 400);
+            }
+        }
         $pdo->prepare('UPDATE users SET active = ' . sql_bool(false) . ' WHERE id = ?')->execute([$id]);
+        $pdo->prepare("UPDATE employees SET status = 'inactive' WHERE user_id = ?")->execute([$id]);
+        json_response(['success' => true]);
+    }
+
+    if ($act === 'reactivate') {
+        validate_required($data, ['id']);
+        $id = (int)$data['id'];
+        $existing = $pdo->prepare('SELECT id, role, store_id FROM users WHERE id = ?');
+        $existing->execute([$id]);
+        $row = $existing->fetch();
+        if (!$row) {
+            json_error('User not found', 404);
+        }
+        if ($row['role'] !== 'admin' && empty($row['store_id'])) {
+            json_error('Assign a store before reactivating this user', 400);
+        }
+        $pdo->prepare('UPDATE users SET active = ' . sql_bool(true) . ' WHERE id = ?')->execute([$id]);
+        $pdo->prepare("UPDATE employees SET status = 'active' WHERE user_id = ?")->execute([$id]);
+        json_response(['success' => true]);
+    }
+
+    if ($act === 'delete') {
+        validate_required($data, ['id']);
+        $id = (int)$data['id'];
+        if ($id === (int)$user['id']) {
+            json_error('You cannot delete your own account', 400);
+        }
+        $existing = $pdo->prepare('SELECT id, role FROM users WHERE id = ?');
+        $existing->execute([$id]);
+        $row = $existing->fetch();
+        if (!$row) {
+            json_error('User not found', 404);
+        }
+        if ($row['role'] === 'admin') {
+            json_error('Admin accounts cannot be permanently deleted. Deactivate instead.', 400);
+        }
+        // Unlink employees first (FK ON DELETE SET NULL), then remove login.
+        $pdo->prepare('UPDATE employees SET user_id = NULL, status = \'inactive\' WHERE user_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
         json_response(['success' => true]);
     }
 
