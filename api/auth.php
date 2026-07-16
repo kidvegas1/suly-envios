@@ -38,6 +38,34 @@ if ($method === 'POST') {
         json_response(['success' => true, 'store_id' => $storeId]);
     }
 
+    if ($action === 'change_password') {
+        csrf_verify();
+        $user = auth_require();
+        validate_required($data, ['current_password', 'new_password', 'confirm_password']);
+        $current = (string)$data['current_password'];
+        $new = (string)$data['new_password'];
+        $confirm = (string)$data['confirm_password'];
+        if (strlen($new) < 8) {
+            json_error('New password must be at least 8 characters', 400);
+        }
+        if ($new !== $confirm) {
+            json_error('New password and confirmation do not match', 400);
+        }
+        if ($current === $new) {
+            json_error('New password must be different from the current password', 400);
+        }
+        $pdo = db();
+        $stmt = $pdo->prepare('SELECT id, password_hash FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([(int)$user['id']]);
+        $row = $stmt->fetch();
+        if (!$row || !password_verify($current, $row['password_hash'])) {
+            json_error('Current password is incorrect', 400);
+        }
+        $hash = password_hash($new, PASSWORD_DEFAULT);
+        $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$hash, (int)$user['id']]);
+        json_response(['success' => true]);
+    }
+
     json_error('Unknown action.', 400);
 }
 

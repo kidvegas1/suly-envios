@@ -96,6 +96,32 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="balance-summary-cards"></div>
             </div>
+            <section id="account-section" class="card hidden">
+                <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                    <div>
+                        <h3 class="text-lg font-bold" data-i18n="stores.account_title">Admin Account</h3>
+                        <p class="text-xs text-text-muted" data-i18n="stores.account_subtitle">Change the password for your signed-in admin account</p>
+                    </div>
+                    <p class="text-xs text-text-secondary font-mono" id="account-email"></p>
+                </div>
+                <form id="change-password-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end max-w-4xl">
+                    <div>
+                        <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.current_password">Current Password *</label>
+                        <input type="password" id="current-password-input" class="input w-full" required autocomplete="current-password" minlength="1">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.new_password">New Password *</label>
+                        <input type="password" id="new-password-input" class="input w-full" required autocomplete="new-password" minlength="8" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.confirm_password">Confirm New Password *</label>
+                        <input type="password" id="confirm-password-input" class="input w-full" required autocomplete="new-password" minlength="8">
+                    </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" id="btn-change-password" class="btn-primary px-5 py-2.5 text-sm" data-i18n="stores.change_password">Change Password</button>
+                    </div>
+                </form>
+            </section>
             <section id="team-section" class="card hidden">
                 <div class="flex items-center justify-between mb-4">
                     <div>
@@ -782,6 +808,9 @@
                 return;
             }
             document.getElementById('team-section')?.classList.remove('hidden');
+            document.getElementById('account-section')?.classList.remove('hidden');
+            const accountEmail = document.getElementById('account-email');
+            if (accountEmail && App.user?.email) accountEmail.textContent = App.user.email;
             App.initSidebar();
             App.initUserMenu();
             const avatar = document.getElementById('user-avatar');
@@ -789,6 +818,38 @@
             document.getElementById('page-date').textContent = new Date().toLocaleDateString(localeTag(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
             document.getElementById('btn-add-store').addEventListener('click', function() { openStoreModal(null); });
             document.getElementById('btn-add-user')?.addEventListener('click', () => openUserModal(null));
+            document.getElementById('change-password-form')?.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const currentPassword = document.getElementById('current-password-input').value;
+                const newPassword = document.getElementById('new-password-input').value;
+                const confirmPassword = document.getElementById('confirm-password-input').value;
+                const btn = document.getElementById('btn-change-password');
+                if (newPassword.length < 8) {
+                    App.toast(t('stores.form.password_ph'), 'danger');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    App.toastKey('toast.password_mismatch', 'danger');
+                    return;
+                }
+                btn.disabled = true;
+                btn.textContent = t('common.saving');
+                try {
+                    await App.api('POST', '/api/auth', {
+                        action: 'change_password',
+                        current_password: currentPassword,
+                        new_password: newPassword,
+                        confirm_password: confirmPassword,
+                    });
+                    document.getElementById('change-password-form').reset();
+                    App.toastKey('toast.password_changed', 'success');
+                } catch (err) {
+                    App.toast(err.message || t('toast.error_generic'), 'danger');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = t('stores.change_password');
+                }
+            });
             document.getElementById('btn-generate-create-password')?.addEventListener('click', () => {
                 document.getElementById('user-password-input').value = generateTempPassword();
             });
