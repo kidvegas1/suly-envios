@@ -131,11 +131,24 @@ if ($method === 'POST') {
             $params[] = $storeId;
         }
         if (!empty($data['password'])) {
-            if ($id === (int)$user['id']) {
-                json_error('You cannot change your own password here', 400);
-            }
             if (strlen($data['password']) < 8) {
                 json_error('Password must be at least 8 characters', 400);
+            }
+            // Changing your own password requires proving the current one.
+            if ($id === (int)$user['id']) {
+                $current = (string)($data['current_password'] ?? '');
+                if ($current === '') {
+                    json_error('Current password is required to change your own password', 400);
+                }
+                $hashStmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+                $hashStmt->execute([$id]);
+                $hashRow = $hashStmt->fetch();
+                if (!$hashRow || !password_verify($current, $hashRow['password_hash'])) {
+                    json_error('Current password is incorrect', 400);
+                }
+                if ($current === (string)$data['password']) {
+                    json_error('New password must be different from the current password', 400);
+                }
             }
             $fields[] = 'password_hash = ?';
             $params[] = password_hash($data['password'], PASSWORD_DEFAULT);

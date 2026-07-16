@@ -232,13 +232,18 @@
                 <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.email">Email *</label>
                 <input type="email" id="user-email-input" class="input w-full" required data-i18n-placeholder="stores.form.email_ph" placeholder="manager@store.com">
             </div>
+            <div id="user-current-password-wrap" class="hidden">
+                <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.current_password">Current Password *</label>
+                <input type="password" id="user-current-password-input" class="input w-full" autocomplete="current-password" data-i18n-placeholder="stores.form.current_password_ph" placeholder="Required only when setting a new password">
+            </div>
             <div id="user-password-create-wrap">
-                <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" data-i18n="stores.form.temp_password">Temporary Password *</label>
+                <label class="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5" id="user-password-label" data-i18n="stores.form.temp_password">Temporary Password *</label>
                 <div class="flex gap-2">
                     <input type="text" id="user-password-input" class="input w-full font-mono" minlength="8" autocomplete="new-password" data-i18n-placeholder="stores.form.password_ph" placeholder="Min. 8 characters">
                     <button type="button" id="btn-generate-create-password" class="btn-secondary px-3 py-2 text-xs shrink-0" data-i18n="stores.generate_password">Generate</button>
                 </div>
                 <p id="user-password-edit-hint" class="hidden text-[11px] text-text-muted mt-1" data-i18n="stores.form.password_optional_edit">Leave blank to keep the current password. Use Set Password to rotate it.</p>
+                <p id="user-password-self-hint" class="hidden text-[11px] text-text-muted mt-1" data-i18n="stores.form.password_self_edit">To change your password, enter your current password above and a new password here (or use Admin Account at the top of this page).</p>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -308,8 +313,8 @@
             </div>
         </div>
     </div>
-    <script src="assets/js/i18n.js?v=20260716-pwd"></script>
-    <script src="assets/js/app.js?v=20260716-pwd"></script>
+    <script src="assets/js/i18n.js?v=20260716-pwd2"></script>
+    <script src="assets/js/app.js?v=20260716-pwd2"></script>
     <script>
         let storesList = [];
         let storeBalances = {};
@@ -362,9 +367,14 @@
             const idInput = document.getElementById('user-id-input');
             const passInput = document.getElementById('user-password-input');
             const passHint = document.getElementById('user-password-edit-hint');
+            const selfHint = document.getElementById('user-password-self-hint');
+            const currentWrap = document.getElementById('user-current-password-wrap');
+            const currentInput = document.getElementById('user-current-password-input');
             const title = document.getElementById('user-modal-title');
             const saveBtn = document.getElementById('btn-save-user');
+            const selfId = App.user ? String(App.user.id) : '';
             if (user) {
+                const isSelf = String(user.id) === selfId;
                 idInput.value = user.id;
                 document.getElementById('user-name-input').value = user.name || '';
                 document.getElementById('user-email-input').value = user.email || '';
@@ -372,14 +382,25 @@
                 if (user.store_id) sel.value = String(user.store_id);
                 passInput.value = '';
                 passInput.required = false;
-                passHint?.classList.remove('hidden');
+                if (currentInput) currentInput.value = '';
+                if (isSelf) {
+                    currentWrap?.classList.remove('hidden');
+                    passHint?.classList.add('hidden');
+                    selfHint?.classList.remove('hidden');
+                } else {
+                    currentWrap?.classList.add('hidden');
+                    passHint?.classList.remove('hidden');
+                    selfHint?.classList.add('hidden');
+                }
                 title.textContent = t('stores.edit_team_member');
                 saveBtn.textContent = t('stores.save_user');
             } else {
                 idInput.value = '';
                 passInput.value = generateTempPassword();
                 passInput.required = true;
+                currentWrap?.classList.add('hidden');
                 passHint?.classList.add('hidden');
+                selfHint?.classList.add('hidden');
                 title.textContent = t('stores.add_team_member');
                 saveBtn.textContent = t('stores.create_user');
             }
@@ -899,19 +920,30 @@
                 btn.textContent = editing ? t('common.saving') : t('common.creating');
                 try {
                     if (editing) {
+                        const isSelf = String(userId) === String(App.user?.id || '');
+                        const currentPassword = document.getElementById('user-current-password-input')?.value || '';
                         const payload = {
                             action: 'update',
                             id: parseInt(userId, 10),
                             name,
                             email,
                             role,
-                            store_id: role === 'admin' ? storeId : storeId,
+                            store_id: storeId,
                         };
-                        if (password) payload.password = password;
-                        await App.api('POST', '/api/users', payload);
-                        App.toastKey('toast.user_updated', 'success', { name });
-                        closeUserModal();
                         if (password) {
+                            if (isSelf && !currentPassword) {
+                                App.toastKey('toast.current_password_required', 'danger');
+                                btn.disabled = false;
+                                btn.textContent = t('stores.save_user');
+                                return;
+                            }
+                            payload.password = password;
+                            if (isSelf) payload.current_password = currentPassword;
+                        }
+                        await App.api('POST', '/api/users', payload);
+                        App.toastKey(password && isSelf ? 'toast.password_changed' : 'toast.user_updated', 'success', { name });
+                        closeUserModal();
+                        if (password && !isSelf) {
                             cacheUserPassword(userId, name, email, password);
                             showPasswordReveal(userId, name, email, password);
                         }
