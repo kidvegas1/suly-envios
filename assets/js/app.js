@@ -407,6 +407,64 @@ const App = {
         return new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(n);
     },
 
+    /** Dashboard-friendly currency: minus sign (not parentheses) and optional compact notation. */
+    moneyMetric(val, { compact = 'auto' } = {}) {
+        const locale = this.lang === 'es' ? 'es-US' : 'en-US';
+        const n = Number(val) || 0;
+        const abs = Math.abs(n);
+        const useCompact = compact === true || (compact === 'auto' && abs >= 100000);
+        if (useCompact) {
+            return new Intl.NumberFormat(locale, {
+                style: 'currency',
+                currency: 'USD',
+                notation: 'compact',
+                maximumFractionDigits: abs >= 1000000 ? 2 : 1,
+            }).format(n);
+        }
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
+    },
+
+    /** Full currency for tooltips (minus sign, not parentheses). */
+    moneyFull(val) {
+        const locale = this.lang === 'es' ? 'es-US' : 'en-US';
+        const n = Number(val) || 0;
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
+    },
+
+    applyMetric(el, displayText, fullText = null) {
+        if (!el) return;
+        el.textContent = displayText;
+        el.title = fullText && fullText !== displayText ? fullText : '';
+        el.classList.remove('metric-value--xs', 'metric-value--sm', 'metric-value--md', 'metric-value--lg');
+        const len = String(displayText).length;
+        if (len >= 14) el.classList.add('metric-value--xs');
+        else if (len >= 11) el.classList.add('metric-value--sm');
+        else if (len >= 8) el.classList.add('metric-value--md');
+        else el.classList.add('metric-value--lg');
+    },
+
+    setMoneyMetric(el, val, options = {}) {
+        const full = this.moneyFull(val);
+        const display = this.moneyMetric(val, options);
+        this.applyMetric(el, display, full);
+        el.classList.toggle('text-danger', Number(val) < 0);
+    },
+
+    setCountMetric(el, val) {
+        const locale = this.lang === 'es' ? 'es-US' : 'en-US';
+        this.applyMetric(el, Number(val || 0).toLocaleString(locale));
+    },
+
     formatDate(str) {
         if (!str) return this.t('empty.none');
         const locale = this.lang === 'es' ? 'es-US' : 'en-US';

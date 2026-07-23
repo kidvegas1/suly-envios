@@ -189,6 +189,57 @@ body {
 .finance-side-row:hover { background: oklch(0.94 0.06 300 / 0.45); }
 .finance-side-text { color: oklch(0.42 0.16 300); font-weight: 600; }
 
+/* ── Smart metric cards (Reports Center, dashboards) ── */
+.metric-card {
+    min-height: 5.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.metric-card-label {
+    font-size: 0.75rem;
+    line-height: 1.25;
+    color: oklch(0.60 0.02 55);
+    margin-bottom: 0.35rem;
+}
+.metric-card-value {
+    font-weight: 700;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.metric-value--lg { font-size: clamp(1.125rem, 2.1vw, 1.375rem); }
+.metric-value--md { font-size: clamp(0.9375rem, 1.7vw, 1.125rem); }
+.metric-value--sm { font-size: clamp(0.8125rem, 1.45vw, 0.9375rem); }
+.metric-value--xs { font-size: clamp(0.6875rem, 1.2vw, 0.8125rem); }
+.metric-bar-value {
+    font-size: clamp(0.6875rem, 1.35vw, 0.875rem);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 46%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+}
+.metric-bar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+.metric-bar-row > .metric-bar-label {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 /* ── Transaction flow (product summary colors) ── */
 .txn-type-in,
 .txn-flow-in { color: oklch(0.22 0.02 260); }

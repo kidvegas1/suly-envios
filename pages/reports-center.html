@@ -28,7 +28,7 @@
             --font-mono: "JetBrains Mono", ui-monospace, monospace;
         }
     </style>
-    <link rel="stylesheet" href="assets/css/app.css">
+    <link rel="stylesheet" href="assets/css/app.css?v=20260723-metrics">
 </head>
 <body class="bg-bg-base text-text-primary font-sans">
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -191,62 +191,62 @@
 
             <!-- Summary Cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4" id="summary-cards">
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.principal">Total Principal</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-accent" id="stat-principal">$0.00</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.principal">Total Principal</p>
+                    <p class="metric-card-value text-accent" id="stat-principal">$0.00</p>
                 </div>
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.fees">Total Fees</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-warning" id="stat-fees">$0.00</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.fees">Total Fees</p>
+                    <p class="metric-card-value text-warning" id="stat-fees">$0.00</p>
                 </div>
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.tax">Total Tax</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-info" id="stat-tax">$0.00</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.tax">Total Tax</p>
+                    <p class="metric-card-value text-info" id="stat-tax">$0.00</p>
                 </div>
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.grand_total">Grand Total</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-success" id="stat-total">$0.00</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.grand_total">Grand Total</p>
+                    <p class="metric-card-value text-success" id="stat-total">$0.00</p>
                 </div>
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.transactions">Transactions</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-text-primary" id="stat-txns">0</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.transactions">Transactions</p>
+                    <p class="metric-card-value text-text-primary" id="stat-txns">0</p>
                 </div>
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.unique_senders">Unique Senders</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-text-primary" id="stat-senders">0</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.unique_senders">Unique Senders</p>
+                    <p class="metric-card-value text-text-primary" id="stat-senders">0</p>
                 </div>
-                <div class="card card-hover !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.stat.fincen_flagged">FinCEN Flagged</p>
-                    <p class="text-xl font-bold font-mono tabular-nums text-danger" id="stat-fincen">0</p>
+                <div class="card card-hover metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.stat.fincen_flagged">FinCEN Flagged</p>
+                    <p class="metric-card-value text-danger" id="stat-fincen">0</p>
                 </div>
             </div>
 
             <!-- KPI Analysis -->
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4" id="kpi-cards">
-                <div class="card !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.avg_ticket">Avg Ticket</p>
-                    <p class="text-lg font-bold font-mono tabular-nums" id="kpi-avg-ticket">$0.00</p>
+                <div class="card metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.kpi.avg_ticket">Avg Ticket</p>
+                    <p class="metric-card-value text-text-primary" id="kpi-avg-ticket">$0.00</p>
                 </div>
-                <div class="card !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.fee_rate">Fee Rate</p>
-                    <p class="text-lg font-bold font-mono tabular-nums" id="kpi-fee-rate">0%</p>
+                <div class="card metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.kpi.fee_rate">Fee Rate</p>
+                    <p class="metric-card-value text-text-primary" id="kpi-fee-rate">0%</p>
                 </div>
-                <div class="card !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.txns_per_sender">Txns / Sender</p>
-                    <p class="text-lg font-bold font-mono tabular-nums" id="kpi-txns-sender">0</p>
+                <div class="card metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.kpi.txns_per_sender">Txns / Sender</p>
+                    <p class="metric-card-value text-text-primary" id="kpi-txns-sender">0</p>
                 </div>
-                <div class="card !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.over_limit">Over Limit</p>
-                    <p class="text-lg font-bold font-mono tabular-nums text-danger" id="kpi-over-limit">0</p>
+                <div class="card metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.kpi.over_limit">Over Limit</p>
+                    <p class="metric-card-value text-danger" id="kpi-over-limit">0</p>
                 </div>
-                <div class="card !p-4">
-                    <p class="text-xs text-text-muted mb-1" data-i18n="reports_center.kpi.high_freq">High-Frequency Days</p>
-                    <p class="text-lg font-bold font-mono tabular-nums text-warning" id="kpi-high-freq">0</p>
+                <div class="card metric-card !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.kpi.high_freq">High-Frequency Days</p>
+                    <p class="metric-card-value text-warning" id="kpi-high-freq">0</p>
                 </div>
-                <div class="card !p-4 finance-side-banner !p-4">
-                    <p class="text-xs mb-1" data-i18n="reports_center.kpi.other_services">Otros servicios (MO)</p>
-                    <p class="text-lg font-bold font-mono tabular-nums finance-side-text" id="kpi-other-services">$0.00</p>
-                    <p class="text-[10px] opacity-80 mt-0.5" id="kpi-other-services-meta"></p>
+                <div class="card metric-card finance-side-banner !p-4">
+                    <p class="metric-card-label" data-i18n="reports_center.kpi.other_services">Otros servicios (MO)</p>
+                    <p class="metric-card-value finance-side-text" id="kpi-other-services">$0.00</p>
+                    <p class="text-[10px] opacity-80 mt-0.5 truncate" id="kpi-other-services-meta"></p>
                 </div>
             </div>
 
@@ -411,8 +411,8 @@
         .company-bar-fill { height: 100%; border-radius: 9999px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 
-    <script src="assets/js/i18n.js?v=20260714d"></script>
-    <script src="assets/js/app.js?v=20260714d"></script>
+    <script src="assets/js/i18n.js?v=20260723-metrics"></script>
+    <script src="assets/js/app.js?v=20260723-metrics"></script>
     <script type="module">
 
     const RC = {
@@ -548,26 +548,37 @@
         t(key, params) { return App.t(key, params); },
 
         renderSummary(s, fincen) {
-            document.getElementById('stat-principal').textContent = App.money(s.total_principal);
-            document.getElementById('stat-fees').textContent = App.money(s.total_fees);
-            document.getElementById('stat-tax').textContent = App.money(s.total_tax);
-            document.getElementById('stat-total').textContent = App.money(s.total_amount);
-            document.getElementById('stat-txns').textContent = parseInt(s.total_transactions).toLocaleString();
-            document.getElementById('stat-senders').textContent = parseInt(s.unique_senders).toLocaleString();
-            document.getElementById('stat-fincen').textContent = fincen;
+            App.setMoneyMetric(document.getElementById('stat-principal'), s.total_principal);
+            App.setMoneyMetric(document.getElementById('stat-fees'), s.total_fees);
+            App.setMoneyMetric(document.getElementById('stat-tax'), s.total_tax);
+            App.setMoneyMetric(document.getElementById('stat-total'), s.total_amount);
+            App.setCountMetric(document.getElementById('stat-txns'), s.total_transactions);
+            App.setCountMetric(document.getElementById('stat-senders'), s.unique_senders);
+            App.applyMetric(document.getElementById('stat-fincen'), String(parseInt(fincen, 10) || 0));
         },
 
         renderKpis(kpis, patterns) {
-            document.getElementById('kpi-avg-ticket').textContent = App.money(kpis.avg_ticket || 0);
-            document.getElementById('kpi-fee-rate').textContent = (kpis.fee_rate_pct || 0) + '%';
-            document.getElementById('kpi-txns-sender').textContent = kpis.txns_per_sender || 0;
-            document.getElementById('kpi-over-limit').textContent = kpis.over_limit_clients || 0;
-            document.getElementById('kpi-high-freq').textContent = kpis.high_frequency_days || 0;
-            document.getElementById('kpi-other-services').textContent = App.money(kpis.other_services_principal || 0);
+            App.setMoneyMetric(document.getElementById('kpi-avg-ticket'), kpis.avg_ticket || 0, { compact: false });
+            App.applyMetric(document.getElementById('kpi-fee-rate'), (kpis.fee_rate_pct || 0) + '%');
+            App.applyMetric(document.getElementById('kpi-txns-sender'), String(kpis.txns_per_sender || 0));
+            App.applyMetric(document.getElementById('kpi-over-limit'), String(kpis.over_limit_clients || 0));
+            App.applyMetric(document.getElementById('kpi-high-freq'), String(kpis.high_frequency_days || 0));
+            App.setMoneyMetric(document.getElementById('kpi-other-services'), kpis.other_services_principal || 0);
+            const feesFull = App.moneyFull(kpis.other_services_fees || 0);
+            const feesDisplay = App.moneyMetric(kpis.other_services_fees || 0, { compact: 'auto' });
             document.getElementById('kpi-other-services-meta').textContent = this.t('reports_center.kpi.other_services_meta', {
                 count: kpis.other_services_count || 0,
-                fees: App.money(kpis.other_services_fees || 0),
+                fees: feesDisplay,
             });
+            document.getElementById('kpi-other-services-meta').title = feesFull !== feesDisplay ? feesFull : '';
+        },
+
+        formatBarMoney(val) {
+            const display = App.moneyMetric(val, { compact: 'auto' });
+            const full = App.moneyFull(val);
+            const cls = Number(val) < 0 ? 'metric-bar-value text-danger' : 'metric-bar-value text-text-primary';
+            const title = full !== display ? ` title="${this.esc(full)}"` : '';
+            return `<span class="${cls}"${title}>${this.esc(display)}</span>`;
         },
 
         renderTypeBreakdown(types) {
@@ -581,9 +592,9 @@
                 const pct = (parseFloat(t.total_principal) / maxTotal) * 100;
                 const label = String(t.txn_type || 'unknown').replace(/_/g, ' ');
                 return `<div>
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-sm font-medium capitalize">${this.esc(label)}</span>
-                        <span class="text-sm font-mono tabular-nums">${App.money(t.total_principal)} · ${t.count}</span>
+                    <div class="metric-bar-row">
+                        <span class="metric-bar-label text-sm font-medium capitalize">${this.esc(label)}</span>
+                        <span class="flex items-center gap-1 shrink-0">${this.formatBarMoney(t.total_principal)}<span class="text-xs text-text-muted">· ${t.count}</span></span>
                     </div>
                     <div class="company-bar-bg"><div class="company-bar-fill" style="width:${pct}%;background:oklch(0.55 0.12 50)"></div></div>
                 </div>`;
@@ -640,13 +651,13 @@
                 const pct = maxTotal > 0 ? (parseFloat(c.total_principal) / maxTotal) * 100 : 0;
                 const color = colors[i % colors.length];
                 return `<div>
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2.5 h-2.5 rounded-full" style="background:${color}"></div>
-                            <span class="text-sm font-medium text-text-primary">${this.esc(c.company)}</span>
-                            <span class="text-xs text-text-muted">${this.esc(this.t('reports_center.company_txns', { count: c.count }))}</span>
+                    <div class="metric-bar-row">
+                        <div class="metric-bar-label flex items-center gap-2 min-w-0">
+                            <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${color}"></div>
+                            <span class="text-sm font-medium text-text-primary truncate">${this.esc(c.company)}</span>
+                            <span class="text-xs text-text-muted shrink-0">${this.esc(this.t('reports_center.company_txns', { count: c.count }))}</span>
                         </div>
-                        <span class="text-sm font-mono tabular-nums font-semibold text-text-primary">${App.money(c.total_principal)}</span>
+                        ${this.formatBarMoney(c.total_principal)}
                     </div>
                     <div class="company-bar-bg"><div class="company-bar-fill" style="width:${pct}%;background:${color}"></div></div>
                 </div>`;
@@ -777,13 +788,13 @@
                 const pct = maxTotal > 0 ? (parseFloat(s.total) / maxTotal) * 100 : 0;
                 const color = colors[i % colors.length];
                 return `<div>
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2.5 h-2.5 rounded-full" style="background:${color}"></div>
-                            <span class="text-sm font-medium text-text-primary">${this.esc(s.store_name)}</span>
-                            <span class="text-xs text-text-muted">${this.esc(this.t('reports_center.company_txns', { count: s.count }))}</span>
+                    <div class="metric-bar-row">
+                        <div class="metric-bar-label flex items-center gap-2 min-w-0">
+                            <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${color}"></div>
+                            <span class="text-sm font-medium text-text-primary truncate">${this.esc(s.store_name)}</span>
+                            <span class="text-xs text-text-muted shrink-0">${this.esc(this.t('reports_center.company_txns', { count: s.count }))}</span>
                         </div>
-                        <span class="text-sm font-mono tabular-nums font-semibold text-text-primary">${App.money(s.total)}</span>
+                        ${this.formatBarMoney(s.total)}
                     </div>
                     <div class="company-bar-bg"><div class="company-bar-fill" style="width:${pct}%;background:${color}"></div></div>
                 </div>`;
