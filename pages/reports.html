@@ -293,7 +293,7 @@
                         <div class="min-w-0 flex-1">
                             <p class="font-semibold text-text-primary" id="preview-dup-title">Duplicates detected</p>
                             <p class="text-sm text-text-muted mt-1" id="preview-dup-summary"></p>
-                            <p class="text-xs text-text-muted mt-2" id="preview-dup-hint">Import will skip duplicate report and transactions automatically.</p>
+                            <p class="text-xs text-text-muted mt-2" id="preview-dup-hint">Duplicates are skipped automatically. New transactions in this file will still import.</p>
                         </div>
                     </div>
                     <div id="preview-dup-report" class="hidden text-sm p-3 rounded-lg bg-bg-elevated"></div>
@@ -4413,9 +4413,14 @@
                 const details = r.error
                     ? this.esc(r.error)
                     : (r.report_id ? `<button class="btn-secondary !py-1 !px-2 !text-xs" onclick="Reports.viewReport(${r.report_id})">${this.t('reports.bulk.view')}</button>` : '—');
+                const imported = r.imported_transaction_count ?? r.total_transactions ?? 0;
+                const skippedDup = r.skipped_transaction_duplicates ?? 0;
+                const importNote = (imported || skippedDup)
+                    ? `<span class="block text-xs text-text-muted mt-1">${imported} new · ${skippedDup} dup skipped</span>`
+                    : '';
                 return `<tr>
                     <td class="font-mono text-sm">${(r.index ?? 0) + 1}</td>
-                    <td class="text-sm text-text-primary">${this.esc(r.label || this.t('reports.bulk.report_label'))}</td>
+                    <td class="text-sm text-text-primary">${this.esc(r.label || this.t('reports.bulk.report_label'))}${importNote}</td>
                     <td><span class="badge badge-${statusClass}">${this.bulkStatusLabel(r.status)}</span>${unassignedBadge}</td>
                     <td class="text-sm text-text-secondary">${this.esc(storeLabel)}</td>
                     <td class="text-right font-mono tabular-nums">${r.total_transactions ?? '—'}</td>
@@ -4520,8 +4525,14 @@
 
                 if (res.duplicate) {
                     const skipped = res.skipped_transaction_duplicates || 0;
-                    const msg = res.message || 'Duplicate report skipped';
-                    App.toast(skipped ? `${msg}. ${skipped} duplicate transaction(s) ignored.` : msg, 'warning');
+                    const imported = res.imported_transaction_count || 0;
+                    if (imported > 0) {
+                        App.toast(`Imported ${imported} new transaction(s), skipped ${skipped} duplicate(s).`, 'success');
+                    } else {
+                        App.toast(skipped
+                            ? `All ${skipped} transaction(s) in this file were already imported.`
+                            : (res.message || 'No new transactions to import'), 'warning');
+                    }
                     if (res.report_id) {
                         this.currentReportId = res.report_id;
                         this.viewReport(res.report_id);
@@ -4530,8 +4541,10 @@
                 }
 
                 const parts = [];
-                if (res.appended_to_existing) parts.push('Added new transactions to existing report');
-                if (res.skipped_transaction_duplicates) parts.push(`${res.skipped_transaction_duplicates} duplicate txns skipped`);
+                const imported = res.imported_transaction_count ?? res.total_transactions ?? 0;
+                if (imported) parts.push(`${imported} new transaction(s) imported`);
+                if (res.appended_to_existing) parts.push('Added to existing report');
+                if (res.skipped_transaction_duplicates) parts.push(`${res.skipped_transaction_duplicates} duplicate(s) skipped`);
                 if (res.skipped_missing_customer) parts.push(`${res.skipped_missing_customer} rows skipped (no client name — use Side Finances parser)`);
                 if (res.matched_count) parts.push(`${res.matched_count} clients matched`);
                 if (res.clients_created) parts.push(`${res.clients_created} new clients created`);

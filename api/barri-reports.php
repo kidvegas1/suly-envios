@@ -150,6 +150,74 @@ function barri_find_duplicate_transactions_detail(PDO $pdo, int $storeId, array 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function barri_transaction_ref_exists(PDO $pdo, int $storeId, string $ref): bool {
+    $ref = trim($ref);
+    if ($ref === '') {
+        return false;
+    }
+    $stmt = $pdo->prepare(
+        'SELECT 1 FROM barri_transactions WHERE store_id = ? AND reference_number = ? LIMIT 1'
+    );
+    $stmt->execute([$storeId, $ref]);
+    return (bool)$stmt->fetchColumn();
+}
+
+/**
+ * Remove transactions already in DB (by reference) and duplicate refs within the same upload.
+ *
+ * @return array{transactions: array<int, array>, skipped_duplicates: int, skipped_in_file_duplicates: int}
+ */
+function barri_filter_import_transactions(PDO $pdo, int $storeId, array $transactions, bool $skipTxnDuplicates): array {
+    if (!$skipTxnDuplicates || $transactions === []) {
+        return [
+            'transactions'              => $transactions,
+            'skipped_duplicates'        => 0,
+            'skipped_in_file_duplicates'=> 0,
+        ];
+    }
+
+    $refs = [];
+    foreach ($transactions as $txn) {
+        $r = trim((string)($txn['reference_number'] ?? $txn['reference'] ?? ''));
+        if ($r !== '') {
+            $refs[] = $r;
+        }
+    }
+
+    $existingSet = [];
+    if ($refs !== []) {
+        $existingSet = array_flip(barri_find_existing_transaction_refs($pdo, $storeId, $refs));
+    }
+
+    $seenInFile = [];
+    $filtered = [];
+    $skipped = 0;
+    $skippedInFile = 0;
+
+    foreach ($transactions as $txn) {
+        $r = trim((string)($txn['reference_number'] ?? $txn['reference'] ?? ''));
+        if ($r !== '') {
+            if (isset($existingSet[$r])) {
+                $skipped++;
+                continue;
+            }
+            if (isset($seenInFile[$r])) {
+                $skipped++;
+                $skippedInFile++;
+                continue;
+            }
+            $seenInFile[$r] = true;
+        }
+        $filtered[] = $txn;
+    }
+
+    return [
+        'transactions'               => $filtered,
+        'skipped_duplicates'         => $skipped,
+        'skipped_in_file_duplicates' => $skippedInFile,
+    ];
+}
+
 function barri_resolve_import_store_id(PDO $pdo, array $user, array $data, ?int $explicitStore): array {
     $autoStoreId = barri_auto_match_store($pdo, $data);
     $unassigned = $autoStoreId === null;
@@ -336,29 +404,14 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         }
 
         $skippedTxnDuplicates = 0;
-        if ($skipTxnDuplicates && !empty($data['transactions'])) {
-            $refs = [];
-            foreach ($data['transactions'] as $txn) {
-                $r = trim($txn['reference_number'] ?? $txn['reference'] ?? '');
-                if ($r !== '') {
-                    $refs[] = $r;
-                }
-            }
-            $existingRefs = barri_find_existing_transaction_refs($pdo, $storeId, $refs);
-            if ($existingRefs !== []) {
-                $existingSet = array_flip($existingRefs);
-                $filtered = [];
-                foreach ($data['transactions'] as $txn) {
-                    $r = trim($txn['reference_number'] ?? $txn['reference'] ?? '');
-                    if ($r !== '' && isset($existingSet[$r])) {
-                        $skippedTxnDuplicates++;
-                        continue;
-                    }
-                    $filtered[] = $txn;
-                }
-                $data['transactions'] = $filtered;
-            }
-        }
+        $filterResult = barri_filter_import_transactions(
+            $pdo,
+            $storeId,
+            $data['transactions'] ?? [],
+            $skipTxnDuplicates
+        );
+        $data['transactions'] = $filterResult['transactions'];
+        $skippedTxnDuplicates = $filterResult['skipped_duplicates'];
 
         if (empty($data['transactions'])) {
             return [
@@ -368,7 +421,9 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
                 'store_id' => $storeId,
                 'unassigned' => $unassigned,
                 'auto_matched' => !$unassigned,
+                'imported_transaction_count' => 0,
                 'skipped_transaction_duplicates' => $skippedTxnDuplicates,
+                'skipped_in_file_duplicates' => $filterResult['skipped_in_file_duplicates'],
                 'error' => $skippedTxnDuplicates > 0 || $existingReportId
                     ? 'All transactions in this file are already imported'
                     : 'No transactions to import',
@@ -438,6 +493,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         $sideFinanceCount = 0;
         $skippedMissingCustomer = 0;
         $namelessMoneyOrders = [];
+        $importedRefsThisBatch = [];
         foreach ($data['transactions'] as $txnIndex => $txn) {
             $custName = trim($txn['customer_name'] ?? '');
             $isNamelessMo = barri_is_nameless_money_order($txn);
@@ -513,6 +569,17 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             $txnTotal = (float)($txn['total'] ?? 0);
             $refNum = barri_truncate(sanitize($txn['reference_number'] ?? $txn['reference'] ?? ''), 30);
 
+            if ($refNum !== '') {
+                if ($skipTxnDuplicates && (
+                    barri_transaction_ref_exists($pdo, $storeId, $refNum)
+                    || isset($importedRefsThisBatch[$refNum])
+                )) {
+                    $skippedTxnDuplicates++;
+                    continue;
+                }
+                $importedRefsThisBatch[$refNum] = true;
+            }
+
             $beneficiaryName = barri_truncate(sanitize($txn['beneficiary_name'] ?? $txn['beneficiary'] ?? ''), 200);
             $txnDescription = barri_truncate(sanitize($txn['description'] ?? ''), 300);
 
@@ -586,6 +653,8 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             error_log('[barri_import_report] reconciliation: ' . $reconErr->getMessage());
         }
 
+        $importedCount = $matchedCount + $unmatchedCount + $sideFinanceCount;
+
         return [
             'status' => 'success',
             'label' => $sourceLabel,
@@ -594,7 +663,8 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             'unassigned' => $unassigned,
             'auto_matched' => !$unassigned,
             'appended_to_existing' => $appendToExisting,
-            'total_transactions' => $matchedCount + $unmatchedCount + $sideFinanceCount,
+            'total_transactions' => $importedCount,
+            'imported_transaction_count' => $importedCount,
             'matched_count' => $matchedCount,
             'unmatched_count' => $unmatchedCount,
             'side_finance_count' => $sideFinanceCount,
@@ -604,6 +674,7 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
             'clients_created' => $createdCount,
             'pushed_to_transfers' => $pushedCount,
             'skipped_transaction_duplicates' => $skippedTxnDuplicates,
+            'skipped_in_file_duplicates' => $filterResult['skipped_in_file_duplicates'],
             'skipped_missing_customer' => $skippedMissingCustomer,
         ];
     } catch (\Throwable $e) {
@@ -663,6 +734,7 @@ function barri_bulk_import_reports(PDO $pdo, array $user, array $reports, array 
             'explicit_store' => $explicitStore,
             'pdf_file' => $pdfFile,
             'skip_duplicates' => $skipDuplicates,
+            'skip_duplicate_transactions' => true,
             'source_label' => $sourceLabel,
         ]);
         $result['index'] = $index;
@@ -673,7 +745,12 @@ function barri_bulk_import_reports(PDO $pdo, array $user, array $reports, array 
                 $summary['unassigned']++;
             }
         } elseif ($result['status'] === 'duplicate') {
-            $summary['skipped']++;
+            $imported = (int)($result['imported_transaction_count'] ?? 0);
+            if ($imported > 0) {
+                $summary['success']++;
+            } else {
+                $summary['skipped']++;
+            }
         } else {
             $summary['failed']++;
         }
@@ -821,7 +898,9 @@ if ($method === 'POST') {
                 'report_id' => $result['report_id'],
                 'store_id' => $result['store_id'],
                 'unassigned' => $result['unassigned'] ?? false,
+                'imported_transaction_count' => $result['imported_transaction_count'] ?? 0,
                 'skipped_transaction_duplicates' => $result['skipped_transaction_duplicates'] ?? 0,
+                'skipped_in_file_duplicates' => $result['skipped_in_file_duplicates'] ?? 0,
                 'message' => $result['error'] ?? 'Duplicate report skipped',
             ]);
         }
@@ -833,12 +912,14 @@ if ($method === 'POST') {
             'success' => true,
             'report_id' => $result['report_id'],
             'total_transactions' => $result['total_transactions'],
+            'imported_transaction_count' => $result['imported_transaction_count'] ?? $result['total_transactions'],
             'matched_count' => $result['matched_count'],
             'unmatched_count' => $result['unmatched_count'],
             'clients_created' => $result['clients_created'],
             'pushed_to_transfers' => $result['pushed_to_transfers'],
             'unassigned' => $result['unassigned'],
             'skipped_transaction_duplicates' => $result['skipped_transaction_duplicates'] ?? 0,
+            'skipped_in_file_duplicates' => $result['skipped_in_file_duplicates'] ?? 0,
             'appended_to_existing' => $result['appended_to_existing'] ?? false,
         ], 201);
     }
