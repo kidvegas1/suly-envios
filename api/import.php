@@ -5,6 +5,7 @@ if (!auth_can_import_excel()) {
 }
 $method = get_method();
 $pdo = db();
+require_once __DIR__ . '/../includes/reconciliation.php';
 
 function import_store_id(?array $data = null): int {
     $requested = null;
@@ -71,6 +72,7 @@ if ($method === 'POST') {
 
         $rowsImported = 0;
         $errors = [];
+        $importedCaja = false;
 
         // Support both formats: { rows: { module: [...] } } and { sheets: { sheetName: { module, rows } } }
         $moduleRows = [];
@@ -113,6 +115,7 @@ if ($method === 'POST') {
                         $pdo->prepare('INSERT INTO caja_entries (session_id, company, cash_in, checks_debits, notes) VALUES (?,?,?,?,?)')
                             ->execute([$sessionId, $company, $income, $checksDebits, 'Imported from Excel']);
                         $rowsImported++;
+                        $importedCaja = true;
                     }
                     if ($module === 'clients') {
                         $name = sanitize($row['CLIENTE'] ?? $row['name'] ?? '');
@@ -184,17 +187,18 @@ if ($method === 'POST') {
                     if ($module === 'suly_ledger') {
                         $vals = array_values($row);
                         $descLeft = trim((string)($vals[0] ?? ''));
+                        $amtLeft = (float)($vals[1] ?? 0);
                         $descRight = trim((string)($vals[3] ?? ''));
                         $amtRight = (float)($vals[4] ?? 0);
 
-                        if ($descLeft && !in_array(strtolower($descLeft), ['total','-','le debo a suly','le debo a suly '])) {
-                            $pdo->prepare('INSERT INTO suly_ledger (store_id, employee_name, description, owed_to_suly, suly_owes, entry_date) VALUES (?,?,?,0,0,' . sql_curdate() . ')')
-                                ->execute([$storeId, '', sanitize($descLeft)]);
+                        if ($descLeft && $amtLeft > 0 && !in_array(strtolower($descLeft), ['total','-','le debo a suly','le debo a suly '])) {
+                            $pdo->prepare('INSERT INTO suly_ledger (store_id, employee_name, description, owed_to_suly, suly_owes, entry_date, entry_source) VALUES (?,?,?,?,0,' . sql_curdate() . ',?)')
+                                ->execute([$storeId, '', sanitize($descLeft), $amtLeft, 'manual']);
                             $rowsImported++;
                         }
                         if ($descRight && $amtRight > 0 && !in_array(strtolower($descRight), ['total','suly me debe','suly me debe '])) {
-                            $pdo->prepare('INSERT INTO suly_ledger (store_id, employee_name, description, owed_to_suly, suly_owes, entry_date) VALUES (?,?,?,0,?,' . sql_curdate() . ')')
-                                ->execute([$storeId, '', sanitize($descRight), $amtRight]);
+                            $pdo->prepare('INSERT INTO suly_ledger (store_id, employee_name, description, owed_to_suly, suly_owes, entry_date, entry_source) VALUES (?,?,?,0,?,' . sql_curdate() . ',?)')
+                                ->execute([$storeId, '', sanitize($descRight), $amtRight, 'manual']);
                             $rowsImported++;
                         }
                     }
@@ -286,7 +290,22 @@ if ($method === 'POST') {
 
         $pdo->prepare('UPDATE excel_imports SET status = ?, rows_imported = ?, sheet_mapping = ?, errors = ? WHERE id = ? AND store_id = ?')->execute(['completed', $rowsImported, json_encode($data['sheet_mapping']), implode("\n", $errors), $importId, $storeId]);
 
-        json_response(['success' => true, 'rows_imported' => $rowsImported, 'errors' => $errors]);
+        $reconVariances = [];
+        if ($importedCaja) {
+            try {
+                $reconVariances = recon_after_caja_import($pdo, $storeId, $importId);
+            } catch (Throwable $e) {
+                error_log('[import] reconciliation after caja: ' . $e->getMessage());
+            }
+        }
+
+        json_response([
+            'success'        => true,
+            'rows_imported'  => $rowsImported,
+            'errors'         => $errors,
+            'variances'      => $reconVariances,
+            'variance_count' => count($reconVariances),
+        ]);
     }
 
     json_error('Unknown action');

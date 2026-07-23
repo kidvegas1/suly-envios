@@ -579,6 +579,13 @@ function barri_import_report(PDO $pdo, array $user, array $data, array $options 
         }
         $pdo->commit();
 
+        try {
+            require_once __DIR__ . '/../includes/reconciliation.php';
+            recon_refresh_report_period($pdo, $storeId, $dateFrom, $dateTo);
+        } catch (Throwable $reconErr) {
+            error_log('[barri_import_report] reconciliation: ' . $reconErr->getMessage());
+        }
+
         return [
             'status' => 'success',
             'label' => $sourceLabel,
