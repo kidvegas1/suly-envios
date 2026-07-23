@@ -132,8 +132,8 @@
                 <div class="card p-5">
                     <div class="flex flex-wrap items-end justify-between gap-4 mb-4">
                         <div>
-                            <h3 class="text-lg font-bold" data-i18n="recon.title">Unreported Cents</h3>
-                            <p class="text-sm text-text-muted" data-i18n="recon.subtitle">Cambio de cheques truncated to whole dollars — admin review</p>
+                            <h3 class="text-lg font-bold" data-i18n="recon.title">Missing Cents — All Stores</h3>
+                            <p class="text-sm text-text-muted" data-i18n="recon.subtitle">Money lost when employees round check payouts down to whole dollars. Data comes from imported company reports.</p>
                         </div>
                         <div class="flex flex-wrap items-end gap-3">
                             <div>
@@ -144,51 +144,76 @@
                                 <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1" data-i18n="recon.to">To</label>
                                 <input type="date" id="recon-date-to" class="input py-2 px-3 text-sm">
                             </div>
-                            <button type="button" id="recon-load-btn" class="btn-secondary" data-i18n="recon.load">Load</button>
+                            <button type="button" id="recon-load-btn" class="btn-primary" data-i18n="recon.load">Search</button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                         <div class="rounded-xl bg-bg-elevated p-4">
-                            <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="recon.total_cents">Total cents owed</p>
+                            <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="recon.total_cents">Total missing cents</p>
                             <p class="text-2xl font-bold font-mono tabular-nums text-warning" id="recon-total-cents">$0.00</p>
                         </div>
                         <div class="rounded-xl bg-bg-elevated p-4">
-                            <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="recon.open_variances">Open Excel vs report variances</p>
+                            <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="recon.reports_count">Imported reports</p>
+                            <p class="text-2xl font-bold font-mono tabular-nums" id="recon-reports-count">0</p>
+                        </div>
+                        <div class="rounded-xl bg-bg-elevated p-4">
+                            <p class="text-xs text-text-muted uppercase tracking-wider" data-i18n="recon.open_variances">Excel mismatches</p>
                             <p class="text-2xl font-bold font-mono tabular-nums text-danger" id="recon-variance-count">0</p>
                         </div>
                     </div>
+                    <h4 class="text-sm font-bold mb-2" data-i18n="recon.by_store">By store</h4>
+                    <div id="recon-store-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6"></div>
                     <div class="table-container mb-6">
                         <table>
                             <thead>
                                 <tr>
+                                    <th data-i18n="recon.store">Store</th>
                                     <th data-i18n="recon.company">Company</th>
-                                    <th class="text-right" data-i18n="recon.cambio_count">Cambio cheques</th>
-                                    <th class="text-right" data-i18n="recon.giros_count">Giros</th>
-                                    <th class="text-right" data-i18n="recon.cents_lost">Cents lost</th>
+                                    <th class="text-right" data-i18n="recon.cambio_count">Checks cashed</th>
+                                    <th class="text-right" data-i18n="recon.giros_count">Transfers</th>
+                                    <th class="text-right" data-i18n="recon.cents_lost">Missing cents</th>
                                     <th data-i18n="col.status">Status</th>
                                     <th data-i18n="col.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="recon-summary-tbody">
-                                <tr><td colspan="6" class="text-center text-text-muted py-6" data-i18n="recon.no_data">Select dates and load</td></tr>
+                                <tr><td colspan="7" class="text-center text-text-muted py-6" data-i18n="recon.no_data">Pick dates and click Search</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <h4 class="text-sm font-bold mb-2" data-i18n="recon.variances_heading">Excel vs Report Variances</h4>
+                    <h4 class="text-sm font-bold mb-2" data-i18n="recon.reports_heading">Reports used in this search</h4>
+                    <div class="table-container mb-6">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="recon.store">Store</th>
+                                    <th data-i18n="recon.company">Company</th>
+                                    <th data-i18n="col.date">Period</th>
+                                    <th class="text-right" data-i18n="recon.transactions">Transactions</th>
+                                    <th data-i18n="recon.file">File</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recon-reports-tbody">
+                                <tr><td colspan="5" class="text-center text-text-muted py-6" data-i18n="recon.no_reports">No reports in this date range</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h4 class="text-sm font-bold mb-2" data-i18n="recon.variances_heading">Excel vs report differences</h4>
                     <div class="table-container">
                         <table>
                             <thead>
                                 <tr>
                                     <th data-i18n="col.date">Date</th>
+                                    <th data-i18n="recon.store">Store</th>
                                     <th data-i18n="recon.company">Company</th>
-                                    <th class="text-right" data-i18n="recon.excel_amount">Excel (caja)</th>
-                                    <th class="text-right" data-i18n="recon.report_amount">Report</th>
+                                    <th class="text-right" data-i18n="recon.excel_amount">Excel total</th>
+                                    <th class="text-right" data-i18n="recon.report_amount">Report total</th>
                                     <th class="text-right" data-i18n="recon.diff">Difference</th>
                                     <th data-i18n="col.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="recon-variances-tbody">
-                                <tr><td colspan="6" class="text-center text-text-muted py-6" data-i18n="recon.no_variances">No variances</td></tr>
+                                <tr><td colspan="7" class="text-center text-text-muted py-6" data-i18n="recon.no_variances">No differences found</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -248,8 +273,8 @@
         </form>
     </div>
 
-    <script src="assets/js/i18n.js"></script>
-    <script src="assets/js/app.js"></script>
+    <script src="assets/js/i18n.js?v=20260723-recon"></script>
+    <script src="assets/js/app.js?v=20260723-recon"></script>
     <script>
         let canSettleLedger = false;
 
@@ -286,6 +311,7 @@
                 document.getElementById('recon-date-from').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
                 document.getElementById('recon-date-to').value = now.toISOString().split('T')[0];
                 document.getElementById('recon-load-btn').addEventListener('click', loadReconciliation);
+                App.applyI18n();
             }
 
             const lockedEmployee = App.user?.employee;
@@ -475,25 +501,39 @@
 
         async function loadReconciliation() {
             if (App.user?.role !== 'admin') return;
-            const storeId = App.currentStore?.id;
-            if (!storeId) return;
 
             reconDateFrom = document.getElementById('recon-date-from').value;
             reconDateTo = document.getElementById('recon-date-to').value;
-            const q = `store_id=${storeId}&date_from=${encodeURIComponent(reconDateFrom)}&date_to=${encodeURIComponent(reconDateTo)}`;
+            const q = `scope=all&date_from=${encodeURIComponent(reconDateFrom)}&date_to=${encodeURIComponent(reconDateTo)}`;
 
             try {
                 const [summaryRes, varRes] = await Promise.all([
                     App.api('GET', `/api/reconciliation?action=summary&${q}`),
-                    App.api('GET', `/api/reconciliation?action=variances&store_id=${storeId}&status=open`),
+                    App.api('GET', `/api/reconciliation?action=variances&${q}&status=open`),
                 ]);
 
                 document.getElementById('recon-total-cents').textContent = App.money(summaryRes.total_cents || 0);
+                document.getElementById('recon-reports-count').textContent = String(summaryRes.reports?.length || 0);
                 document.getElementById('recon-variance-count').textContent = String(varRes.variances?.length || 0);
+
+                const storeCards = document.getElementById('recon-store-cards');
+                const totals = summaryRes.store_totals || [];
+                if (!totals.length) {
+                    storeCards.innerHTML = `<p class="text-sm text-text-muted col-span-full">${App.t('recon.no_data')}</p>`;
+                } else {
+                    storeCards.innerHTML = totals.map(st => `
+                        <div class="rounded-xl border border-border p-4 bg-bg-surface">
+                            <p class="font-semibold text-sm">${st.store_name}</p>
+                            <p class="text-xs text-text-muted mt-1">${st.cambio_count} ${App.t('recon.checks_short')} · ${st.giros_count} ${App.t('recon.transfers_short')}</p>
+                            <p class="text-lg font-bold font-mono tabular-nums text-warning mt-2">${App.money(st.cents_lost || 0)}</p>
+                            <p class="text-xs text-text-muted">${st.report_count || 0} ${App.t('recon.reports_short')}</p>
+                        </div>
+                    `).join('');
+                }
 
                 const summaryBody = document.getElementById('recon-summary-tbody');
                 if (!summaryRes.summary?.length) {
-                    summaryBody.innerHTML = `<tr><td colspan="6" class="text-center text-text-muted py-6">${App.t('recon.no_data')}</td></tr>`;
+                    summaryBody.innerHTML = `<tr><td colspan="7" class="text-center text-text-muted py-6">${App.t('recon.no_data')}</td></tr>`;
                 } else {
                     summaryBody.innerHTML = summaryRes.summary.map(row => {
                         const posted = row.posted_to_ledger;
@@ -501,11 +541,13 @@
                         const statusBadge = posted
                             ? `<span class="badge badge-success">${App.t('recon.posted')}</span>`
                             : `<span class="badge badge-warning">${App.t('recon.pending')}</span>`;
+                        const companyEsc = String(row.company).replace(/'/g, "\\'");
                         const postBtn = canPost
-                            ? `<button type="button" class="btn-primary text-xs py-1 px-2" onclick="postCents('${row.company.replace(/'/g, "\\'")}')">${App.t('recon.post_to_ledger')}</button>`
+                            ? `<button type="button" class="btn-primary text-xs py-1 px-3" onclick="postCents(${row.store_id}, '${companyEsc}')">${App.t('recon.post_to_ledger')}</button>`
                             : '';
                         return `<tr>
-                            <td class="font-medium">${row.company}</td>
+                            <td class="font-medium text-sm">${row.store_name || '—'}</td>
+                            <td class="text-sm">${row.company}</td>
                             <td class="text-right font-mono tabular-nums">${row.cambio_count || 0}</td>
                             <td class="text-right font-mono tabular-nums">${row.giros_count || 0}</td>
                             <td class="text-right font-mono tabular-nums text-warning font-semibold">${App.money(row.cents_lost || 0)}</td>
@@ -515,19 +557,35 @@
                     }).join('');
                 }
 
+                const reportsBody = document.getElementById('recon-reports-tbody');
+                if (!summaryRes.reports?.length) {
+                    reportsBody.innerHTML = `<tr><td colspan="5" class="text-center text-text-muted py-6">${App.t('recon.no_reports')}</td></tr>`;
+                } else {
+                    reportsBody.innerHTML = summaryRes.reports.map(r => `
+                        <tr>
+                            <td class="font-medium text-sm">${r.store_name}</td>
+                            <td class="text-sm">${r.company || 'Barri'}</td>
+                            <td class="text-sm">${App.formatDate(r.report_date_from)} – ${App.formatDate(r.report_date_to)}</td>
+                            <td class="text-right font-mono tabular-nums">${r.total_transactions || 0}</td>
+                            <td class="text-xs text-text-muted max-w-[220px] truncate" title="${r.original_name || ''}">${r.original_name || '—'}</td>
+                        </tr>
+                    `).join('');
+                }
+
                 const varBody = document.getElementById('recon-variances-tbody');
                 if (!varRes.variances?.length) {
-                    varBody.innerHTML = `<tr><td colspan="6" class="text-center text-text-muted py-6">${App.t('recon.no_variances')}</td></tr>`;
+                    varBody.innerHTML = `<tr><td colspan="7" class="text-center text-text-muted py-6">${App.t('recon.no_variances')}</td></tr>`;
                 } else {
                     varBody.innerHTML = varRes.variances.map(v => {
                         const diff = parseFloat(v.diff_amount);
                         return `<tr>
                             <td class="text-sm">${App.formatDate(v.variance_date)}</td>
-                            <td class="font-medium">${v.company}</td>
+                            <td class="text-sm font-medium">${v.store_name || '—'}</td>
+                            <td class="text-sm">${v.company}</td>
                             <td class="text-right font-mono tabular-nums">${App.money(v.excel_amount)}</td>
                             <td class="text-right font-mono tabular-nums">${App.money(v.report_amount)}</td>
                             <td class="text-right font-mono tabular-nums ${diff !== 0 ? 'text-danger font-semibold' : ''}">${App.money(diff)}</td>
-                            <td><button type="button" class="btn-secondary text-xs py-1 px-2" onclick="dismissVariance(${v.id})">${App.t('recon.dismiss')}</button></td>
+                            <td><button type="button" class="btn-secondary text-xs py-1 px-3" onclick="dismissVariance(${v.id})">${App.t('recon.dismiss')}</button></td>
                         </tr>`;
                     }).join('');
                 }
@@ -536,13 +594,13 @@
             }
         }
 
-        async function postCents(company) {
+        async function postCents(storeId, company) {
             if (!confirm(App.t('recon.confirm_post'))) return;
             const periodMonth = reconDateFrom.slice(0, 7);
             try {
                 await App.api('POST', '/api/reconciliation', {
                     action: 'post_cents',
-                    store_id: App.currentStore?.id,
+                    store_id: storeId,
                     company,
                     period_month: periodMonth,
                     date_from: reconDateFrom,
@@ -558,7 +616,6 @@
             try {
                 await App.api('POST', '/api/reconciliation', {
                     action: 'dismiss_variance',
-                    store_id: App.currentStore?.id,
                     id,
                 });
                 App.toast(App.t('recon.dismissed'), 'success');
